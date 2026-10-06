@@ -12,7 +12,7 @@ class QueryFaqArgs(BaseModel):
 
 @tool("query_faq", args_schema=QueryFaqArgs)
 async def query_faq(keyword: str) -> dict:
-    """按关键词查询常见问题，例如退货政策、运费、发票。"""
+    """按关键词查询常见问题，例如退货政策、运费、发票、账户、支付。"""
     async with get_sessionmaker()() as s:
         rows = await faq.search(s, keyword, FAQ_MAX_RESULTS)
         return {
