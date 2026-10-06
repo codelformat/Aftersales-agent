@@ -1,4 +1,5 @@
 from datetime import date
+import logging
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -118,3 +119,48 @@ def db(_test_schema, test_db_url):
     yield sm
     set_sessionmaker(None)
     asyncio.run(engine.dispose())
+
+
+from pymilvus import AsyncMilvusClient
+
+from app.config import KNOWLEDGE_TEST_COLLECTION
+from app.knowledge import milvus as milvus_mod
+from app.knowledge.embeddings import set_embeddings
+from tests.fakes import FakeEmbeddings
+
+logger = logging.getLogger(__name__)
+
+
+class BlockedMilvus:
+    """没有使用 fixture milvus 的测试，访问 Milvus 时立即失败。"""
+
+    def __getattr__(self, name):
+        raise RuntimeError("测试未启用 fixture milvus")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_knowledge():
+    set_embeddings(FakeEmbeddings())
+    milvus_mod.set_milvus(BlockedMilvus(), KNOWLEDGE_TEST_COLLECTION)
+    yield
+    set_embeddings(None)
+    milvus_mod.set_milvus(None)
+
+
+@pytest.fixture
+async def milvus():
+    """每个测试重建 Milvus 测试集合。连不上时直接失败，不跳过。"""
+    client = AsyncMilvusClient(uri=get_settings().milvus_uri, timeout=5)
+    try:
+        try:
+            if await client.has_collection(KNOWLEDGE_TEST_COLLECTION, timeout=5):
+                await client.drop_collection(KNOWLEDGE_TEST_COLLECTION, timeout=5)
+        except Exception:
+            logger.exception("无法连接 Milvus")
+            pytest.fail("无法连接 Milvus，请确认服务已启动", pytrace=False)
+        milvus_mod.set_milvus(client, KNOWLEDGE_TEST_COLLECTION)
+        await milvus_mod.ensure_collection()
+        yield client
+    finally:
+        milvus_mod.set_milvus(BlockedMilvus(), KNOWLEDGE_TEST_COLLECTION)
+        await client.close()
