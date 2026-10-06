@@ -24,7 +24,7 @@
 | Web 框架 | FastAPI（实测版本 0.142.2，使用 `fastapi.sse`） |
 | LLM 框架 | LangChain：`langchain-core`、`langchain-openai`（实测版本 1.6.x） |
 | 配置 | `pydantic-settings` |
-| 测试 | `pytest`、`pytest-asyncio` |
+| 测试 | `pytest`、`httpx`、anyio pytest 插件（FastAPI 官方文档的异步测试写法） |
 
 **模型接入：** 应用侧只使用 OpenAI 协议（`ChatOpenAI`），直连上游，不经过网关。更换上游（GPT、Claude 兼容层、DeepSeek、Ollama）时，只改 `.env`。
 
@@ -46,6 +46,7 @@
 | 常量 | 值 |
 |---|---|
 | `TOKEN_BUDGET` | `2000` |
+| `CHARS_PER_TOKEN` | `2.0`（实测 DeepSeek：55 个中文字符约 30 token；默认值 4.0 会把中文少算约一半） |
 | `SHOP_NAME` | `"示例商城"` |
 | `UPSTREAM_TIMEOUT_SECONDS` | `60` |
 | `UPSTREAM_MAX_RETRIES` | `1` |
@@ -251,21 +252,21 @@ class AfterSalesRequest(BaseModel):
 
 1. 取得或新建会话。如果没有 `session_id`，生成 UUID4。
 2. 如果 `session.lock.locked()` 为真，返回 409 `session_busy`。
-3. 获取 `session.lock`。
-4. 渲染 System Prompt，用 `count_tokens_approximately` 计算"System Prompt + 当前 human 消息"的 token 数 `fixed`。
-5. 如果 `fixed > TOKEN_BUDGET`，释放锁，返回 422 `budget_exceeded`。
-6. 裁剪历史：
+3. 渲染 System Prompt，用 `count_tokens_approximately(..., chars_per_token=CHARS_PER_TOKEN)` 计算"System Prompt + 当前 human 消息"的 token 数 `fixed`。
+4. 如果 `fixed > TOKEN_BUDGET`，返回 422 `budget_exceeded`。
+5. 裁剪历史：
 
    ```python
    trim_messages(
        session.messages,
        max_tokens=TOKEN_BUDGET - fixed,
        strategy="last",
-       token_counter=count_tokens_approximately,
+       token_counter=count_tokens,  # chars_per_token=CHARS_PER_TOKEN
        start_on="human",
    )
    ```
 
+6. 获取 `session.lock`。第 2 步到本步之间没有 `await`，所以检查和获取之间不会切换协程；预算超限时也无需释放锁。
 7. 返回 `ChatTurn`，包含会话、裁剪后的历史、当前消息。
 
 **阶段 B：流式输出。** 端点函数是异步生成器：
