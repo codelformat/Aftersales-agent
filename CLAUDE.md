@@ -101,6 +101,7 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
   ```bash
   codex exec -C /Users/harry/Aftersales-agent \
     -m gpt-6.1-sol -c model_reasoning_effort="high" \
+    -c service_tier="priority" \
     -s workspace-write \
     -c sandbox_workspace_write.network_access=true \
     -c 'sandbox_workspace_write.writable_roots=["/Users/harry/.cache/uv","/Users/harry/.local/share/uv"]' \
@@ -108,6 +109,10 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
   ```
 
   后两个 `-c` 是必需的。原因：默认沙箱禁止网络，也不能写 uv 的缓存目录，`uv add` / `uv sync` 会失败。
+
+  `service_tier="priority"` 开启 Codex 的 fast 模式（用户要求，2026-10-06）。`~/.codex/config.toml` 默认为 `default`，所以必须在命令中覆盖。
+
+  Codex 的沙箱不能执行 `docker build`（不能写 `~/.docker/buildx/`）。涉及 docker 的步骤由 Claude 执行。
 
 - **任务描述要自包含**：Codex 看不到对话上下文。写清目标、涉及文件/模块、接口约定、验收标准（要通过的测试或命令）、不许改动的范围，以及相关库的正确 API 用法（来自 Context7 的查询结果）。
 - 大任务按 plan 拆成小步依次交给 Codex。每步完成后由 Claude 检查 diff、跑测试；有问题把具体问题和修改要求反馈给 Codex 重做，不自己改代码。
