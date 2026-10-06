@@ -38,11 +38,12 @@ bash scripts/demo.sh                                 # 3 项验收演示（需�
 必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/ch01.md`）：
 
 - **提取模型必须关闭思考。** `with_structured_output(method="function_calling")` 强制 tool_choice，DeepSeek 思考模式下返回 400。`json_schema` 方式 DeepSeek 不支持。
-- **`CHAT_THINKING` 未设置时，不发送 `thinking` 字段**，以便切换到 GPT、Ollama 等上游。
+- **`CHAT_THINKING` 未设置（或为空字符串）时，不发送 `thinking` 字段**，以便切换到 GPT、Ollama 等上游。**使用 DeepSeek 时必须设置 `CHAT_THINKING`**：DeepSeek 默认开启思考，未设置时提取模型不发送 `disabled`，`/extract` 一直返回 502。
 - **SSE 预检放在 `Depends` 中。** 在 yield 型 SSE 端点函数体内抛 `HTTPException`，客户端收到 200 和空流。
 - **会话锁在 yield 依赖 `prepare_chat_turn` 的 `finally` 中释放**（默认 `scope="request"`，响应发送完后执行）。不要改到端点生成器中释放，否则后续依赖出错时锁泄漏。
 - **SSE 事件用 `ServerSentEvent(raw_data=json.dumps(..., ensure_ascii=False))`。** 用 `data=` 会把中文转义为 `\uXXXX`。
-- **只有流正常结束才写入历史。** 上游出错或客户端断开时，这一轮不写入。
+- **只有流正常结束且回复非空才写入历史。** 上游出错、返回空回复或客户端断开时，这一轮不写入。
+- **预算计数和实际发送共用 `chat_prompt_vars()`。** 给客服模板加变量时只改这个函数。
 - **测试中的模型一律用 `app.dependency_overrides` 替换**（`FakeListChatModel`、`RunnableGenerator`、`RunnableLambda`）；异步测试用 `@pytest.mark.anyio` + `httpx.AsyncClient(transport=ASGITransport(app=app))`。
 
 ## 模型与环境变量（`.env`，已 gitignore）

@@ -33,3 +33,9 @@ def test_extract_prompt_puts_text_last():
     msgs = extract_prompt.invoke({"text": "耳机坏了"}).to_messages()
     assert isinstance(msgs[0], SystemMessage)
     assert msgs[-1].content == "耳机坏了"
+
+
+def test_chat_prompt_vars():
+    from app.prompts import chat_prompt_vars
+
+    assert chat_prompt_vars(date(2026, 10, 6)) == {"shop_name": "示例商城", "today": "2026-10-06"}

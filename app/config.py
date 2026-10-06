@@ -14,7 +14,7 @@ MAX_INPUT_CHARS = 2000
 
 class Settings(BaseSettings):
     # 忽略 .env 中未定义的变量。
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
     chat_base_url: str
     chat_model: str

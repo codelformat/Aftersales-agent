@@ -34,7 +34,9 @@ def build_chat_model(settings: Settings) -> ChatOpenAI:
 
 
 def build_extract_model(settings: Settings) -> ChatOpenAI:
-    # 强制 tool_choice 与 DeepSeek 思考模式冲突，返回 400。提取时关闭思考。
+    # 强制 tool_choice 与 DeepSeek 思考模式冲突。DeepSeek 返回 400。
+    # DeepSeek 默认开启思考。使用 DeepSeek 时必须设置 CHAT_THINKING。
+    # 否则提取模型不发送 disabled，/extract 会失败。
     return _build(settings, "disabled")
 
 

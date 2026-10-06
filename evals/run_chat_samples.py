@@ -11,9 +11,8 @@ import sys
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from app.config import SHOP_NAME
 from app.llm import get_chat_model
-from app.prompts import chat_prompt
+from app.prompts import chat_prompt, chat_prompt_vars
 
 logger = logging.getLogger(__name__)
 SAMPLES_PATH = SCRIPT_DIR / "chat_samples.md"
@@ -40,8 +39,7 @@ async def run_samples() -> int:
     chain = chat_prompt | get_chat_model()
     for title, message in samples:
         response = await chain.ainvoke({
-            "shop_name": SHOP_NAME,
-            "today": date.today().isoformat(),
+            **chat_prompt_vars(date.today()),
             "history": [],
             "input": message,
         })

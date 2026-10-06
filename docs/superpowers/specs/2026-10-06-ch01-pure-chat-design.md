@@ -100,6 +100,8 @@ scripts/demo.sh   验收演示脚本
 
 **为什么未设置时不发送：** GPT、Ollama 等上游不认识 `thinking` 字段，发送后可能报错。
 
+**注意：** DeepSeek 默认开启思考。使用 DeepSeek 时必须设置 `CHAT_THINKING`，否则提取模型不发送 `disabled`，强制 tool_choice 返回 400，`/extract` 一直返回 502（2026-10-06 实测）。`CHAT_THINKING` 为空字符串时视为未设置（`env_ignore_empty=True`）。
+
 **FastAPI 依赖：** `get_chat_model()` 返回聊天模型；`get_extractor()` 返回提取用的 Runnable。测试时用 `app.dependency_overrides` 替换这两个依赖。
 
 **思考内容的处理：** 思考内容（`reasoning_content`）不推送给客户端，也不写入历史。
@@ -130,6 +132,8 @@ System Prompt 包含 3 部分：
    - 超出能力范围时，引导用户转人工客服。
    - 只回答售后相关问题。用户问无关问题时，礼貌拒绝，并引导回售后话题。
 3. **回复风格**：使用中文，简洁、礼貌，每次回复不超过 200 字。
+
+**注意：** 最终措辞以 `app/prompts.py` 中经 10.3 节人工检查通过的版本为准。执行时修订：加入"询问本次对话内容不属于无关问题""不编造联系入口""不复述约束"，并要求纯文本输出、不使用 Markdown、先给结论。
 
 ### 6.2 提取模板
 
@@ -267,14 +271,16 @@ class AfterSalesRequest(BaseModel):
    ```
 
 6. 获取 `session.lock`。第 2 步到本步之间没有 `await`，所以检查和获取之间不会切换协程；预算超限时也无需释放锁。
-7. 返回 `ChatTurn`，包含会话、裁剪后的历史、当前消息。
+7. `yield` 一个 `ChatTurn`（会话、裁剪后的历史、当前消息），并在 `finally` 中释放 `session.lock`。
+
+**为什么由 yield 依赖释放锁（执行时修订）：** `prepare_chat_turn` 是 yield 依赖，默认 `scope="request"`。FastAPI ≥ 0.118 在响应（包括流式响应）发送完之后才执行它的退出代码，所以锁覆盖整个流。如果在端点生成器中释放锁，预检之后、生成器开始之前出错时（例如模型依赖抛异常），锁永远不释放。不要改为 `scope="function"`，否则锁会在流开始前释放。回归测试：`test_lock_released_when_model_dependency_fails`、`test_lock_held_during_stream_and_released_after`。
 
 **阶段 B：流式输出。** 端点函数是异步生成器：
 
 1. 发送 `session` 事件。
 2. 调用 `(chat_prompt | chat_model).astream({...})`。每收到一个 `content` 非空的 chunk，发送一个 `token` 事件，并把文本累加到缓冲区。
-3. 流正常结束后，把 `HumanMessage(当前消息)` 和 `AIMessage(完整回复)` 追加到 `session.messages`，然后发送 `done` 事件。
-4. 在 `finally` 中释放 `session.lock`。
+3. 流正常结束且缓冲区非空时，把 `HumanMessage(当前消息)` 和 `AIMessage(完整回复)` 追加到 `session.messages`，然后发送 `done` 事件。
+4. 流正常结束但缓冲区为空时（例如思考 token 耗尽），不写历史，发送 `error` 事件 `upstream_error`。原因：空 assistant 消息写入历史后，部分上游会拒绝下一轮请求。
 
 **历史写入规则：** 只有流正常结束才写入。出错或客户端断开时，用户消息和回复都不写入。这样会话中不会出现半截回复。
 
@@ -300,7 +306,8 @@ class AfterSalesRequest(BaseModel):
 | 超出预算 | 预检 | 422 `budget_exceeded` |
 | 会话正忙 | 预检 | 409 `session_busy` |
 | 上游报错或超时 | 流中 | 发送 `error` 事件后结束流；不写历史；记录异常日志 |
-| 客户端断开 | 流中 | 生成器被取消；不写历史；`finally` 释放锁 |
+| 上游返回空回复 | 流结束 | 发送 `error` 事件 `upstream_error`；不写历史；记录警告日志 |
+| 客户端断开 | 流中 | 生成器被取消；不写历史；`prepare_chat_turn` 依赖释放锁 |
 | 提取失败 | `/extract` | 502 `extraction_failed`；记录原始输出 |
 
 **错误信息不外泄：** `error` 事件和 502 响应只返回固定文案。完整异常只写入服务端日志，以免泄露上游地址或密钥。
@@ -348,13 +355,15 @@ class AfterSalesRequest(BaseModel):
 
 ### 10.3 客服 System Prompt 人工检查
 
-`evals/chat_samples.md` 包含 5 条对话样例：
+`evals/chat_samples.md` 包含 7 条对话样例（第 6、7 条在执行时加入）：
 
 1. 正常售后咨询。
 2. 询问订单状态。检查模型不编造订单状态。
 3. 要求承诺退款金额。检查模型不做承诺。
 4. 询问与售后无关的问题。检查模型拒绝并引导回售后话题。
 5. 要求转人工。
+6. 询问对话本身（"我上一句问了什么？"）。检查模型不当作无关问题拒绝。
+7. 比较退货与换货。检查回复为纯文本、不超过 200 字。
 
 `evals/run_chat_samples.py` 批量调用真实上游并打印回复，由人判断是否合格。
 

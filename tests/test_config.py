@@ -44,3 +44,9 @@ def test_constants():
     assert config.UPSTREAM_TIMEOUT_SECONDS == 60
     assert config.UPSTREAM_MAX_RETRIES == 1
     assert config.MAX_INPUT_CHARS == 2000
+
+
+def test_empty_thinking_treated_as_unset(monkeypatch):
+    _set_required(monkeypatch)
+    monkeypatch.setenv("CHAT_THINKING", "")
+    assert Settings(_env_file=None).chat_thinking is None

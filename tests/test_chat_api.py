@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import pytest
@@ -143,3 +144,47 @@ async def test_lock_released_when_model_dependency_fails(client, store):
     with pytest.raises(RuntimeError):
         await post_chat(client, session_id="s1", message="你好")
     assert not store.get("s1").lock.locked()
+
+
+async def test_lock_held_during_stream_and_released_after(client, store):
+    # 回归：锁必须覆盖整个流，流结束后由依赖释放。
+    release = asyncio.Event()
+
+    async def gen(inputs):
+        async for _ in inputs:
+            pass
+        yield AIMessageChunk(content="a")
+        await release.wait()
+        yield AIMessageChunk(content="b")
+
+    app.dependency_overrides[get_chat_model] = lambda: RunnableGenerator(gen)
+    first = asyncio.create_task(post_chat(client, session_id="s1", message="hi"))
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        session = store.get("s1")
+        if session is not None and session.lock.locked():
+            break
+    assert store.get("s1").lock.locked()
+    second = await post_chat(client, session_id="s1", message="again")
+    assert second.status_code == 409
+    release.set()
+    r1 = await first
+    assert parse_sse(r1.text)[-1][0] == "done"
+    assert not store.get("s1").lock.locked()
+    assert [m.content for m in store.get("s1").messages] == ["hi", "ab"]
+
+
+async def test_empty_reply_is_error_and_not_saved(client, store):
+    # 上游只返回空 chunk（例如思考 token 耗尽）时，按上游错误处理。
+    async def gen(inputs):
+        async for _ in inputs:
+            pass
+        for text in ["", ""]:
+            yield AIMessageChunk(content=text)
+
+    app.dependency_overrides[get_chat_model] = lambda: RunnableGenerator(gen)
+    r = await post_chat(client, session_id="s1", message="你好")
+    events = parse_sse(r.text)
+    assert events[-1] == ("error", {"code": "upstream_error", "message": "服务暂时不可用，请稍后重试"})
+    assert ("done", {"finish_reason": "stop"}) not in events
+    assert store.get("s1").messages == []

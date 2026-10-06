@@ -31,8 +31,13 @@ chat_prompt = ChatPromptTemplate.from_messages([
 ])
 
 
+def chat_prompt_vars(today: date) -> dict[str, str]:
+    # 预算计数和实际发送共用这一组变量。模板加变量时只改这里。
+    return {"shop_name": SHOP_NAME, "today": today.isoformat()}
+
+
 def render_chat_system(today: date) -> str:
-    return CHAT_SYSTEM_TEMPLATE.format(shop_name=SHOP_NAME, today=today.isoformat())
+    return CHAT_SYSTEM_TEMPLATE.format(**chat_prompt_vars(today))
 
 
 EXTRACT_SYSTEM_PROMPT = """你是售后信息提取器。从用户的售后描述中提取订单号、诉求类型和期望方案。
