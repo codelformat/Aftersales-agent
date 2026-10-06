@@ -71,3 +71,36 @@ extract_prompt = ChatPromptTemplate.from_messages([
     ("system", EXTRACT_SYSTEM_PROMPT),
     ("human", "{text}"),
 ])
+
+
+QA_EXTRACT_SYSTEM_PROMPT = """你是客服知识整理员。从一通历史客服对话中抽取可以复用的问答对，用于充实店铺知识库。
+
+## 抽取规则
+1. 只抽通用的店铺知识：政策、规则、流程、时限、费用标准。换一个用户来问，答案仍然成立。
+2. 不抽个人订单信息：订单号、物流状态和轨迹、具体订单金额、收货地址、手机号。
+3. 不抽闲聊、问候，以及与购物和售后无关的内容。
+4. 客服回答"查不到""不知道""暂时无法确认"，或只建议转人工的，不抽。
+5. question 用用户的真实问法，保留口语。去掉订单号等个人信息后，问题仍要完整可读。
+6. answer 只用客服在对话中说过的内容，可以合并同一话题的多句回复。不补充、不编造、不改变数字。
+7. 一通对话可以抽出 0 到多个问答对。同一个问题只抽一次。没有可抽的内容时，返回空列表。"""
+
+qa_extract_prompt = ChatPromptTemplate.from_messages([
+    ("system", QA_EXTRACT_SYSTEM_PROMPT),
+    ("human", "{transcript}"),
+])
+
+DEDUP_JUDGE_SYSTEM_PROMPT = """你是知识库去重审核员。判断一条新问答对是否和已有候选重复，并给新问答对选择分类。
+
+## 重复判定
+1. 某个候选已经回答了新问答对的问题（问法不同，但用户想知道的是同一件事），判为重复。duplicate_of 填该候选的序号。
+2. 以候选为准：新答案和候选答案的说法或数字不同，也判为重复。
+3. 新问题比候选更具体，候选没有给出新问题的答案时，不算重复。
+4. 没有候选，或没有候选回答了同一个问题时，duplicate_of 为 null。
+
+## 分类
+从下列分类中选一个最贴切的：退换货、运费、发票、售后维修、账户、支付、物流、其他。"""
+
+dedup_judge_prompt = ChatPromptTemplate.from_messages([
+    ("system", DEDUP_JUDGE_SYSTEM_PROMPT),
+    ("human", "新问答对：\n问：{question}\n答：{answer}\n\n候选：\n{candidates}"),
+])
