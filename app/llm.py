@@ -10,8 +10,8 @@ from app.config import (
     Settings,
     get_settings,
 )
-from app.prompts import extract_prompt
-from app.schemas import AfterSalesRequest
+from app.prompts import dedup_judge_prompt, extract_prompt, qa_extract_prompt
+from app.schemas import AfterSalesRequest, DedupVerdict, QaPairs
 
 
 def _build(settings: Settings, thinking: str | None) -> ChatOpenAI:
@@ -50,4 +50,21 @@ def get_extractor() -> Runnable:
     model = build_extract_model(get_settings())
     return extract_prompt | model.with_structured_output(
         AfterSalesRequest, method="function_calling", include_raw=True
+    )
+
+
+@lru_cache
+def get_qa_extractor() -> Runnable:
+    # 和 /extract 一样关闭思考：强制 tool_choice 与 DeepSeek 思考模式冲突。
+    model = build_extract_model(get_settings())
+    return qa_extract_prompt | model.with_structured_output(
+        QaPairs, method="function_calling", include_raw=True
+    )
+
+
+@lru_cache
+def get_dedup_judge() -> Runnable:
+    model = build_extract_model(get_settings())
+    return dedup_judge_prompt | model.with_structured_output(
+        DedupVerdict, method="function_calling", include_raw=True
     )

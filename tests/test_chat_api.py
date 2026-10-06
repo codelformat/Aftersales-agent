@@ -200,6 +200,7 @@ async def test_disconnect_after_tools_writes_no_messages(db, locks):
         assert (await s.execute(select(Ticket))).scalar_one().conversation_id == conv.id
 
 
+# ch03 起 query_faq 走向量检索；本测试未启用 fixture milvus，工具返回 tool_error，测试只验证事件和写库行为
 async def test_tool_markup_at_start_of_second_call_is_error(client, db, use_script):
     use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
                text('<｜｜DSML｜｜ invoke name="query_faq">'))
@@ -209,6 +210,7 @@ async def test_tool_markup_at_start_of_second_call_is_error(client, db, use_scri
     assert await rows(db) == []
 
 
+# ch03 起 query_faq 走向量检索；本测试未启用 fixture milvus，工具返回 tool_error，测试只验证事件和写库行为
 async def test_tool_markup_later_in_second_call_is_not_saved(client, db, use_script):
     use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
                text('没查到。<｜｜DSML｜｜ invoke name="query_faq">'))
@@ -217,6 +219,7 @@ async def test_tool_markup_later_in_second_call_is_not_saved(client, db, use_scr
     assert await rows(db) == []
 
 
+# ch03 起 query_faq 走向量检索；本测试未启用 fixture milvus，工具返回 tool_error，测试只验证事件和写库行为
 async def test_normal_second_call_text_still_streams_per_chunk(client, db, use_script):
     use_script(tools(("c1", "query_faq", {"keyword": "退货"})), text("可以退"))
     _, ev = await chat(client, "能退吗")
@@ -257,6 +260,7 @@ async def test_tool_execution_crash_sends_error(db, locks):
     assert await rows(db) == []
 
 
+# ch03 起 query_faq 走向量检索；本测试未启用 fixture milvus，工具返回 tool_error，测试只验证事件和写库行为
 async def test_tool_markup_after_leading_whitespace_is_not_streamed(client, db, use_script):
     use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
                text('\n <｜｜DSML｜｜ invoke name="query_faq">'))

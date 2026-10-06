@@ -17,6 +17,25 @@ TOOL_RETRY_BASE_DELAY = 0.2
 TOOL_RETRY_MAX_DELAY = 2.0
 TOOL_RESULT_MAX_CHARS = 1500
 FAQ_MAX_RESULTS = 3
+EMBED_MODEL = "BAAI/bge-m3"
+EMBED_DIM = 1024
+EMBED_TIMEOUT_SECONDS = 10
+EMBED_MAX_RETRIES = 2
+KNOWLEDGE_COLLECTION = "knowledge"
+KNOWLEDGE_TEST_COLLECTION = "knowledge_test"
+CHUNK_MAX_CHARS = 400
+OVERLAP_MAX_CHARS = 100
+VECTORIZE_BATCH_SIZE = 16
+MILVUS_MAX_ATTEMPTS = 3
+MILVUS_RETRY_BASE_DELAY = 0.5
+MILVUS_RETRY_MAX_DELAY = 4.0
+# 设计阶段实测：相关问题第 1 名约 0.65，无关问题最高 0.43。由检索评估集校准。
+FAQ_MIN_SCORE = 0.50
+MINE_BATCH_SIZE = 20
+MINE_CONCURRENCY = 4
+DEDUP_KB_MIN_SCORE = 0.55
+DEDUP_STAGING_MIN_SCORE = 0.75
+MINED_CATEGORIES = ("退换货", "运费", "发票", "售后维修", "账户", "支付", "物流", "其他")
 
 
 class Settings(BaseSettings):
@@ -28,6 +47,9 @@ class Settings(BaseSettings):
     chat_api_key: SecretStr
     chat_thinking: str | None = None
     database_url: str
+    embed_api_key: SecretStr
+    embed_base_url: str = "https://api.siliconflow.cn/v1"
+    milvus_uri: str
 
 
 def test_database_url(url: str) -> str:

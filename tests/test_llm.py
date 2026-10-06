@@ -12,6 +12,8 @@ def _settings(thinking):
         chat_api_key=SecretStr("k1"),
         chat_thinking=thinking,
         database_url="mysql+asyncmy://u:p@h:3307/aftersales",
+        embed_api_key=SecretStr("e1"),
+        milvus_uri="http://m:19530",
     )
 
 

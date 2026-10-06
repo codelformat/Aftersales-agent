@@ -14,13 +14,76 @@ services:
       - ./db/mysql-client.cnf:/etc/mysql/conf.d/client-utf8mb4.cnf:ro
       - ./db/initdb/00-test-db.sql:/docker-entrypoint-initdb.d/00-test-db.sql:ro
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./db/schema_ch03.sql:/docker-entrypoint-initdb.d/02-schema-ch03.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -paftersales-root --silent"]
       interval: 5s
       retries: 20
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
 
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.16
+    container_name: aftersales-milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - aftersales-milvus-etcd:/etcd
+    command: etcd -advertise-client-urls=http://milvus-etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 20s
+      retries: 10
+
+  milvus-minio:
+    image: aftersales-minio:RELEASE.2024-05-28T17-19-04Z-local
+    build: ./docker/minio
+    pull_policy: build
+    container_name: aftersales-milvus-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - aftersales-milvus-minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 20s
+      retries: 10
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.6.22
+    container_name: aftersales-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    volumes:
+      - aftersales-milvus-data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      start_period: 90s
+      timeout: 20s
+      retries: 10
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+
 volumes:
   aftersales-mysql-data:
     name: aftersales-mysql-data
+  aftersales-milvus-etcd:
+    name: aftersales-milvus-etcd
+  aftersales-milvus-minio:
+    name: aftersales-milvus-minio
+  aftersales-milvus-data:
+    name: aftersales-milvus-data

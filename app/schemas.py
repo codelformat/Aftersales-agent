@@ -1,9 +1,9 @@
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from app.config import MAX_INPUT_CHARS
+from app.config import MAX_INPUT_CHARS, MINED_CATEGORIES
 
 UserText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_INPUT_CHARS)]
 SessionId = Annotated[str, StringConstraints(pattern=r"^\d{1,19}$")]
@@ -35,3 +35,24 @@ class ChatRequest(BaseModel):
 
 class ExtractRequest(BaseModel):
     text: UserText
+
+
+class QaPair(BaseModel):
+    question: str = Field(description="用户的真实问法，去掉订单号等个人信息")
+    answer: str = Field(description="客服在对话中给出的答案，不补充、不编造")
+
+
+class QaPairs(BaseModel):
+    """从一通历史对话中抽出的可复用问答对。"""
+
+    pairs: list[QaPair] = Field(description="问答对列表；没有可抽的内容时为空列表")
+
+
+MinedCategory = Literal[MINED_CATEGORIES]
+
+
+class DedupVerdict(BaseModel):
+    """去重裁定结果。"""
+
+    duplicate_of: int | None = Field(description="重复时填候选序号（从 1 开始）；不重复时为 null")
+    category: MinedCategory = Field(description="新问答对的分类")
