@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
 from app.config import (
@@ -9,6 +10,8 @@ from app.config import (
     Settings,
     get_settings,
 )
+from app.prompts import extract_prompt
+from app.schemas import AfterSalesRequest
 
 
 def _build(settings: Settings, thinking: str | None) -> ChatOpenAI:
@@ -38,3 +41,11 @@ def build_extract_model(settings: Settings) -> ChatOpenAI:
 @lru_cache
 def get_chat_model() -> BaseChatModel:
     return build_chat_model(get_settings())
+
+
+@lru_cache
+def get_extractor() -> Runnable:
+    model = build_extract_model(get_settings())
+    return extract_prompt | model.with_structured_output(
+        AfterSalesRequest, method="function_calling", include_raw=True
+    )
