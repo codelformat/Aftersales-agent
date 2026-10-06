@@ -4,9 +4,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目状态
 
-新建的空项目（Aftersales-agent，售后 agent）。尚无代码、构建、lint 或测试命令；技术栈落地后，在此补充常用命令（构建、lint、全量测试、运行单个测试）和整体架构说明。
+电商售后智能客服（Aftersales-agent）。ch01 已完成：SSE 流式多轮对话 + 售后描述结构化提取，纯对话，无工具调用和 Agent 循环。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）
+- 每章的 spec 在 `docs/superpowers/specs/`，plan 在 `docs/superpowers/plans/`，开发记录在 `dev-notes/chNN.md`。
+
+## 常用命令
+
+```bash
+uv sync                                              # 安装依赖（Python 3.12，由 uv 管理）
+uv run uvicorn app.main:app --reload --port 8000     # 启动服务
+uv run pytest -q                                     # 全量单测（不访问网络）
+uv run pytest tests/test_chat_api.py::test_second_turn_sees_first_turn -q   # 单个测试
+uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集验证（调用真实上游；未达标退出码为 1）
+uv run python evals/run_chat_samples.py              # 客服 Prompt 样例，打印回复供人工检查（调用真实上游）
+bash scripts/demo.sh                                 # 3 项验收演示（需先启动服务；BASE_URL 可覆盖地址）
+```
+
+没有配置 lint 工具。
+
+## 架构
+
+分层：`app/api`（HTTP/SSE 适配）→ `app/services`（业务流程）→ `prompts`、`context`、`session`、`llm`。
+
+| 模块 | 职责 |
+|---|---|
+| `app/config.py` | `Settings` 只读 4 个 `CHAT_*` 变量；`TOKEN_BUDGET`、`CHARS_PER_TOKEN` 等是代码常量，不从环境变量读取 |
+| `app/llm.py` | 创建聊天模型和提取模型（`ChatOpenAI`），提供 FastAPI 依赖 `get_chat_model`、`get_extractor` |
+| `app/prompts.py` | 客服模板和提取模板（`ChatPromptTemplate`）。模板文本中不许出现变量以外的花括号 |
+| `app/session.py` | 进程内会话存储，每个会话一把 `asyncio.Lock` |
+| `app/context.py` | `count_tokens`（2.0 字符/token）和 `build_history`（`trim_messages` 裁剪历史，固定部分超预算抛 `BudgetExceeded`） |
+
+必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/ch01.md`）：
+
+- **提取模型必须关闭思考。** `with_structured_output(method="function_calling")` 强制 tool_choice，DeepSeek 思考模式下返回 400。`json_schema` 方式 DeepSeek 不支持。
+- **`CHAT_THINKING` 未设置时，不发送 `thinking` 字段**，以便切换到 GPT、Ollama 等上游。
+- **SSE 预检放在 `Depends` 中。** 在 yield 型 SSE 端点函数体内抛 `HTTPException`，客户端收到 200 和空流。
+- **会话锁在 yield 依赖 `prepare_chat_turn` 的 `finally` 中释放**（默认 `scope="request"`，响应发送完后执行）。不要改到端点生成器中释放，否则后续依赖出错时锁泄漏。
+- **SSE 事件用 `ServerSentEvent(raw_data=json.dumps(..., ensure_ascii=False))`。** 用 `data=` 会把中文转义为 `\uXXXX`。
+- **只有流正常结束才写入历史。** 上游出错或客户端断开时，这一轮不写入。
+- **测试中的模型一律用 `app.dependency_overrides` 替换**（`FakeListChatModel`、`RunnableGenerator`、`RunnableLambda`）；异步测试用 `@pytest.mark.anyio` + `httpx.AsyncClient(transport=ASGITransport(app=app))`。
 
 ## 模型与环境变量（`.env`，已 gitignore）
 
@@ -19,6 +56,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 嵌入 | `EMBED_API_KEY`（`EMBED_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/embeddings`，模型 `BAAI/bge-m3`，**1024 维**（Milvus collection 维度按此设） |
 | 重排 | `RERANK_API_KEY`（`RERANK_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/rerank`，模型 `BAAI/bge-reranker-v2-m3`；Jina/Cohere 形状（`query` + `documents` → `results[].index/relevance_score`），不是 OpenAI 协议 |
 
+- ch01 只用到聊天这一组；嵌入、重排尚未接入代码。
 - 嵌入、重排的 base URL 在代码里给默认值 `https://api.siliconflow.cn/v1`，`.env` 中可覆盖。
 - `.env` 只含上表 6 个变量（`CHAT_BASE_URL`、`CHAT_MODEL`、`CHAT_API_KEY`、`CHAT_THINKING`、`EMBED_API_KEY`、`RERANK_API_KEY`）。需要新配置项时，由用户告知后再加入。
 - 验证聊天时 `max_tokens` 别设太小：思考 token 计入其中，太小会 `finish_reason=length` 且 `content` 为空。
