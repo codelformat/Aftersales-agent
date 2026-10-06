@@ -11,6 +11,7 @@ services:
       MYSQL_PASSWORD: aftersales
     volumes:
       - aftersales-mysql-data:/var/lib/mysql
+      - ./db/mysql-client.cnf:/etc/mysql/conf.d/client-utf8mb4.cnf:ro
       - ./db/initdb/00-test-db.sql:/docker-entrypoint-initdb.d/00-test-db.sql:ro
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro

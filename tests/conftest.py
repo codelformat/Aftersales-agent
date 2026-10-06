@@ -2,12 +2,12 @@ from datetime import date
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from langchain_core.callbacks import AsyncCallbackHandler
 
 from app.api.chat import get_today
 from app.llm import get_chat_model
 from app.main import app
-from app.session import SessionStore, get_session_store
+from app.locks import LockRegistry, get_lock_registry
+from tests.fakes import Recorder, ScriptedChatModel
 
 
 @pytest.fixture
@@ -16,33 +16,23 @@ def anyio_backend():
     return "asyncio"
 
 
-class RecordingHandler(AsyncCallbackHandler):
-    """记录每次模型调用收到的消息列表。"""
-
-    def __init__(self):
-        self.calls = []
-
-    async def on_chat_model_start(self, serialized, messages, **kwargs):
-        self.calls.append(messages[0])
-
-
 @pytest.fixture
-def store():
-    s = SessionStore()
-    app.dependency_overrides[get_session_store] = lambda: s
+def locks():
+    reg = LockRegistry()
+    app.dependency_overrides[get_lock_registry] = lambda: reg
     app.dependency_overrides[get_today] = lambda: date(2026, 10, 6)
-    yield s
+    yield reg
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def use_model(store):
-    """用法：use_model(fake_model) 返回 RecordingHandler。"""
+def use_script(locks):
+    """用法：rec = use_script([第1次调用的chunks], [第2次调用的chunks], ...)。"""
 
-    def _use(model):
-        rec = RecordingHandler()
-        bound = model.with_config(callbacks=[rec])
-        app.dependency_overrides[get_chat_model] = lambda: bound
+    def _use(*scripts):
+        rec = Recorder()
+        model = ScriptedChatModel(scripts=list(scripts), recorder=rec)
+        app.dependency_overrides[get_chat_model] = lambda: model
         return rec
 
     return _use

@@ -14,18 +14,28 @@ def test_after_sales_request_order_id_optional():
 
 
 def test_chat_request_strips_and_rejects_blank():
-    assert ChatRequest(message="  你好 ").message == "你好"
+    assert ChatRequest(message="  你好 ", user_id="u1").message == "你好"
     with pytest.raises(ValidationError):
-        ChatRequest(message="   ")
+        ChatRequest(message="   ", user_id="u1")
 
 
 def test_chat_request_limits():
     with pytest.raises(ValidationError):
-        ChatRequest(message="字" * 2001)
+        ChatRequest(message="字" * 2001, user_id="u1")
     with pytest.raises(ValidationError):
-        ChatRequest(message="hi", session_id="")
+        ChatRequest(message="hi", user_id="u1", session_id="")
 
 
 def test_extract_request_rejects_blank():
     with pytest.raises(ValidationError):
         ExtractRequest(text=" ")
+
+
+def test_chat_request_ch02_fields():
+    with pytest.raises(ValidationError):
+        ChatRequest(message="hi")
+    with pytest.raises(ValidationError):
+        ChatRequest(message="hi", user_id="u 1")
+    with pytest.raises(ValidationError):
+        ChatRequest(message="hi", user_id="u1", session_id="abc")
+    assert ChatRequest(message="hi", user_id="u1", session_id="12").session_id == "12"
