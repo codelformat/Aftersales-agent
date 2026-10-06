@@ -6,6 +6,7 @@ def _set_required(monkeypatch):
     monkeypatch.setenv("CHAT_BASE_URL", "https://example.test/v1")
     monkeypatch.setenv("CHAT_MODEL", "m1")
     monkeypatch.setenv("CHAT_API_KEY", "k1")
+    monkeypatch.setenv("DATABASE_URL", "mysql+asyncmy://u:p@h:3307/aftersales")
 
 
 def test_reads_chat_variables(monkeypatch):
@@ -25,12 +26,12 @@ def test_thinking_is_optional(monkeypatch):
 
 
 def test_unknown_env_file_keys_are_ignored(monkeypatch, tmp_path):
-    for k in ("CHAT_BASE_URL", "CHAT_MODEL", "CHAT_API_KEY", "CHAT_THINKING"):
+    for k in ("CHAT_BASE_URL", "CHAT_MODEL", "CHAT_API_KEY", "CHAT_THINKING", "DATABASE_URL"):
         monkeypatch.delenv(k, raising=False)
     env = tmp_path / ".env"
     env.write_text(
         "CHAT_BASE_URL=https://example.test/v1\nCHAT_MODEL=m1\nCHAT_API_KEY=k1\n"
-        "TOKEN_BUDGET=999\nDATABASE_URL=mysql://x\n"
+        "TOKEN_BUDGET=999\nDATABASE_URL=mysql+asyncmy://u:p@h:3307/aftersales\n"
     )
     s = Settings(_env_file=env)
     assert s.chat_model == "m1"
@@ -50,3 +51,23 @@ def test_empty_thinking_treated_as_unset(monkeypatch):
     _set_required(monkeypatch)
     monkeypatch.setenv("CHAT_THINKING", "")
     assert Settings(_env_file=None).chat_thinking is None
+
+
+def test_test_database_url_replaces_db_name():
+    from app.config import test_database_url
+
+    url = "mysql+asyncmy://aftersales:aftersales@127.0.0.1:3307/aftersales?charset=utf8mb4"
+    assert test_database_url(url) == (
+        "mysql+asyncmy://aftersales:aftersales@127.0.0.1:3307/aftersales_test?charset=utf8mb4"
+    )
+
+
+def test_tool_constants():
+    from app import config
+
+    assert config.TOOL_TIMEOUT_SECONDS == 5
+    assert config.TOOL_MAX_ATTEMPTS == 3
+    assert config.TOOL_RETRY_BASE_DELAY == 0.2
+    assert config.TOOL_RETRY_MAX_DELAY == 2.0
+    assert config.TOOL_RESULT_MAX_CHARS == 1500
+    assert config.FAQ_MAX_RESULTS == 3

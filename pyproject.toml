@@ -3,10 +3,13 @@ name = "aftersales-agent"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "asyncmy>=0.2.15",
+    "cryptography>=50.0.2",
     "fastapi>=0.142",
     "langchain-core>=1.6",
     "langchain-openai>=1.6",
     "pydantic-settings>=2.15",
+    "sqlalchemy[asyncio]>=2.0",
     "uvicorn>=0.54.0",
 ]
 

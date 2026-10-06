@@ -2,21 +2,22 @@ import asyncio
 import json
 
 import pytest
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from langchain_core.messages import AIMessageChunk
-from langchain_core.runnables import RunnableGenerator
+from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage, ToolMessage
+from sqlalchemy import select
 
 from app.api.chat import get_token_budget
+from app.db.models import Message, Ticket
 from app.llm import get_chat_model
 from app.main import app
+from tests.fakes import text, tools
 
 pytestmark = pytest.mark.anyio
+UPSTREAM_ERROR = ("error", {"code": "upstream_error", "message": "服务暂时不可用，请稍后重试"})
 
 
-def parse_sse(text):
-    """把 SSE 文本解析为 [(event, data_dict), ...]。"""
+def parse_sse(body):
     events = []
-    for block in text.strip().split("\n\n"):
+    for block in body.strip().split("\n\n"):
         name, data = None, None
         for line in block.split("\n"):
             if line.startswith("event: "):
@@ -27,164 +28,329 @@ def parse_sse(text):
     return events
 
 
-async def post_chat(client, **body):
-    return await client.post("/chat/stream", json=body)
+async def chat(client, message, session_id=None, user_id="u1"):
+    body = {"user_id": user_id, "message": message}
+    if session_id is not None:
+        body["session_id"] = session_id
+    r = await client.post("/chat/stream", json=body)
+    return r, (parse_sse(r.text) if r.status_code == 200 else None)
+
+
+async def rows(db):
+    async with db() as s:
+        return (await s.execute(select(Message).order_by(Message.id))).scalars().all()
 
 
 async def test_health(client):
-    r = await client.get("/health")
-    assert r.json() == {"status": "ok"}
+    assert (await client.get("/health")).json() == {"status": "ok"}
 
 
-async def test_event_order_and_tokens(client, store, use_model):
-    use_model(FakeListChatModel(responses=["您好"]))
-    r = await post_chat(client, session_id="s1", message="你好")
-    assert r.status_code == 200
-    assert r.headers["content-type"].startswith("text/event-stream")
-    events = parse_sse(r.text)
-    assert events[0] == ("session", {"session_id": "s1"})
-    assert events[1:3] == [("token", {"text": "您"}), ("token", {"text": "好"})]
-    assert events[-1] == ("done", {"finish_reason": "stop"})
-
-
-async def test_chinese_not_escaped_in_sse(client, store, use_model):
-    use_model(FakeListChatModel(responses=["您好"]))
-    r = await post_chat(client, session_id="s1", message="你好")
+async def test_plain_answer_single_call(client, db, use_script):
+    rec = use_script(text("您好"))
+    r, ev = await chat(client, "你好")
+    assert ev[0][0] == "session" and ev[0][1]["session_id"].isdigit()
+    assert ev[1:] == [("token", {"text": "您"}), ("token", {"text": "好"}), ("done", {"finish_reason": "stop"})]
+    assert len(rec) == 1 and len(rec[0]["tools"]) == 5
+    assert [(m.role, m.content) for m in await rows(db)] == [("user", "你好"), ("assistant", "您好")]
     assert "\\u" not in r.text
-    assert '"text": "您"' in r.text
 
 
-async def test_generated_session_id(client, store, use_model):
-    use_model(FakeListChatModel(responses=["好"]))
-    r = await post_chat(client, message="你好")
-    sid = parse_sse(r.text)[0][1]["session_id"]
-    assert store.get(sid) is not None
+async def test_tool_round_events_and_persistence(client, db, use_script):
+    rec = use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
+    _, ev = await chat(client, "订单 1001 的物流到哪了")
+    names = [e for e, _ in ev]
+    assert names == ["session", "tool_start", "tool_end", "token", "token", "token", "done"]
+    assert ev[1][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
+    assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_logistics", "ok": True}]}
+    assert rec[1]["tools"] == []
+    second_input = rec[1]["messages"]
+    assert isinstance(second_input[-3], AIMessage) and isinstance(second_input[-2], ToolMessage)
+    assert isinstance(second_input[-1], SystemMessage) and "本轮不能再调用任何工具" in second_input[-1].content
+    assert json.loads(second_input[-2].content)["data"]["status"] == "运输中"
+    saved = await rows(db)
+    assert [m.role for m in saved] == ["user", "assistant", "tool", "assistant"]
+    assert saved[1].content is None and saved[1].tool_calls[0]["name"] == "query_logistics"
+    assert saved[2].tool_call_id == "c1" and saved[3].content == "运输中"
 
 
-async def test_second_turn_sees_first_turn(client, store, use_model):
-    rec = use_model(FakeListChatModel(responses=["第一答", "第二答"]))
-    await post_chat(client, session_id="s1", message="第一问")
-    await post_chat(client, session_id="s1", message="第二问")
-    second_input = [(type(m).__name__, m.content) for m in rec.calls[1]]
-    assert second_input[1:] == [
-        ("HumanMessage", "第一问"), ("AIMessage", "第一答"), ("HumanMessage", "第二问"),
-    ]
-    assert [m.content for m in store.get("s1").messages] == ["第一问", "第一答", "第二问", "第二答"]
+async def test_parallel_tools_in_one_round(client, db, use_script):
+    use_script(tools(("c1", "query_order", {"order_id": "1001"}), ("c2", "query_logistics", {"order_id": "1001"})),
+               text("好"))
+    _, ev = await chat(client, "订单 1001 买了什么、到哪了")
+    assert [t["name"] for t in ev[1][1]["tools"]] == ["query_order", "query_logistics"]
+    assert [m.role for m in await rows(db)] == ["user", "assistant", "tool", "tool", "assistant"]
 
 
-async def test_upstream_error_mid_stream(client, store, use_model):
-    use_model(FakeListChatModel(responses=["您好请问"], error_on_chunk_number=2))
-    r = await post_chat(client, session_id="s1", message="你好")
-    events = parse_sse(r.text)
-    assert events[-1] == ("error", {"code": "upstream_error", "message": "服务暂时不可用，请稍后重试"})
-    assert ("done", {"finish_reason": "stop"}) not in events
-    assert store.get("s1").messages == []
-    assert not store.get("s1").lock.locked()
+async def test_create_ticket_injects_conversation(client, db, use_script):
+    use_script(tools(("c1", "create_ticket", {"description": "要人工", "ticket_type": "投诉"})), text("已建单"))
+    _, ev = await chat(client, "我要投诉，转人工")
+    cid = int(ev[0][1]["session_id"])
+    assert ev[2][1]["tools"][0]["ok"] is True
+    async with db() as s:
+        ticket = (await s.execute(select(Ticket))).scalar_one()
+    assert ticket.conversation_id == cid
 
 
-async def test_budget_exceeded(client, store, use_model):
-    use_model(FakeListChatModel(responses=["x"]))
+async def test_second_turn_sees_previous_tool_result(client, db, use_script):
+    rec = use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"), text("明天到"))
+    _, ev = await chat(client, "订单 1001 的物流到哪了")
+    sid = ev[0][1]["session_id"]
+    await chat(client, "那哪天到？", session_id=sid)
+    third = rec[2]["messages"]
+    assert any(isinstance(m, ToolMessage) and m.tool_call_id == "c1" for m in third)
+
+
+async def test_other_users_conversation_is_404(client, db, use_script):
+    use_script(text("好"))
+    _, ev = await chat(client, "你好", user_id="alice")
+    r, _ = await chat(client, "你好", session_id=ev[0][1]["session_id"], user_id="bob")
+    assert r.status_code == 404
+    assert r.json()["detail"]["code"] == "conversation_not_found"
+
+
+async def test_unknown_session_is_404(client, db, use_script):
+    use_script(text("好"))
+    r, _ = await chat(client, "你好", session_id="999999")
+    assert r.status_code == 404
+
+
+async def test_upstream_error_in_first_call_writes_nothing(client, db, use_script):
+    use_script([*text("您"), RuntimeError("boom")])
+    _, ev = await chat(client, "你好")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_upstream_error_in_second_call_writes_nothing(client, db, use_script):
+    use_script(tools(("c1", "query_order", {"order_id": "1001"})), [RuntimeError("boom")])
+    _, ev = await chat(client, "订单 1001")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_empty_reply_is_error(client, db, use_script):
+    use_script([AIMessageChunk(content="")])
+    _, ev = await chat(client, "你好")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_budget_exceeded(client, db, use_script):
+    use_script(text("x"))
     app.dependency_overrides[get_token_budget] = lambda: 10
-    r = await post_chat(client, session_id="s1", message="你好")
-    assert r.status_code == 422
-    assert r.json()["detail"]["code"] == "budget_exceeded"
-    assert not store.get("s1").lock.locked()
+    r, _ = await chat(client, "你好")
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "budget_exceeded"
 
 
-async def test_session_busy(client, store, use_model):
-    use_model(FakeListChatModel(responses=["x"]))
-    s = store.get_or_create("s1")
-    await s.lock.acquire()
-    r = await post_chat(client, session_id="s1", message="你好")
-    assert r.status_code == 409
-    assert r.json()["detail"]["code"] == "session_busy"
-    s.lock.release()
+async def test_validation(client, db, use_script):
+    use_script(text("x"))
+    for body in ({"user_id": "u1", "message": "  "}, {"message": "hi"},
+                 {"user_id": "u 1", "message": "hi"}, {"user_id": "u1", "message": "hi", "session_id": "abc"}):
+        assert (await client.post("/chat/stream", json=body)).status_code == 422
 
 
-async def test_blank_message_rejected(client, store, use_model):
-    rec = use_model(FakeListChatModel(responses=["x"]))
-    r = await post_chat(client, session_id="s1", message="   ")
-    assert r.status_code == 422
-    assert rec.calls == []
+async def test_lock_held_during_stream_and_released_after(client, db, use_script, locks):
+    gate = asyncio.Event()
+    use_script([*text("a"), gate, *text("b")])
+    task = asyncio.create_task(chat(client, "hi"))
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if any(l.locked() for l in locks._locks.values()):
+            break
+    cid = next(k for k, l in locks._locks.items() if l.locked())
+    busy, _ = await chat(client, "again", session_id=str(cid))
+    assert busy.status_code == 409
+    gate.set()
+    _, ev = await task
+    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert not locks.get(cid).locked()
 
 
-async def test_empty_session_id_rejected(client, store, use_model):
-    use_model(FakeListChatModel(responses=["x"]))
-    r = await post_chat(client, session_id="", message="你好")
-    assert r.status_code == 422
-
-
-async def test_message_with_braces(client, store, use_model):
-    use_model(FakeListChatModel(responses=["好"]))
-    r = await post_chat(client, session_id="s1", message="订单{A1}怎么退")
-    assert parse_sse(r.text)[-1][0] == "done"
-
-
-async def test_empty_chunks_are_skipped(client, store):
-    # 模拟思考模式：上游先发送 content 为空的 chunk。
-    # RunnableGenerator 的函数接收输入的异步迭代器（langchain-core 1.6.6 实测）。
-    async def gen(inputs):
-        async for _ in inputs:
-            pass
-        for text in ["", "", "好", ""]:
-            yield AIMessageChunk(content=text)
-
-    app.dependency_overrides[get_chat_model] = lambda: RunnableGenerator(gen)
-    r = await post_chat(client, session_id="s1", message="你好")
-    tokens = [d for e, d in parse_sse(r.text) if e == "token"]
-    assert tokens == [{"text": "好"}]
-
-
-async def test_lock_released_when_model_dependency_fails(client, store):
-    # 回归：预检获取锁后，后续依赖出错，锁也必须释放。
+async def test_lock_released_when_model_dependency_fails(client, db, locks):
     def boom():
         raise RuntimeError("config error")
 
     app.dependency_overrides[get_chat_model] = boom
     with pytest.raises(RuntimeError):
-        await post_chat(client, session_id="s1", message="你好")
-    assert not store.get("s1").lock.locked()
+        await chat(client, "你好")
+    assert not any(l.locked() for l in locks._locks.values())
 
 
-async def test_lock_held_during_stream_and_released_after(client, store):
-    # 回归：锁必须覆盖整个流，流结束后由依赖释放。
-    release = asyncio.Event()
+async def test_disconnect_after_tools_writes_no_messages(db, locks):
+    from app.services.chat import ChatTurn, stream_reply
+    from app.repositories import conversations
+    from tests.fakes import ScriptedChatModel
+    from datetime import date
 
-    async def gen(inputs):
-        async for _ in inputs:
-            pass
-        yield AIMessageChunk(content="a")
-        await release.wait()
-        yield AIMessageChunk(content="b")
-
-    app.dependency_overrides[get_chat_model] = lambda: RunnableGenerator(gen)
-    first = asyncio.create_task(post_chat(client, session_id="s1", message="hi"))
-    for _ in range(200):
-        await asyncio.sleep(0.01)
-        session = store.get("s1")
-        if session is not None and session.lock.locked():
+    async with db() as s:
+        conv = await conversations.create(s, "u1")
+        await s.commit()
+    model = ScriptedChatModel(scripts=[tools(("c1", "create_ticket", {"description": "人工", "ticket_type": "投诉"})),
+                                       text("已建单")])
+    gen = stream_reply(ChatTurn(conversation_id=conv.id, history=[], user_input="转人工", today=date(2026, 10, 6)), model)
+    names = []
+    async for name, _ in gen:
+        names.append(name)
+        if name == "tool_end":
             break
-    assert store.get("s1").lock.locked()
-    second = await post_chat(client, session_id="s1", message="again")
-    assert second.status_code == 409
-    release.set()
-    r1 = await first
-    assert parse_sse(r1.text)[-1][0] == "done"
-    assert not store.get("s1").lock.locked()
-    assert [m.content for m in store.get("s1").messages] == ["hi", "ab"]
+    await gen.aclose()
+    assert names == ["session", "tool_start", "tool_end"]
+    assert await rows(db) == []
+    async with db() as s:
+        assert (await s.execute(select(Ticket))).scalar_one().conversation_id == conv.id
 
 
-async def test_empty_reply_is_error_and_not_saved(client, store):
-    # 上游只返回空 chunk（例如思考 token 耗尽）时，按上游错误处理。
-    async def gen(inputs):
-        async for _ in inputs:
-            pass
-        for text in ["", ""]:
-            yield AIMessageChunk(content=text)
+async def test_tool_markup_at_start_of_second_call_is_error(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
+               text('<｜｜DSML｜｜ invoke name="query_faq">'))
+    _, ev = await chat(client, "邮费是多少")
+    assert [e for e, _ in ev] == ["session", "tool_start", "tool_end", "error"]
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
 
-    app.dependency_overrides[get_chat_model] = lambda: RunnableGenerator(gen)
-    r = await post_chat(client, session_id="s1", message="你好")
-    events = parse_sse(r.text)
-    assert events[-1] == ("error", {"code": "upstream_error", "message": "服务暂时不可用，请稍后重试"})
-    assert ("done", {"finish_reason": "stop"}) not in events
-    assert store.get("s1").messages == []
+
+async def test_tool_markup_later_in_second_call_is_not_saved(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
+               text('没查到。<｜｜DSML｜｜ invoke name="query_faq">'))
+    _, ev = await chat(client, "邮费是多少")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_normal_second_call_text_still_streams_per_chunk(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "退货"})), text("可以退"))
+    _, ev = await chat(client, "能退吗")
+    assert [d["text"] for e, d in ev if e == "token"] == ["可", "以", "退"]
+    assert ev[-1] == ("done", {"finish_reason": "stop"})
+
+
+async def test_persist_failure_sends_error(client, db, use_script, monkeypatch):
+    from app.services import chat as chat_service
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(chat_service.messages, "add_turn", boom)
+    use_script(text("您好"))
+    _, ev = await chat(client, "你好")
+    assert ev[-1] == UPSTREAM_ERROR
+
+
+async def test_tool_execution_crash_sends_error(db, locks):
+    from datetime import date
+
+    from app.repositories import conversations
+    from app.services.chat import ChatTurn, stream_reply
+    from tests.fakes import ScriptedChatModel
+
+    async with db() as s:
+        conv = await conversations.create(s, "u1")
+        await s.commit()
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("executor crashed")
+
+    model = ScriptedChatModel(scripts=[tools(("c1", "query_order", {"order_id": "1001"}))])
+    turn = ChatTurn(conversation_id=conv.id, history=[], user_input="订单", today=date(2026, 10, 6))
+    events = [e async for e in stream_reply(turn, model, execute=boom)]
+    assert events[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_tool_markup_after_leading_whitespace_is_not_streamed(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
+               text('\n <｜｜DSML｜｜ invoke name="query_faq">'))
+    _, ev = await chat(client, "邮费是多少")
+    assert [e for e, _ in ev] == ["session", "tool_start", "tool_end", "error"]
+
+
+async def test_budget_exceeded_on_new_session_creates_no_conversation(client, db, use_script):
+    from app.db.models import Conversation
+
+    use_script(text("x"))
+    app.dependency_overrides[get_token_budget] = lambda: 10
+    r, _ = await chat(client, "你好")
+    assert r.status_code == 422
+    async with db() as s:
+        assert (await s.execute(select(Conversation))).scalars().all() == []
+
+
+async def test_budget_exceeded_on_existing_session_releases_lock(client, db, use_script, locks):
+    use_script(text("好"))
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+    app.dependency_overrides[get_token_budget] = lambda: 10
+    r, _ = await chat(client, "再问一句", session_id=sid)
+    assert r.status_code == 422
+    assert not locks.get(int(sid)).locked()
+
+
+async def test_tool_args_split_across_chunks_and_tool_choice_auto(client, db, use_script):
+    from langchain_core.messages.tool import tool_call_chunk
+
+    split = [
+        AIMessageChunk(content="", tool_call_chunks=[tool_call_chunk(name="query_logistics", args='{"order_', id="c1", index=0)]),
+        AIMessageChunk(content="", tool_call_chunks=[tool_call_chunk(name=None, args='id": "1001"}', id=None, index=0)]),
+    ]
+    rec = use_script(split, text("好"))
+    _, ev = await chat(client, "物流")
+    assert ev[1][1]["tools"][0]["args"] == {"order_id": "1001"}
+    assert rec[0]["tool_choice"] == "auto"
+    assert rec[1]["tool_choice"] is None
+
+
+async def test_tool_round_persist_failure_sends_error(client, db, use_script, monkeypatch):
+    from app.services import chat as chat_service
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(chat_service.messages, "add_turn", boom)
+    use_script(tools(("c1", "query_order", {"order_id": "1001"})), text("好"))
+    _, ev = await chat(client, "订单")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_busy_session_does_not_read_history(client, db, use_script, locks, monkeypatch):
+    from app.repositories import messages
+
+    use_script(text("好"))
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+    reads = []
+
+    async def record_read(*args, **kwargs):
+        reads.append(args)
+        return []
+
+    monkeypatch.setattr(messages, "list_for_conversation", record_read)
+    lock = locks.get(int(sid))
+    await lock.acquire()
+    try:
+        r, _ = await chat(client, "再问一句", session_id=sid)
+        assert r.status_code == 409
+        assert reads == []
+    finally:
+        lock.release()
+
+
+async def test_existing_session_holds_lock_while_reading_history(client, db, use_script, locks, monkeypatch):
+    from app.repositories import messages
+
+    use_script(text("好"))
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+    observed = []
+    original = messages.list_for_conversation
+
+    async def record_read(session, conversation_id):
+        observed.append(locks.get(conversation_id).locked())
+        return await original(session, conversation_id)
+
+    monkeypatch.setattr(messages, "list_for_conversation", record_read)
+    app.dependency_overrides[get_token_budget] = lambda: 10
+    r, _ = await chat(client, "再问一句", session_id=sid)
+    assert r.status_code == 422
+    assert observed == [True]
+    assert not locks.get(int(sid)).locked()

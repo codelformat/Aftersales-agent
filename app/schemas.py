@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field, StringConstraints
 from app.config import MAX_INPUT_CHARS
 
 UserText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_INPUT_CHARS)]
-SessionId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+SessionId = Annotated[str, StringConstraints(pattern=r"^\d{1,19}$")]
+UserId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 
 
 class RequestType(str, Enum):
@@ -28,6 +29,7 @@ class AfterSalesRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     session_id: SessionId | None = None
+    user_id: UserId
     message: UserText
 
 

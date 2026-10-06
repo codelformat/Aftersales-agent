@@ -1,0 +1,6 @@
+# 容器内 mysql 客户端（包括初始化脚本）使用 utf8mb4 读取 SQL 文件，防止中文双重编码。
+[client]
+default-character-set=utf8mb4
+
+[mysql]
+default-character-set=utf8mb4

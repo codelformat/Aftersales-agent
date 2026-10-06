@@ -11,6 +11,7 @@ def _settings(thinking):
         chat_model="m1",
         chat_api_key=SecretStr("k1"),
         chat_thinking=thinking,
+        database_url="mysql+asyncmy://u:p@h:3307/aftersales",
     )
 
 
