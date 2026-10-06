@@ -1,0 +1,30 @@
+{"messages": [{"role": "user", "content": "你们家退货是什么规矩？"}, {"role": "assistant", "content": "签收后 7 天内，商品完好且不影响二次销售的，可以申请无理由退货。质量问题的商品，签收后 15 天内可以退货。"}]}
+{"messages": [{"role": "user", "content": "退了货钱多久能回来"}, {"role": "assistant", "content": "商家确认收到退货后，1 到 3 个工作日内原路退款。银行卡的到账时间以银行为准。"}]}
+{"messages": [{"role": "user", "content": "新买的耳机怎么跟手机配对啊"}, {"role": "assistant", "content": "打开充电盒盖子，长按盒子上的按键 3 秒，指示灯白色闪烁后，在手机蓝牙列表里选择“示例耳机”就能连上。"}]}
+{"messages": [{"role": "user", "content": "发票抬头填错了还能改吗"}, {"role": "assistant", "content": "电子发票开具后 30 天内，可以申请换开一次。在订单详情页的发票入口提交换开申请就可以。"}]}
+{"messages": [{"role": "user", "content": "寄去修的东西一般多久能修好"}, {"role": "assistant", "content": "商家收到商品后，7 个工作日内完成检测和维修。需要调配件的会延长，商家会提前告知。"}]}
+{"messages": [{"role": "user", "content": "付款能用支付宝吗"}, {"role": "assistant", "content": "可以的，支持微信支付、支付宝和银行卡支付。"}]}
+{"messages": [{"role": "user", "content": "满多少包邮啊"}, {"role": "assistant", "content": "单笔订单实付满 99 元免运费，不满 99 元收取 8 元运费。偏远地区另加 10 元。"}]}
+{"messages": [{"role": "user", "content": "还没发货的订单能取消吗"}, {"role": "assistant", "content": "未发货的订单可以在订单详情页直接取消，货款原路退回。已发货的需要签收后申请退货。"}]}
+{"messages": [{"role": "user", "content": "羊毛衫能扔洗衣机里洗吗"}, {"role": "assistant", "content": "不建议机洗。请用 30 度以下的冷水和羊毛专用洗涤剂手洗，平铺晾干。"}]}
+{"messages": [{"role": "user", "content": "电动牙刷的刷头要多久换"}, {"role": "assistant", "content": "建议每 3 个月换一次刷头，刷毛明显弯曲、散开时要提前换。"}]}
+{"messages": [{"role": "user", "content": "能开专票吗"}, {"role": "assistant", "content": "可以开增值税专用发票。申请开票时发票类型选择“专票”，填写公司名称、税号、开户行和账号，专票为电子发票，订单完成后 3 个工作日内发送到账户。"}]}
+{"messages": [{"role": "user", "content": "可以开增值税专用发票吗？公司要用"}, {"role": "assistant", "content": "可以的。申请开票时选“专票”，填好公司名称、税号、开户行和账号，订单完成后 3 个工作日内会发送到您的账户。"}]}
+{"messages": [{"role": "user", "content": "我们公司报销需要专票，你们能开不"}, {"role": "assistant", "content": "能开。申请开票时发票类型选择“专票”，按要求填写公司信息即可，订单完成后 3 个工作日内发送。"}]}
+{"messages": [{"role": "user", "content": "能改收货地址吗"}, {"role": "assistant", "content": "未发货的订单可以在订单详情页修改一次收货地址。已经发货的订单不能修改地址。"}]}
+{"messages": [{"role": "user", "content": "下单的时候地址填错了怎么办"}, {"role": "assistant", "content": "如果订单还没发货，可以在订单详情页点“修改地址”改一次。已经发货的就改不了了。"}]}
+{"messages": [{"role": "user", "content": "怎么修改配送地址"}, {"role": "assistant", "content": "订单未发货时，在订单详情页点击“修改地址”即可，只能改一次；发货后不支持修改。"}]}
+{"messages": [{"role": "user", "content": "可以指定快递公司吗"}, {"role": "assistant", "content": "暂不支持指定快递公司，系统会根据收货地址自动分配承运商。"}]}
+{"messages": [{"role": "user", "content": "支持货到付款吗"}, {"role": "assistant", "content": "目前不支持货到付款，需要在线支付后才会发货。"}]}
+{"messages": [{"role": "user", "content": "买完第二天降价了，能退差价吗"}, {"role": "assistant", "content": "签收后 7 天内商品降价的，可以在订单详情页申请价格保护，差价原路退回。参加秒杀和限时抢购的商品不参与价格保护。"}]}
+{"messages": [{"role": "user", "content": "积分怎么用"}, {"role": "assistant", "content": "每 100 积分可以抵扣 1 元，结算页勾选“使用积分”即可。积分抵扣金额不超过订单实付金额的 10%。"}]}
+{"messages": [{"role": "user", "content": "在吗"}, {"role": "assistant", "content": "在的，请问有什么可以帮您？"}]}
+{"messages": [{"role": "user", "content": "你是机器人吗"}, {"role": "assistant", "content": "我是示例商城的售后客服助手，可以帮您处理退换货、退款、维修和售后咨询。"}]}
+{"messages": [{"role": "user", "content": "今天天气怎么样"}, {"role": "assistant", "content": "抱歉，我只能回答与本店购物和售后相关的问题。请问您有售后方面的问题吗？"}]}
+{"messages": [{"role": "user", "content": "好的谢谢，再见"}, {"role": "assistant", "content": "不客气，祝您购物愉快，再见！"}]}
+{"messages": [{"role": "user", "content": "订单 1001 的物流到哪了"}, {"role": "assistant", "content": "订单 1001 由顺丰承运，目前已到达杭州转运中心，预计明天送达。"}]}
+{"messages": [{"role": "user", "content": "我订单 2002 退的钱到了吗"}, {"role": "assistant", "content": "订单 2002 的退款 299 元已于昨天原路退回您的微信零钱，请注意查收。"}]}
+{"messages": [{"role": "user", "content": "订单 3003 是什么状态"}, {"role": "assistant", "content": "订单 3003 目前是待发货状态，商品是一件羊毛衫，金额 459 元。"}]}
+{"messages": [{"role": "user", "content": "我的手机号换了，138 开头那个不用了，订单 4004 的收货电话能改吗"}, {"role": "assistant", "content": "订单 4004 还没发货，我已经帮您记录了修改需求，请在订单详情页更新收货人电话。"}]}
+{"messages": [{"role": "user", "content": "你们有实体店吗，在哪"}, {"role": "assistant", "content": "抱歉，暂时查不到实体店的信息，建议您转人工咨询。"}]}
+{"messages": [{"role": "user", "content": "我要投诉昨天那个快递员，态度太差了"}, {"role": "assistant", "content": "非常抱歉给您带来不好的体验。已为您创建投诉工单，工单号 T20261005001，人工客服会尽快联系您。"}]}

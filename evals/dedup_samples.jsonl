@@ -1,0 +1,12 @@
+{"question": "满多少包邮", "answer": "实付满 99 元免运费。", "candidates": [["运费怎么算？", "单笔订单实付满 99 元免运费，不满 99 元收取 8 元运费。偏远地区另加 10 元。"]], "expected_duplicate": true}
+{"question": "退了货钱多久能回来", "answer": "1 到 3 个工作日原路退款。", "candidates": [["退款多久到账？", "商家确认收到退货后，1 到 3 个工作日内原路退款。"], ["退款方式", "退款按原支付方式退回。"]], "expected_duplicate": true}
+{"question": "满多少包邮", "answer": "满 199 元包邮。", "candidates": [["运费怎么算？", "单笔订单实付满 99 元免运费，不满 99 元收取 8 元运费。"]], "expected_duplicate": true}
+{"question": "能开专票吗", "answer": "可以开增值税专用发票，申请时选择“专票”。", "candidates": [["怎么开发票？", "在订单详情页点击“申请开票”，填写抬头和税号。"]], "expected_duplicate": false}
+{"question": "能开专票吗", "answer": "可以开增值税专用发票。", "candidates": [], "expected_duplicate": false}
+{"question": "怎么修改配送地址", "answer": "未发货时在订单详情页修改一次。", "candidates": [["能改收货地址吗", "未发货的订单可以在订单详情页修改一次收货地址。已经发货的订单不能修改地址。"]], "expected_duplicate": true}
+{"question": "可以指定快递公司吗", "answer": "不支持指定，系统按收货地址自动分配。", "candidates": [["运费怎么算？", "单笔订单实付满 99 元免运费。"], ["订单可以取消吗？", "未发货的订单可以在订单详情页直接取消。"]], "expected_duplicate": false}
+{"question": "耳机怎么跟手机配对", "answer": "长按充电盒按键 3 秒，在蓝牙列表选择设备。", "candidates": [["耳机怎么连手机？", "打开充电盒盖子，长按盒子上的按键 3 秒，指示灯白色闪烁后，在手机蓝牙列表中选择“示例耳机”即可连接。"]], "expected_duplicate": true}
+{"question": "耳机进水了还能保修吗", "answer": "进水属于人为损坏，不在免费保修范围，可以付费维修。", "candidates": [["耳机怎么连手机？", "长按按键 3 秒连接。"], ["保修期", "保修期从签收次日开始计算，以商品详情页标注的保修天数为准。"]], "expected_duplicate": false}
+{"question": "降价了能退差价吗", "answer": "签收后 7 天内降价可以申请价格保护。", "candidates": [["退款方式", "退款按原支付方式退回。"], ["部分退款", "一个订单中只退部分商品的，按该商品的实付金额退款。"]], "expected_duplicate": false}
+{"question": "羊毛衫能机洗吗", "answer": "不建议机洗，冷水手洗。", "candidates": [["羊毛衫起球正常吗？", "轻微起球是正常现象。"], ["羊毛衫可以机洗吗？", "不建议机洗。请用 30 度以下的冷水和羊毛专用洗涤剂手洗。"]], "expected_duplicate": true}
+{"question": "生鲜坏了多久内能申请售后", "answer": "签收后 48 小时内，需要上传开箱照片。", "candidates": [["七天无理由退货", "签收后 7 天内，商品完好、不影响二次销售的，可以申请无理由退货。"], ["质量问题退货", "签收后 15 天内，商品出现质量问题的，可以申请退货。"]], "expected_duplicate": false}
