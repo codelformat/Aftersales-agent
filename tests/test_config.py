@@ -7,6 +7,8 @@ def _set_required(monkeypatch):
     monkeypatch.setenv("CHAT_MODEL", "m1")
     monkeypatch.setenv("CHAT_API_KEY", "k1")
     monkeypatch.setenv("DATABASE_URL", "mysql+asyncmy://u:p@h:3307/aftersales")
+    monkeypatch.setenv("EMBED_API_KEY", "e1")
+    monkeypatch.setenv("MILVUS_URI", "http://m:19530")
 
 
 def test_reads_chat_variables(monkeypatch):
@@ -26,12 +28,16 @@ def test_thinking_is_optional(monkeypatch):
 
 
 def test_unknown_env_file_keys_are_ignored(monkeypatch, tmp_path):
-    for k in ("CHAT_BASE_URL", "CHAT_MODEL", "CHAT_API_KEY", "CHAT_THINKING", "DATABASE_URL"):
+    for k in (
+        "CHAT_BASE_URL", "CHAT_MODEL", "CHAT_API_KEY", "CHAT_THINKING", "DATABASE_URL",
+        "EMBED_API_KEY", "MILVUS_URI",
+    ):
         monkeypatch.delenv(k, raising=False)
     env = tmp_path / ".env"
     env.write_text(
         "CHAT_BASE_URL=https://example.test/v1\nCHAT_MODEL=m1\nCHAT_API_KEY=k1\n"
         "TOKEN_BUDGET=999\nDATABASE_URL=mysql+asyncmy://u:p@h:3307/aftersales\n"
+        "EMBED_API_KEY=e1\nMILVUS_URI=http://m:19530\n"
     )
     s = Settings(_env_file=env)
     assert s.chat_model == "m1"
@@ -71,3 +77,28 @@ def test_tool_constants():
     assert config.TOOL_RETRY_MAX_DELAY == 2.0
     assert config.TOOL_RESULT_MAX_CHARS == 1500
     assert config.FAQ_MAX_RESULTS == 3
+
+
+def test_reads_knowledge_variables(monkeypatch):
+    _set_required(monkeypatch)
+    monkeypatch.delenv("EMBED_BASE_URL", raising=False)
+    s = Settings(_env_file=None)
+    assert s.embed_api_key.get_secret_value() == "e1"
+    assert s.embed_base_url == "https://api.siliconflow.cn/v1"
+    assert s.milvus_uri == "http://m:19530"
+
+
+def test_knowledge_constants():
+    assert config.EMBED_MODEL == "BAAI/bge-m3"
+    assert config.EMBED_DIM == 1024
+    assert config.KNOWLEDGE_COLLECTION == "knowledge"
+    assert config.KNOWLEDGE_TEST_COLLECTION == "knowledge_test"
+    assert config.CHUNK_MAX_CHARS == 400
+    assert config.OVERLAP_MAX_CHARS == 100
+    assert config.VECTORIZE_BATCH_SIZE == 16
+    assert config.FAQ_MIN_SCORE == 0.50
+    assert config.MINE_BATCH_SIZE == 20
+    assert config.MINE_CONCURRENCY == 4
+    assert config.DEDUP_KB_MIN_SCORE == 0.55
+    assert config.DEDUP_STAGING_MIN_SCORE == 0.75
+    assert config.MINED_CATEGORIES == ("退换货", "运费", "发票", "售后维修", "账户", "支付", "物流", "其他")
