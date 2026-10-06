@@ -89,3 +89,39 @@ async def test_ticket_number_conflict_retries_with_backoff(db):
     )
     assert t.ticket_no == "T20261006002"
     assert delays == [0.05]
+
+
+async def test_ticket_fk_error_not_retried(db):
+    from sqlalchemy.exc import IntegrityError
+
+    delays = []
+
+    async def fake_sleep(d):
+        delays.append(d)
+
+    with pytest.raises(IntegrityError):
+        await tickets.create_ticket_record(db, 99999999, "x", "售后", date(2026, 10, 6), sleep=fake_sleep)
+    assert delays == []
+
+
+async def test_ticket_number_after_999(db):
+    from app.db.models import Ticket
+
+    cid = await _new_conversation(db)
+    async with db() as s:
+        s.add(Ticket(ticket_no="T20261006999", conversation_id=cid, description="x", ticket_type="售后"))
+        await s.commit()
+    t = await tickets.create_ticket_record(db, cid, "y", "售后", date(2026, 10, 6))
+    assert t.ticket_no == "T202610061000"
+
+
+async def test_ticket_number_uses_numeric_max_across_widths(db):
+    from app.db.models import Ticket
+
+    cid = await _new_conversation(db)
+    async with db() as s:
+        for ticket_no in ("T20261006999", "T202610061000"):
+            s.add(Ticket(ticket_no=ticket_no, conversation_id=cid, description="x", ticket_type="售后"))
+        await s.commit()
+    t = await tickets.create_ticket_record(db, cid, "y", "售后", date(2026, 10, 6))
+    assert t.ticket_no == "T202610061001"

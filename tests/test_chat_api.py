@@ -222,3 +222,135 @@ async def test_normal_second_call_text_still_streams_per_chunk(client, db, use_s
     _, ev = await chat(client, "能退吗")
     assert [d["text"] for e, d in ev if e == "token"] == ["可", "以", "退"]
     assert ev[-1] == ("done", {"finish_reason": "stop"})
+
+
+async def test_persist_failure_sends_error(client, db, use_script, monkeypatch):
+    from app.services import chat as chat_service
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(chat_service.messages, "add_turn", boom)
+    use_script(text("您好"))
+    _, ev = await chat(client, "你好")
+    assert ev[-1] == UPSTREAM_ERROR
+
+
+async def test_tool_execution_crash_sends_error(db, locks):
+    from datetime import date
+
+    from app.repositories import conversations
+    from app.services.chat import ChatTurn, stream_reply
+    from tests.fakes import ScriptedChatModel
+
+    async with db() as s:
+        conv = await conversations.create(s, "u1")
+        await s.commit()
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("executor crashed")
+
+    model = ScriptedChatModel(scripts=[tools(("c1", "query_order", {"order_id": "1001"}))])
+    turn = ChatTurn(conversation_id=conv.id, history=[], user_input="订单", today=date(2026, 10, 6))
+    events = [e async for e in stream_reply(turn, model, execute=boom)]
+    assert events[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_tool_markup_after_leading_whitespace_is_not_streamed(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
+               text('\n <｜｜DSML｜｜ invoke name="query_faq">'))
+    _, ev = await chat(client, "邮费是多少")
+    assert [e for e, _ in ev] == ["session", "tool_start", "tool_end", "error"]
+
+
+async def test_budget_exceeded_on_new_session_creates_no_conversation(client, db, use_script):
+    from app.db.models import Conversation
+
+    use_script(text("x"))
+    app.dependency_overrides[get_token_budget] = lambda: 10
+    r, _ = await chat(client, "你好")
+    assert r.status_code == 422
+    async with db() as s:
+        assert (await s.execute(select(Conversation))).scalars().all() == []
+
+
+async def test_budget_exceeded_on_existing_session_releases_lock(client, db, use_script, locks):
+    use_script(text("好"))
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+    app.dependency_overrides[get_token_budget] = lambda: 10
+    r, _ = await chat(client, "再问一句", session_id=sid)
+    assert r.status_code == 422
+    assert not locks.get(int(sid)).locked()
+
+
+async def test_tool_args_split_across_chunks_and_tool_choice_auto(client, db, use_script):
+    from langchain_core.messages.tool import tool_call_chunk
+
+    split = [
+        AIMessageChunk(content="", tool_call_chunks=[tool_call_chunk(name="query_logistics", args='{"order_', id="c1", index=0)]),
+        AIMessageChunk(content="", tool_call_chunks=[tool_call_chunk(name=None, args='id": "1001"}', id=None, index=0)]),
+    ]
+    rec = use_script(split, text("好"))
+    _, ev = await chat(client, "物流")
+    assert ev[1][1]["tools"][0]["args"] == {"order_id": "1001"}
+    assert rec[0]["tool_choice"] == "auto"
+    assert rec[1]["tool_choice"] is None
+
+
+async def test_tool_round_persist_failure_sends_error(client, db, use_script, monkeypatch):
+    from app.services import chat as chat_service
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(chat_service.messages, "add_turn", boom)
+    use_script(tools(("c1", "query_order", {"order_id": "1001"})), text("好"))
+    _, ev = await chat(client, "订单")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_busy_session_does_not_read_history(client, db, use_script, locks, monkeypatch):
+    from app.repositories import messages
+
+    use_script(text("好"))
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+    reads = []
+
+    async def record_read(*args, **kwargs):
+        reads.append(args)
+        return []
+
+    monkeypatch.setattr(messages, "list_for_conversation", record_read)
+    lock = locks.get(int(sid))
+    await lock.acquire()
+    try:
+        r, _ = await chat(client, "再问一句", session_id=sid)
+        assert r.status_code == 409
+        assert reads == []
+    finally:
+        lock.release()
+
+
+async def test_existing_session_holds_lock_while_reading_history(client, db, use_script, locks, monkeypatch):
+    from app.repositories import messages
+
+    use_script(text("好"))
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+    observed = []
+    original = messages.list_for_conversation
+
+    async def record_read(session, conversation_id):
+        observed.append(locks.get(conversation_id).locked())
+        return await original(session, conversation_id)
+
+    monkeypatch.setattr(messages, "list_for_conversation", record_read)
+    app.dependency_overrides[get_token_budget] = lambda: 10
+    r, _ = await chat(client, "再问一句", session_id=sid)
+    assert r.status_code == 422
+    assert observed == [True]
+    assert not locks.get(int(sid)).locked()

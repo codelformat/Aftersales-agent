@@ -149,3 +149,31 @@ async def test_calls_run_in_parallel():
     out = await execute_tool_calls(calls, conversation_id=7, registry=reg, sleep=no_sleep)
     assert all(o.ok for o in out)
     assert loop.time() - start < 0.5
+
+
+async def test_malformed_calls_do_not_crash_round():
+    reg, _ = make_registry()
+    calls = [{"id": "a", "name": "echo"}, {"id": None, "name": "nope", "args": {}},
+             {"id": "c", "name": "echo", "args": {"order_id": "1"}}]
+    out = await execute_tool_calls(calls, conversation_id=7, registry=reg, sleep=no_sleep)
+    assert [o.ok for o in out] == [False, False, True]
+    assert payload(out[0])["error"] == "invalid_arguments"
+    assert payload(out[1])["error"] == "unknown_tool"
+    assert out[1].call_id == ""
+
+
+async def test_internal_validation_error_is_tool_error():
+    class Inner(BaseModel):
+        x: int
+
+    @tool("inner", args_schema=EchoArgs)
+    async def inner(order_id: str) -> dict:
+        """工具内部的数据校验失败。"""
+        Inner(x="not-int")
+        return {}
+
+    reg = ToolRegistry()
+    reg.register(ToolSpec(tool=inner, retryable=False, timeout=1.0))
+    out = await execute_tool_calls([{"id": "a", "name": "inner", "args": {"order_id": "1"}}],
+                                   conversation_id=7, registry=reg, sleep=no_sleep)
+    assert payload(out[0])["error"] == "tool_error"

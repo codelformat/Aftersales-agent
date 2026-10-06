@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 
 from app.config import TOKEN_BUDGET
 from app.context import BudgetExceeded, build_history
@@ -35,7 +36,20 @@ async def prepare_chat_turn(
     budget: Annotated[int, Depends(get_token_budget)],
     today: Annotated[date, Depends(get_today)],
 ) -> AsyncIterator[ChatTurn]:
+    def trim_history(previous: list[BaseMessage]) -> list[BaseMessage]:
+        try:
+            return build_history(previous, render_chat_system(today), req.message, budget)
+        except BudgetExceeded:
+            raise HTTPException(422, detail={
+                "code": "budget_exceeded",
+                "message": "消息过长，请缩短后重试",
+            })
+
     sm = get_sessionmaker()
+    trimmed_history = None
+    # 新会话先校验预算，避免拒绝请求时留下空会话。
+    if req.session_id is None:
+        trimmed_history = trim_history([])
     async with sm() as s:
         if req.session_id is not None:
             conversation = await conversations.get_for_user(
@@ -50,8 +64,6 @@ async def prepare_chat_turn(
             conversation = await conversations.create(s, req.user_id)
             await s.commit()
         conversation_id = conversation.id
-        rows = await messages.list_for_conversation(s, conversation_id)
-        previous = history.to_langchain(rows)
 
     lock = locks.get(conversation_id)
     if lock.locked():
@@ -59,18 +71,15 @@ async def prepare_chat_turn(
             "code": "session_busy",
             "message": "该会话正在处理上一条消息，请稍后重试",
         })
-    try:
-        trimmed_history = build_history(
-            previous, render_chat_system(today), req.message, budget
-        )
-    except BudgetExceeded:
-        raise HTTPException(422, detail={
-            "code": "budget_exceeded",
-            "message": "消息过长，请缩短后重试",
-        })
     await lock.acquire()
     # 使用 yield 依赖在响应结束或后续依赖出错时释放锁。
     try:
+        if trimmed_history is None:
+            # 历史读取和预算检查均在锁内，异常退出也释放锁。
+            async with sm() as s:
+                rows = await messages.list_for_conversation(s, conversation_id)
+                previous = history.to_langchain(rows)
+            trimmed_history = trim_history(previous)
         yield ChatTurn(
             conversation_id=conversation_id,
             history=trimmed_history,

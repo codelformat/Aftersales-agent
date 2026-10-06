@@ -11,7 +11,7 @@ from langchain_core.outputs import ChatGenerationChunk
 
 
 class Recorder(list):
-    """记录每次模型调用：{"messages": [...], "tools": [工具名...]}。"""
+    """记录每次模型调用的消息、工具名和工具选择策略。"""
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -23,20 +23,25 @@ class ScriptedChatModel(BaseChatModel):
     scripts: list
     recorder: Any = None
     bound_tools: list = []
+    bound_kwargs: dict = {}
 
     @property
     def _llm_type(self) -> str:
         return "scripted"
 
     def bind_tools(self, tools, **kwargs):
-        return self.model_copy(update={"bound_tools": list(tools)})
+        return self.model_copy(update={"bound_tools": list(tools), "bound_kwargs": dict(kwargs)})
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         raise NotImplementedError("只支持流式调用")
 
     async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
         if self.recorder is not None:
-            self.recorder.append({"messages": list(messages), "tools": [t.name for t in self.bound_tools]})
+            self.recorder.append({
+                "messages": list(messages),
+                "tools": [t.name for t in self.bound_tools],
+                "tool_choice": self.bound_kwargs.get("tool_choice"),
+            })
         for item in self.scripts.pop(0):
             if isinstance(item, BaseException):
                 raise item

@@ -32,7 +32,7 @@ async def stream_reply(
 ) -> AsyncIterator[tuple[str, dict]]:
     """流式发送回复。完整回复生成后，提交整轮消息。"""
     yield "session", {"session_id": str(turn.conversation_id)}
-    vars = {
+    prompt_vars = {
         **chat_prompt_vars(turn.today),
         "history": turn.history,
         "input": turn.user_input,
@@ -42,7 +42,7 @@ async def stream_reply(
     try:
         async for chunk in (
             chat_prompt | model.bind_tools(get_registry().tools_for_model(), tool_choice="auto")
-        ).astream(vars):
+        ).astream(prompt_vars):
             if isinstance(chunk.content, str) and chunk.content:
                 yield "token", {"text": chunk.content}
                 first_text += chunk.content
@@ -58,11 +58,16 @@ async def stream_reply(
             logger.warning("上游对话流返回空回复")
             yield "error", UPSTREAM_ERROR
             return
-        async with get_sessionmaker()() as s:
-            await messages.add_turn(
-                s, turn.conversation_id, turn_rows(turn.user_input, first_text)
-            )
-            await s.commit()
+        try:
+            async with get_sessionmaker()() as s:
+                await messages.add_turn(
+                    s, turn.conversation_id, turn_rows(turn.user_input, first_text)
+                )
+                await s.commit()
+        except Exception:
+            logger.exception("对话消息保存失败")
+            yield "error", UPSTREAM_ERROR
+            return
         yield "done", {"finish_reason": "stop"}
         return
 
@@ -71,7 +76,12 @@ async def stream_reply(
         {"id": call["id"], "name": call["name"], "args": call["args"]}
         for call in tool_calls
     ]}
-    outcomes = await execute(tool_calls, conversation_id=turn.conversation_id)
+    try:
+        outcomes = await execute(tool_calls, conversation_id=turn.conversation_id)
+    except Exception:
+        logger.exception("工具执行轮次失败")
+        yield "error", UPSTREAM_ERROR
+        return
     yield "tool_end", {"tools": [
         {"id": o.call_id, "name": o.name, "ok": o.ok} for o in outcomes
     ]}
@@ -81,7 +91,7 @@ async def stream_reply(
     prefix_checked = False
     try:
         async for chunk in (chat_prompt | model).astream({
-            **vars, "tool_round": [
+            **prompt_vars, "tool_round": [
                 request, *[o.message for o in outcomes], SystemMessage(TOOL_ROUND_CLOSING)
             ]
         }):
@@ -89,9 +99,9 @@ async def stream_reply(
                 final_text += chunk.content
                 if not prefix_checked:
                     pending_tokens.append(chunk.content)
-                    if len(final_text) < 2:
+                    if len(final_text.lstrip()) < 2:
                         continue
-                    if final_text.startswith("<｜"):
+                    if final_text.lstrip().startswith("<｜"):
                         break
                     prefix_checked = True
                     for token in pending_tokens:
@@ -104,7 +114,7 @@ async def stream_reply(
         yield "error", UPSTREAM_ERROR
         return
 
-    if final_text.startswith("<｜"):
+    if final_text.lstrip().startswith("<｜"):
         logger.warning("上游工具结果回复流以工具调用标记开头")
         yield "error", UPSTREAM_ERROR
         return
@@ -118,11 +128,16 @@ async def stream_reply(
         logger.warning("上游工具结果回复流返回空回复")
         yield "error", UPSTREAM_ERROR
         return
-    async with get_sessionmaker()() as s:
-        await messages.add_turn(
-            s,
-            turn.conversation_id,
-            turn_rows(turn.user_input, final_text, request, [o.message for o in outcomes]),
-        )
-        await s.commit()
+    try:
+        async with get_sessionmaker()() as s:
+            await messages.add_turn(
+                s,
+                turn.conversation_id,
+                turn_rows(turn.user_input, final_text, request, [o.message for o in outcomes]),
+            )
+            await s.commit()
+    except Exception:
+        logger.exception("工具轮次消息保存失败")
+        yield "error", UPSTREAM_ERROR
+        return
     yield "done", {"finish_reason": "stop"}
