@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>示例商城 · 售后客服</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --page: #f4f6fa;
+      --surface: #ffffff;
+      --assistant: #f0f2f5;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --error: #c62828;
+      --on-primary: #ffffff;
+      --focus: #93b4ff;
+      --shadow: #1f29370d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    button:focus-visible, textarea:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+    .chat {
+      display: flex;
+      flex-direction: column;
+      width: min(100%, 900px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      background: var(--surface);
+      box-shadow: 0 0 40px var(--shadow);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 22px 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0; font-size: 19px; font-weight: 650; }
+    .new-chat {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+    }
+    .new-chat:hover:enabled { background: var(--assistant); }
+    .messages {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-anchor: none;
+      padding: 28px;
+    }
+    .message { display: flex; margin-bottom: 20px; }
+    .message.user { justify-content: flex-end; }
+    .bubble {
+      max-width: 75%;
+      padding: 13px 17px;
+      border-radius: 16px;
+      background: var(--assistant);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .user .bubble {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-bottom-right-radius: 5px;
+    }
+    .assistant .bubble { border-bottom-left-radius: 5px; }
+    .typing { display: flex; align-items: center; gap: 5px; min-height: 27px; }
+    .typing[hidden] { display: none; }
+    .typing span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+    .typing span:nth-child(2) { animation-delay: .15s; }
+    .typing span:nth-child(3) { animation-delay: .3s; }
+    @keyframes pulse {
+      0%, 70%, 100% { opacity: .35; transform: translateY(0); }
+      35% { opacity: 1; transform: translateY(-3px); }
+    }
+    .error { color: var(--error); }
+    .reply:not(:empty) ~ .error { margin-top: 10px; }
+    .composer { padding: 18px 28px 20px; border-top: 1px solid var(--border); }
+    .input-row { display: flex; align-items: flex-end; gap: 12px; }
+    textarea {
+      flex: 1;
+      min-width: 0;
+      min-height: 76px;
+      max-height: 180px;
+      resize: vertical;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    textarea::placeholder { color: var(--muted); }
+    .send {
+      padding: 12px 22px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--primary);
+      color: var(--on-primary);
+    }
+    .send:hover:enabled { background: var(--primary-hover); }
+    .hint { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+    @media (max-width: 600px) {
+      .header { padding: 18px 16px; }
+      h1 { font-size: 16px; }
+      .messages { padding: 20px 16px; }
+      .bubble { max-width: 85%; }
+      .composer { padding: 14px 16px max(14px, env(safe-area-inset-bottom)); }
+      .send { padding: 12px 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .typing span { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="chat">
+    <header class="header">
+      <h1>示例商城 · 售后客服</h1>
+      <button id="new-chat" class="new-chat" type="button">新对话</button>
+    </header>
+    <section id="messages" class="messages" role="log" aria-label="对话消息" aria-live="polite"></section>
+    <form id="composer" class="composer">
+      <div class="input-row">
+        <textarea id="input" rows="2" maxlength="2000" aria-label="输入您的问题" aria-describedby="hint" placeholder="请输入您的问题…"></textarea>
+        <button id="send" class="send" type="submit" disabled>发送</button>
+      </div>
+      <p id="hint" class="hint">Enter 发送 · Shift+Enter 换行 · 最多 2000 字符</p>
+    </form>
+  </main>
+  <script>
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendButton = document.getElementById('send');
+    const newChatButton = document.getElementById('new-chat');
+    const composer = document.getElementById('composer');
+    const welcome = '您好，我是示例商城的售后客服助手。请问有什么可以帮您？';
+    let sessionId = null;
+    let streaming = false;
+    let followBottom = true;
+    let stopTyping = null;
+
+    messages.addEventListener('scroll', () => {
+      followBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 80;
+    });
+
+    function scrollToBottom() {
+      if (followBottom) messages.scrollTop = messages.scrollHeight;
+    }
+
+    function addMessage(role, text = '') {
+      const row = document.createElement('div');
+      row.className = `message ${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      const reply = document.createElement('div');
+      reply.className = 'reply';
+      reply.textContent = text;
+      bubble.append(reply);
+      row.append(bubble);
+      messages.append(row);
+      scrollToBottom();
+      return { bubble, reply };
+    }
+
+    function updateControls() {
+      input.disabled = streaming;
+      sendButton.disabled = streaming || !input.value.trim();
+      newChatButton.disabled = streaming;
+    }
+
+    function resetChat() {
+      if (streaming && !stopTyping) return;
+      if (stopTyping) stopTyping();
+      sessionId = null;
+      messages.replaceChildren();
+      followBottom = true;
+      addMessage('assistant', welcome);
+      input.value = '';
+      updateControls();
+      input.focus();
+    }
+
+    // Only complete events are passed here; a chunk can end in any line.
+    function parseEvent(block) {
+      let event = '';
+      const data = [];
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''));
+      }
+      if (!data.length) return null; // Ignore SSE comments / keep-alives.
+      return { event, data: JSON.parse(data.join('\n')) };
+    }
+
+    async function sendMessage() {
+      const message = input.value.trim();
+      if (streaming || !message) return;
+      streaming = true;
+      input.value = '';
+      updateControls();
+      addMessage('user', message);
+      const { bubble, reply } = addMessage('assistant');
+      const typing = document.createElement('div');
+      typing.className = 'typing';
+      typing.setAttribute('role', 'status');
+      typing.setAttribute('aria-label', '正在输入');
+      for (let i = 0; i < 3; i++) typing.append(document.createElement('span'));
+      bubble.append(typing);
+      scrollToBottom();
+
+      let queue = [];
+      let queueIndex = 0;
+      let animation = null;
+      let reader = null;
+      let terminal = false;
+      let streamEnded = false;
+
+      function finishTurn() {
+        typing.hidden = true;
+        stopTyping = null;
+        streaming = false;
+        updateControls();
+        input.focus();
+      }
+
+      function appendText(text) {
+        reply.append(document.createTextNode(text));
+        scrollToBottom();
+      }
+
+      function flushQueue() {
+        clearInterval(animation);
+        animation = null;
+        if (queueIndex < queue.length) appendText(queue.slice(queueIndex).join(''));
+        queue = [];
+        queueIndex = 0;
+      }
+
+      function enqueue(text) {
+        if (!text) return;
+        queue.push(...Array.from(text));
+        if (animation !== null) return;
+        animation = setInterval(() => {
+          const count = Math.max(2, Math.ceil((queue.length - queueIndex) / 60));
+          appendText(queue.slice(queueIndex, queueIndex + count).join(''));
+          queueIndex += count;
+          if (queueIndex >= queue.length) {
+            clearInterval(animation);
+            animation = null;
+            queue = [];
+            queueIndex = 0;
+            if (streamEnded) finishTurn();
+          }
+        }, 20);
+      }
+
+      function showError(message) {
+        flushQueue();
+        typing.hidden = true;
+        const error = document.createElement('div');
+        error.className = 'error';
+        error.setAttribute('role', 'alert');
+        error.textContent = message;
+        bubble.append(error);
+        scrollToBottom();
+      }
+
+      function handleEvent(block) {
+        const parsed = parseEvent(block);
+        if (!parsed) return;
+        const { event, data } = parsed;
+        if (event === 'session') {
+          sessionId = data.session_id;
+        } else if (event === 'token') {
+          enqueue(data.text);
+        } else if (event === 'done') {
+          terminal = true;
+        } else if (event === 'error') {
+          showError(data.message || '服务暂时不可用，请稍后重试');
+          terminal = true;
+        }
+      }
+
+      try {
+        const payload = { message };
+        if (sessionId) payload.session_id = sessionId;
+        const response = await fetch('/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          let errorMessage = `请求失败（HTTP ${response.status}）`;
+          try {
+            const body = await response.json();
+            if (typeof body.detail?.message === 'string' && body.detail.message) {
+              errorMessage = body.detail.message;
+            }
+          } catch { /* Non-JSON errors use the HTTP status fallback. */ }
+          throw new Error(errorMessage);
+        }
+        if (!response.body) throw new Error('无法读取回复，请稍后重试');
+        reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (!terminal) {
+          const { value, done } = await reader.read();
+          buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+          let boundary;
+          while (!terminal && (boundary = /\r?\n\r?\n/.exec(buffer))) {
+            const block = buffer.slice(0, boundary.index);
+            buffer = buffer.slice(boundary.index + boundary[0].length);
+            handleEvent(block);
+          }
+          if (done) {
+            if (!terminal) throw new Error('连接已中断，请稍后重试');
+            break;
+          }
+        }
+      } catch (error) {
+        showError(error instanceof TypeError ? '网络连接失败，请检查网络后重试' :
+          (error.message || '请求失败，请稍后重试'));
+      } finally {
+        if (reader) {
+          try { await reader.cancel(); } catch { /* The stream may already be closed. */ }
+          reader.releaseLock();
+        }
+        streamEnded = true;
+        if (animation === null) {
+          finishTurn();
+        } else {
+          stopTyping = () => {
+            clearInterval(animation);
+            animation = null;
+            queue = [];
+            queueIndex = 0;
+            finishTurn();
+          };
+        }
+      }
+    }
+
+    composer.addEventListener('submit', (event) => {
+      event.preventDefault();
+      sendMessage();
+    });
+    input.addEventListener('input', updateControls);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
+        event.preventDefault();
+        if (!streaming) sendMessage();
+      }
+    });
+    newChatButton.addEventListener('click', resetChat);
+    resetChat();
+  </script>
+</body>
+</html>
