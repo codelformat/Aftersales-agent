@@ -1,0 +1,20 @@
+{"text": "订单号 A12345 的耳机左耳没声音，我想换个新的。", "expected": {"order_id": "A12345", "request_type": "换货"}}
+{"text": "买的羊毛衫缩水严重，订单 20261003-889，直接退钱吧，不想要了。", "expected": {"order_id": "20261003-889", "request_type": "退货"}}
+{"text": "你们快递太慢了，等了十天还没到，我要投诉！", "expected": {"order_id": null, "request_type": "投诉"}}
+{"text": "上周买的扫地机器人坏了，能不能帮忙修一下？", "expected": {"order_id": null, "request_type": "维修"}}
+{"text": "订单1234567890123还没发货，我不想要了，把钱退给我。", "expected": {"order_id": "1234567890123", "request_type": "退款"}}
+{"text": "鞋子尺码偏小，订单号 SO-2026-0042，能换大一码吗？", "expected": {"order_id": "SO-2026-0042", "request_type": "换货"}}
+{"text": "收到的杯子碎了，订单 JD88812345，我要退货退款。", "expected": {"order_id": "JD88812345", "request_type": "退货"}}
+{"text": "买了三件只收到两件，少发了一件，订单号 A20261001，把少的那件钱退我就行。", "expected": {"order_id": "A20261001", "request_type": "退款"}}
+{"text": "请问你们的七天无理由退货是从签收那天开始算吗？", "expected": {"order_id": null, "request_type": "咨询"}}
+{"text": "我的退款申请提交三天了，订单 20260928-117，现在到哪一步了？", "expected": {"order_id": "20260928-117", "request_type": "咨询"}}
+{"text": "客服态度太差了，问了三次都不理人，我要投诉这个客服。", "expected": {"order_id": null, "request_type": "投诉"}}
+{"text": "洗衣机用了两个月就漏水，订单号 B556677，还在保修期，安排上门维修吧。", "expected": {"order_id": "B556677", "request_type": "维修"}}
+{"text": "衣服颜色和图片差太多，订单 7788990011，退了吧，运费你们出。", "expected": {"order_id": "7788990011", "request_type": "退货"}}
+{"text": "手机屏幕有一条亮线，订单 SO-2026-0105，给我换一台新的。", "expected": {"order_id": "SO-2026-0105", "request_type": "换货"}}
+{"text": "手机屏幕有亮线，订单 SO-2026-0106，帮我修一下屏幕就行，不用换。", "expected": {"order_id": "SO-2026-0106", "request_type": "维修"}}
+{"text": "刚买三天就降价了，订单 A77001，能把差价退给我吗？", "expected": {"order_id": "A77001", "request_type": "退款"}}
+{"text": "快递员把包裹放门口被偷了，物流却显示已签收，订单 20261002-551，你们必须给个说法！", "expected": {"order_id": "20261002-551", "request_type": "投诉"}}
+{"text": "想问下这款电动牙刷的刷头多久换一次？", "expected": {"order_id": null, "request_type": "咨询"}}
+{"text": "订单 C3030 的台灯不亮了，退货吧，不想再折腾了。", "expected": {"order_id": "C3030", "request_type": "退货"}}
+{"text": "优惠券没有抵扣成功，多付了 20 块，订单 20261004-020，把多扣的钱退回来。", "expected": {"order_id": "20261004-020", "request_type": "退款"}}
