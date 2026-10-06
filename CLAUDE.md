@@ -45,8 +45,12 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
   codex exec -C /Users/harry/Aftersales-agent \
     -m gpt-6.1-sol -c model_reasoning_effort="high" \
     -s workspace-write \
+    -c sandbox_workspace_write.network_access=true \
+    -c 'sandbox_workspace_write.writable_roots=["/Users/harry/.cache/uv","/Users/harry/.local/share/uv"]' \
     "<任务描述>" < /dev/null
   ```
+
+  后两个 `-c` 是必需的。原因：默认沙箱禁止网络，也不能写 uv 的缓存目录，`uv add` / `uv sync` 会失败。
 
 - **任务描述要自包含**：Codex 看不到对话上下文。写清目标、涉及文件/模块、接口约定、验收标准（要通过的测试或命令）、不许改动的范围，以及相关库的正确 API 用法（来自 Context7 的查询结果）。
 - 大任务按 plan 拆成小步依次交给 Codex。每步完成后由 Claude 检查 diff、跑测试；有问题把具体问题和修改要求反馈给 Codex 重做，不自己改代码。
