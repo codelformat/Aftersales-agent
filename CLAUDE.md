@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 电商售后智能客服（Aftersales-agent）。
 - ch01：SSE 流式多轮对话 + 售后描述结构化提取。
-- ch02：Function Calling 工具链（5 个工具，单轮调用），会话和消息落 MySQL。不做 Agent Loop、向量检索。
+- ch02：Function Calling 工具链（5 个工具，单轮调用），会话和消息落 MySQL。不做 Agent Loop。
+- ch03：知识库。Markdown 文档结构感知切分 + 历史对话挖掘问答对，MySQL `knowledge_chunks` 与 Milvus 集合 `knowledge` 双写；`query_faq` 内部改为 dense 向量检索（契约不变）。不做关键词召回、混合检索、重排。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
 - 每章的 spec 在 `docs/superpowers/specs/`，plan 在 `docs/superpowers/plans/`，开发记录在 `dev-notes/chNN.md`。
@@ -15,14 +16,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 uv sync                                              # 安装依赖（Python 3.12，由 uv 管理）
-docker compose up -d --wait                          # 启动 MySQL（容器 aftersales-mysql，宿主端口 3307）
-bash scripts/reset_db.sh                             # 删除数据卷并重建库，校验 FAQ 中文编码
+docker compose up -d --wait                          # 启动 MySQL（宿主端口 3307）和 Milvus（19530，健康检查 9091）
+bash scripts/reset_db.sh                             # 删除 MySQL 和 Milvus 数据卷并重建，校验 FAQ 中文编码和 Milvus 健康
+uv run python scripts/build_kb.py                    # 离线建库：文档和 faq 表入库（pending），再向量化写 Milvus；已入库的文档跳过
+uv run python scripts/build_kb.py --rebuild          # 重建全部文档来源（不含 mined）；--status 只看状态；--check 不一致时退出码 1
+uv run python scripts/seed_history.py --date 2026-10-05   # 导入 30 通样例历史对话（默认昨天）
+uv run python scripts/mine_qa.py --date 2026-10-05   # 挖掘任务：抽取 → 暂存 → 去重 → 入库 → 向量化（默认昨天；crontab 示例见脚本头）
 uv run uvicorn app.main:app --reload --port 8000     # 启动服务；聊天页 http://127.0.0.1:8000/
 uv run pytest -q                                     # 全量测试（需要 MySQL；连不上时数据库测试直接失败，不跳过）
 uv run pytest tests/test_chat_api.py::test_tool_round_events_and_persistence -q   # 单个测试
 uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（真实上游，只执行第 1 次调用；未达标退出码 1）
 uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集（真实上游）
 uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
+uv run python evals/run_retrieval_eval.py            # 检索评估集（真实嵌入 + 生产集合；先 build_kb）
+uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
+uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
+bash scripts/demo3.sh                                # ch03 验收（需先启动服务、MySQL 和 Milvus）
 bash scripts/demo2.sh                                # ch02 三项验收（需先启动服务和 MySQL）
 bash scripts/demo.sh                                 # ch01 三项验收
 ```
@@ -34,14 +43,18 @@ bash scripts/demo.sh                                 # ch01 三项验收
 ```
 api → services → repositories → db
          ↘ tools (registry, executor) → repositories
+                  ↘ knowledge.retrieval → knowledge.embeddings, knowledge.milvus
          ↘ llm, prompts, history, context
+scripts/build_kb.py → knowledge.ingest, knowledge.vectorize
+scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 ```
 
 | 模块 | 职责 |
 |---|---|
-| `app/config.py` | `Settings` 读 4 个 `CHAT_*` 和 `DATABASE_URL`；`test_database_url()` 推导测试库；其余为代码常量 |
-| `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker`）与 4 张表的 ORM 映射 |
-| `app/repositories/` | 只负责 SQL：会话、消息、FAQ（LIKE，转义通配符）、工单（指数回退重试主键冲突） |
+| `app/config.py` | `Settings` 读 4 个 `CHAT_*`、`DATABASE_URL`、`EMBED_API_KEY`、`EMBED_BASE_URL`、`MILVUS_URI`；`test_database_url()` 推导测试库；其余为代码常量 |
+| `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker` / `dispose_engine`）与 6 张表的 ORM 映射 |
+| `app/repositories/` | 只负责 SQL：会话、消息、工单（指数回退重试主键冲突）、知识块 `knowledge`、挖掘暂存 `staging` |
+| `app/knowledge/` | `milvus`（客户端 get/set、集合定义、经 `retry_async` 重试）、`embeddings`（`OpenAIEmbeddings` 工厂）、`chunking`（Markdown 切分、`knowledge_text`）、`ingest`（文档和 faq 表入库）、`vectorize`（`vectorize_pending`、状态）、`retrieval`（在线检索）、`mining`（抽取、去重）、`history_seed` |
 | `app/tools/` | 5 个 `@tool`、`mock_data`（确定性 mock）、注册表、执行器（校验、超时、重试、错误转换、截断、并行） |
 | `app/services/chat.py` | 一轮对话：第 1 次调用绑定工具并流式输出 → 并行执行工具 → 第 2 次调用（不绑定工具）流式输出 → 一个事务写库 |
 | `app/services/history.py` | 数据库消息 ↔ LangChain 消息 |
@@ -50,12 +63,17 @@ api → services → repositories → db
 
 必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/`）：
 
-- **`db/schema.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
+- **`db/schema.sql`、`db/schema_ch03.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
 - **容器初始化 SQL 必须用 utf8mb4 读取**（`db/mysql-client.cnf` 挂到 `/etc/mysql/conf.d/`），否则中文双重编码。校验存储字节要用 `HEX()`，字符串比较会被 latin1 客户端"还原"而漏检。
 - **执行 `.sql` 文件用 `exec_driver_sql`，不用 `text()`。** 异步 ORM 提交后读数据库默认值列前先 `await session.refresh()`。测试引擎用 `NullPool`（pytest 每个异步测试一个事件循环）。
 - **第 2 次调用不绑定工具，并在工具结果后追加 `SystemMessage(TOOL_ROUND_CLOSING)`**（不写库）。去掉它，模型会把工具调用标记 `<｜｜DSML｜｜ ...>` 写进正文。服务端另有标记防线：命中时发 `error`、不写库。
 - **`create_ticket` 不重试**（非幂等）；`conversation_id` 由执行器用 `InjectedToolArg` 注入，模型看不到。
-- **`query_faq` 的 keyword 取用户原词，不替换同义词**（"邮费"查不到"运费"是 LIKE 的预期漏召回，留给向量检索）。
+- **`query_faq` 的入参、描述、出参不改**；内部是向量检索：关键词嵌入 → Milvus Top 3 → 丢弃低于 `FAQ_MIN_SCORE=0.50`（检索评估集校准）→ 按 id 读 MySQL 的 `done` 行。
+- **Milvus 主键 = MySQL `knowledge_chunks.id`，集合只存 id + 向量，集合级 `Strong` 一致性。** 正文和元数据只在 MySQL。
+- **入库只写 MySQL `pending`，统一由 `vectorize_pending()` 写 Milvus 并回填 `done`。** 按主键 `upsert`，中断后重跑不产生重复。
+- **`OpenAIEmbeddings` 必须设 `check_embedding_ctx_length=False` 和 `model_kwargs={"encoding_format": "float"}`**（硅基流动不接受 token id）。
+- **`knowledge_chunks` 有自引用外键，删除行之前先把 `prev_chunk_id`、`next_chunk_id` 置 NULL。**
+- **测试不访问真实嵌入和生产集合**：autouse fixture 用 `FakeEmbeddings` 和 `BlockedMilvus`；需要 Milvus 的测试用 fixture `milvus`（每个测试重建 `knowledge_test`）。抽取器和裁定器用 `RunnableLambda`。
 - **提取模型必须关闭思考**；**使用 DeepSeek 时必须设置 `CHAT_THINKING`**；`CHAT_THINKING` 未设置或为空时不发送 `thinking` 字段。
 - **DeepSeek 思考模式下，第 2 次调用依赖服务端按 tool_call id 缓存的思考内容**（`ChatOpenAI` 不回传 `reasoning_content`）。自造 tool_call id 放在当前轮会 400。
 - **SSE 预检放在 yield 依赖 `prepare_chat_turn` 中，会话锁在其 `finally` 释放**（默认 `scope="request"`）。
@@ -74,10 +92,11 @@ api → services → repositories → db
 | 嵌入 | `EMBED_API_KEY`（`EMBED_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/embeddings`，模型 `BAAI/bge-m3`，**1024 维**（Milvus collection 维度按此设） |
 | 重排 | `RERANK_API_KEY`（`RERANK_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/rerank`，模型 `BAAI/bge-reranker-v2-m3`；Jina/Cohere 形状（`query` + `documents` → `results[].index/relevance_score`），不是 OpenAI 协议 |
 
-- ch01、ch02 只用到聊天这一组和 `DATABASE_URL`；嵌入、重排尚未接入代码。
+- ch01、ch02 只用到聊天这一组和 `DATABASE_URL`；ch03 接入嵌入和 `MILVUS_URI`；重排尚未接入代码。
 - `DATABASE_URL`：`mysql+asyncmy://aftersales:aftersales@127.0.0.1:3307/aftersales?charset=utf8mb4`（本项目 Docker Compose 的 MySQL）。
 - 嵌入、重排的 base URL 在代码里给默认值 `https://api.siliconflow.cn/v1`，`.env` 中可覆盖。
-- `.env` 只含上表 6 个变量和 `DATABASE_URL`（ch02 经用户同意加入）。需要新配置项时，由用户告知后再加入。
+- `MILVUS_URI`：`http://127.0.0.1:19530`（本项目 Docker Compose 的 Milvus，ch03 经用户同意加入）。
+- `.env` 只含上表 6 个变量、`DATABASE_URL` 和 `MILVUS_URI`。需要新配置项时，由用户告知后再加入。
 - 验证聊天时 `max_tokens` 别设太小：思考 token 计入其中，太小会 `finish_reason=length` 且 `content` 为空。
 
 ## 技术选型（定死，不得更换）
