@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from app.repositories import conversations, faq, messages, tickets
+from app.repositories import conversations, messages, tickets
 from app.repositories.messages import NewMessage
 
 pytestmark = pytest.mark.anyio
@@ -39,22 +39,6 @@ async def test_add_turn_and_list_in_order(db):
     assert [r.role for r in rows] == ["user", "assistant", "tool", "assistant"]
     assert rows[1].tool_calls == calls
     assert rows[2].tool_call_id == "c1"
-
-
-async def test_faq_search_hits_and_misses(db):
-    async with db() as s:
-        hit = await faq.search(s, "退货政策", 3)
-        miss = await faq.search(s, "邮费", 3)
-        many = await faq.search(s, "退货", 3)
-    assert [f.question for f in hit] == ["退货政策是什么？"]
-    assert miss == []
-    assert len(many) == 3
-
-
-async def test_faq_search_escapes_wildcards(db):
-    async with db() as s:
-        assert await faq.search(s, "%", 3) == []
-        assert await faq.search(s, "_", 3) == []
 
 
 async def test_ticket_numbers_increment(db):

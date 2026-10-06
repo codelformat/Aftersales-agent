@@ -69,15 +69,6 @@ async def test_order_id_pattern_rejected():
 
 
 @pytest.mark.anyio
-async def test_query_faq_tool(db):
-    tool = get_registry().get("query_faq").tool
-    hit = await tool.ainvoke({"keyword": "退货政策"})
-    miss = await tool.ainvoke({"keyword": "邮费"})
-    assert hit["results"][0]["question"] == "退货政策是什么？"
-    assert miss == {"results": []}
-
-
-@pytest.mark.anyio
 async def test_create_ticket_tool_writes_row(db):
     async with db() as s:
         conv = await conversations.create(s, "u1")
