@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 重排 | `RERANK_API_KEY`（`RERANK_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/rerank`，模型 `BAAI/bge-reranker-v2-m3`；Jina/Cohere 形状（`query` + `documents` → `results[].index/relevance_score`），不是 OpenAI 协议 |
 
 - 嵌入、重排的 base URL 在代码里给默认值 `https://api.siliconflow.cn/v1`，`.env` 中可覆盖。
-- `.env` 里其余变量（`TOKEN_BUDGET`、`DATABASE_URL`、`MCP_*_URL`、`LANGFUSE_*`、`CHAT_REASONING_SPLIT` 等）沿用自 mewhelp 项目，**未在本项目验证**，用到时先核实。
+- `.env` 里其余变量（`TOKEN_BUDGET`、`DATABASE_URL`、`MCP_*_URL`、`LANGFUSE_*`、`CHAT_REASONING_SPLIT` 等）沿用自 mewhelp 项目。**忽略它们**：代码不读取、设计不依赖。需要新配置项时，由用户告知。
 - 验证聊天时 `max_tokens` 别设太小：思考 token 计入其中，太小会 `finish_reason=length` 且 `content` 为空。
 
 ## 技术选型（定死，不得更换）
