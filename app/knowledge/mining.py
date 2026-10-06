@@ -1,17 +1,26 @@
 import asyncio
 import logging
+import math
 from dataclasses import dataclass
 from datetime import date
 
 from langchain_core.runnables import Runnable
 
-from app.config import MINE_BATCH_SIZE, MINE_CONCURRENCY
+from app.config import DEDUP_KB_MIN_SCORE, DEDUP_STAGING_MIN_SCORE, MINE_BATCH_SIZE, MINE_CONCURRENCY
 from app.db.engine import get_sessionmaker
 from app.db.models import Message
-from app.repositories import messages, staging
+from app.knowledge.chunking import PATH_SEP
+from app.knowledge.embeddings import get_embeddings
+from app.knowledge.retrieval import search_by_vector
+from app.knowledge.vectorize import vectorize_pending
+from app.repositories import knowledge, messages, staging
+from app.repositories.knowledge import NewChunk
 from app.repositories.staging import NewStaging
 
 logger = logging.getLogger(__name__)
+
+MINED_SOURCE = "对话挖掘"
+DEDUP_KB_TOP_K = 5
 
 
 def source_ref(conversation_id: int) -> str:
@@ -93,3 +102,82 @@ async def extract_day(
         stats.pairs += len(rows)
         stats.batches += 1
     return stats
+
+
+def format_candidates(cands: list[tuple[str, str]]) -> str:
+    if not cands:
+        return "（无）"
+    return "\n".join(f"{i}. 问：{q}\n   答：{a}" for i, (q, a) in enumerate(cands, start=1))
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
+
+
+@dataclass
+class DedupStats:
+    kept: int = 0
+    discarded: int = 0
+    failed: int = 0
+
+
+async def dedup_pending(judge: Runnable) -> DedupStats:
+    """逐行处理 extracted 暂存行。召回候选后裁定，丢弃重复项，写入新问答。"""
+    stats = DedupStats()
+    embeddings = get_embeddings()
+    async with get_sessionmaker()() as s:
+        rows = await staging.list_extracted(s)
+    kept: list[tuple[list[float], str, str]] = []  # 本次保留项，还不在 Milvus 中。
+    for row in rows:
+        try:
+            vec = await embeddings.aembed_query(row.question)
+            kb = await search_by_vector(vec, limit=DEDUP_KB_TOP_K, min_score=DEDUP_KB_MIN_SCORE)
+            cands = [(c.questions, c.answer) for c, _ in kb]
+            cands += [(q, a) for v, q, a in kept if _cosine(v, vec) >= DEDUP_STAGING_MIN_SCORE]
+            result = await judge.ainvoke({
+                "question": row.question, "answer": row.answer, "candidates": format_candidates(cands),
+            })
+        except Exception:
+            logger.exception("暂存行 %d 去重失败", row.id)
+            stats.failed += 1
+            continue
+        verdict = result["parsed"]
+        if verdict is None or (
+            verdict.duplicate_of is not None and not 1 <= verdict.duplicate_of <= len(cands)
+        ):
+            logger.error("暂存行 %d 裁定结果无效：raw=%r", row.id, result["raw"])
+            stats.failed += 1
+            continue
+        async with get_sessionmaker()() as s:
+            if verdict.duplicate_of is not None:
+                await staging.set_status(s, row.id, "discarded")
+            else:
+                await knowledge.insert_chunks(s, [NewChunk(
+                    verdict.category, row.question, row.answer,
+                    f"{MINED_SOURCE}{PATH_SEP}{verdict.category}", "mined", False,
+                )])
+                await staging.set_status(s, row.id, "kept")
+            await s.commit()
+        if verdict.duplicate_of is not None:
+            stats.discarded += 1
+        else:
+            kept.append((vec, row.question, row.answer))
+            stats.kept += 1
+    return stats
+
+
+@dataclass
+class MiningStats:
+    extract: ExtractStats
+    dedup: DedupStats
+    vectorized: int
+
+
+async def run_mining(day: date, extractor: Runnable, judge: Runnable) -> MiningStats:
+    """抽取、补齐已有向量、整体去重，再向量化新问答。"""
+    extract = await extract_day(day, extractor)
+    vectorized = await vectorize_pending()  # 补齐已有知识的向量，供去重召回。
+    dedup = await dedup_pending(judge)
+    vectorized += await vectorize_pending()
+    return MiningStats(extract, dedup, vectorized)
