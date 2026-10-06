@@ -76,6 +76,7 @@
 
 - 字段：`id` INT64 主键（`auto_id=False`，等于 `knowledge_chunks.id`）；`vector` FLOAT_VECTOR，`dim=1024`。不存正文和元数据。
 - 索引：`AUTOINDEX`，`metric_type="COSINE"`。
+- 一致性级别：集合级 `Strong`。写入后立即可检索；默认的 Bounded 会让刚写入的向量短时间查不到。数据量小，额外延迟可以忽略。（计划阶段修订：原设计按调用区分一致性。）
 - `ensure_collection(client, name)`：集合不存在时创建，存在时不动。集合定义写在代码中（`app/knowledge/milvus.py`）。
 - `vector_id` 回填为 `str(id)`。
 
@@ -194,7 +195,7 @@ scripts/mine_qa.py  → knowledge.mining, knowledge.vectorize
 
 1. 把 `question` 向量化（`aembed_query`）。
 2. 召回候选：
-   - 知识库候选：到 Milvus 检索 Top 5（`consistency_level="Strong"`），相似度 ≥ `DEDUP_KB_MIN_SCORE` 的，从 MySQL 读出 `questions` 和 `answer`。
+   - 知识库候选：到 Milvus 检索 Top 5，相似度 ≥ `DEDUP_KB_MIN_SCORE` 的，从 MySQL 读出 `questions` 和 `answer`。
    - 本次保留项候选：本次运行中已保留的问答对，问题向量的余弦相似度 ≥ `DEDUP_STAGING_MIN_SCORE` 的。在内存中比较，原因：它们还没有进 Milvus。
 3. LLM 裁定（每行都调用，候选为空时也调用，用于确定分类）。输出结构：`DedupVerdict { duplicate_of: int | None, category: Literal[MINED_CATEGORIES] }`。`duplicate_of` 是候选序号。规则：候选已经回答了同一个问题（问法不同但意图相同）时，判为重复；以知识库为准，新答案和候选矛盾时也判为重复。
 4. 重复：暂存行改为 `discarded`。
@@ -260,7 +261,7 @@ scripts/mine_qa.py  → knowledge.mining, knowledge.vectorize
 ### 9.2 `search_faq(keyword) -> list[dict]`
 
 1. `aembed_query(keyword)`。
-2. Milvus `search` 集合 `knowledge`，`limit=FAQ_MAX_RESULTS`，默认一致性。
+2. Milvus `search` 集合 `knowledge`，`limit=FAQ_MAX_RESULTS`。
 3. 丢弃相似度低于 `FAQ_MIN_SCORE` 的结果。
 4. 按 id 从 MySQL 读 `knowledge_chunks`，只取 `done` 的行。按 Milvus 的相似度顺序排列。Milvus 有、MySQL 没有的 id 跳过。
 5. 映射：`question`=`questions`，`answer`=`answer`，`category`=`category`。
@@ -320,6 +321,5 @@ ch02 中断言"邮费查不到"的测试（`tests/test_repositories.py`、`tests
 - 不处理两个建库或挖掘进程同时运行。只支持单实例运行。
 - 没抽出问答对、或抽取失败的会话没有暂存行，每次运行同一日期时会被重新抽取（多花 LLM 调用，结果不变）。
 - MySQL 为 `done`、Milvus 却没有向量的不一致（例如只清空了 Milvus 卷）不会自动发现。处理方法：`reset_db.sh` 一起清空，或 `build_kb.py --rebuild`。`mined` 块不在 `--rebuild` 范围内。
-- 在线检索用默认一致性，刚写入的向量可能短时间检索不到。
 - 只有 dense 单路：精确型号、编号这类字面匹配的查询召回可能不如关键词检索。由后续章节的混合检索解决。
 - `keyword` 最长 20 字，长问题只取关键词检索，语义信息比整句少。
