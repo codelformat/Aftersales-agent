@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import pytest
-from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage, ToolMessage
 from sqlalchemy import select
 
 from app.api.chat import get_token_budget
@@ -64,8 +64,9 @@ async def test_tool_round_events_and_persistence(client, db, use_script):
     assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_logistics", "ok": True}]}
     assert rec[1]["tools"] == []
     second_input = rec[1]["messages"]
-    assert isinstance(second_input[-2], AIMessage) and isinstance(second_input[-1], ToolMessage)
-    assert json.loads(second_input[-1].content)["data"]["status"] == "运输中"
+    assert isinstance(second_input[-3], AIMessage) and isinstance(second_input[-2], ToolMessage)
+    assert isinstance(second_input[-1], SystemMessage) and "本轮不能再调用任何工具" in second_input[-1].content
+    assert json.loads(second_input[-2].content)["data"]["status"] == "运输中"
     saved = await rows(db)
     assert [m.role for m in saved] == ["user", "assistant", "tool", "assistant"]
     assert saved[1].content is None and saved[1].tool_calls[0]["name"] == "query_logistics"
@@ -197,3 +198,27 @@ async def test_disconnect_after_tools_writes_no_messages(db, locks):
     assert await rows(db) == []
     async with db() as s:
         assert (await s.execute(select(Ticket))).scalar_one().conversation_id == conv.id
+
+
+async def test_tool_markup_at_start_of_second_call_is_error(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
+               text('<｜｜DSML｜｜ invoke name="query_faq">'))
+    _, ev = await chat(client, "邮费是多少")
+    assert [e for e, _ in ev] == ["session", "tool_start", "tool_end", "error"]
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_tool_markup_later_in_second_call_is_not_saved(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "邮费"})),
+               text('没查到。<｜｜DSML｜｜ invoke name="query_faq">'))
+    _, ev = await chat(client, "邮费是多少")
+    assert ev[-1] == UPSTREAM_ERROR
+    assert await rows(db) == []
+
+
+async def test_normal_second_call_text_still_streams_per_chunk(client, db, use_script):
+    use_script(tools(("c1", "query_faq", {"keyword": "退货"})), text("可以退"))
+    _, ev = await chat(client, "能退吗")
+    assert [d["text"] for e, d in ev if e == "token"] == ["可", "以", "退"]
+    assert ev[-1] == ("done", {"finish_reason": "stop"})

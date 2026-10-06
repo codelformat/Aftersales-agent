@@ -4,6 +4,9 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from app.config import SHOP_NAME
 
+# 第 2 次调用时追加在工具结果之后。没有它时，模型在需要再次查询时会把工具调用标记写进正文（已实测）。
+TOOL_ROUND_CLOSING = "（系统提示）以上是本轮工具的查询结果。本轮不能再调用任何工具。请只根据已有结果用纯文本回答；还缺少的信息，直接告诉用户需要什么或可以接着问。"
+
 CHAT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{today}。
 
 ## 职责

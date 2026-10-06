@@ -4,47 +4,64 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目状态
 
-电商售后智能客服（Aftersales-agent）。ch01 已完成：SSE 流式多轮对话 + 售后描述结构化提取，纯对话，无工具调用和 Agent 循环。
+电商售后智能客服（Aftersales-agent）。
+- ch01：SSE 流式多轮对话 + 售后描述结构化提取。
+- ch02：Function Calling 工具链（5 个工具，单轮调用），会话和消息落 MySQL。不做 Agent Loop、向量检索。
 
-- 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）
+- 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
 - 每章的 spec 在 `docs/superpowers/specs/`，plan 在 `docs/superpowers/plans/`，开发记录在 `dev-notes/chNN.md`。
 
 ## 常用命令
 
 ```bash
 uv sync                                              # 安装依赖（Python 3.12，由 uv 管理）
-uv run uvicorn app.main:app --reload --port 8000     # 启动服务
-uv run pytest -q                                     # 全量单测（不访问网络）
-uv run pytest tests/test_chat_api.py::test_second_turn_sees_first_turn -q   # 单个测试
-uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集验证（调用真实上游；未达标退出码为 1）
-uv run python evals/run_chat_samples.py              # 客服 Prompt 样例，打印回复供人工检查（调用真实上游）
-bash scripts/demo.sh                                 # 3 项验收演示（需先启动服务；BASE_URL 可覆盖地址）
+docker compose up -d --wait                          # 启动 MySQL（容器 aftersales-mysql，宿主端口 3307）
+bash scripts/reset_db.sh                             # 删除数据卷并重建库，校验 FAQ 中文编码
+uv run uvicorn app.main:app --reload --port 8000     # 启动服务；聊天页 http://127.0.0.1:8000/
+uv run pytest -q                                     # 全量测试（需要 MySQL；连不上时数据库测试直接失败，不跳过）
+uv run pytest tests/test_chat_api.py::test_tool_round_events_and_persistence -q   # 单个测试
+uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（真实上游，只执行第 1 次调用；未达标退出码 1）
+uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集（真实上游）
+uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
+bash scripts/demo2.sh                                # ch02 三项验收（需先启动服务和 MySQL）
+bash scripts/demo.sh                                 # ch01 三项验收
 ```
 
-没有配置 lint 工具。
+重启服务时，先确认旧进程已退出（`pgrep -f "uvicorn app.main:app"` 无输出）再启动，否则请求可能落到旧进程。没有配置 lint 工具。
 
 ## 架构
 
-分层：`app/api`（HTTP/SSE 适配）→ `app/services`（业务流程）→ `prompts`、`context`、`session`、`llm`。
+```
+api → services → repositories → db
+         ↘ tools (registry, executor) → repositories
+         ↘ llm, prompts, history, context
+```
 
 | 模块 | 职责 |
 |---|---|
-| `app/config.py` | `Settings` 只读 4 个 `CHAT_*` 变量；`TOKEN_BUDGET`、`CHARS_PER_TOKEN` 等是代码常量，不从环境变量读取 |
-| `app/llm.py` | 创建聊天模型和提取模型（`ChatOpenAI`），提供 FastAPI 依赖 `get_chat_model`、`get_extractor` |
-| `app/prompts.py` | 客服模板和提取模板（`ChatPromptTemplate`）。模板文本中不许出现变量以外的花括号 |
-| `app/session.py` | 进程内会话存储，每个会话一把 `asyncio.Lock` |
-| `app/context.py` | `count_tokens`（2.0 字符/token）和 `build_history`（`trim_messages` 裁剪历史，固定部分超预算抛 `BudgetExceeded`） |
+| `app/config.py` | `Settings` 读 4 个 `CHAT_*` 和 `DATABASE_URL`；`test_database_url()` 推导测试库；其余为代码常量 |
+| `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker`）与 4 张表的 ORM 映射 |
+| `app/repositories/` | 只负责 SQL：会话、消息、FAQ（LIKE，转义通配符）、工单（指数回退重试主键冲突） |
+| `app/tools/` | 5 个 `@tool`、`mock_data`（确定性 mock）、注册表、执行器（校验、超时、重试、错误转换、截断、并行） |
+| `app/services/chat.py` | 一轮对话：第 1 次调用绑定工具并流式输出 → 并行执行工具 → 第 2 次调用（不绑定工具）流式输出 → 一个事务写库 |
+| `app/services/history.py` | 数据库消息 ↔ LangChain 消息 |
+| `app/locks.py` | 按会话 ID 的进程内锁 |
+| `app/context.py` | `count_tokens`（2.0 字符/token）和 `build_history`（裁剪历史） |
 
-必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/ch01.md`）：
+必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/`）：
 
-- **提取模型必须关闭思考。** `with_structured_output(method="function_calling")` 强制 tool_choice，DeepSeek 思考模式下返回 400。`json_schema` 方式 DeepSeek 不支持。
-- **`CHAT_THINKING` 未设置（或为空字符串）时，不发送 `thinking` 字段**，以便切换到 GPT、Ollama 等上游。**使用 DeepSeek 时必须设置 `CHAT_THINKING`**：DeepSeek 默认开启思考，未设置时提取模型不发送 `disabled`，`/extract` 一直返回 502。
-- **SSE 预检放在 `Depends` 中。** 在 yield 型 SSE 端点函数体内抛 `HTTPException`，客户端收到 200 和空流。
-- **会话锁在 yield 依赖 `prepare_chat_turn` 的 `finally` 中释放**（默认 `scope="request"`，响应发送完后执行）。不要改到端点生成器中释放，否则后续依赖出错时锁泄漏。
-- **SSE 事件用 `ServerSentEvent(raw_data=json.dumps(..., ensure_ascii=False))`。** 用 `data=` 会把中文转义为 `\uXXXX`。
-- **只有流正常结束且回复非空才写入历史。** 上游出错、返回空回复或客户端断开时，这一轮不写入。
-- **预算计数和实际发送共用 `chat_prompt_vars()`。** 给客服模板加变量时只改这个函数。
-- **测试中的模型一律用 `app.dependency_overrides` 替换**（`FakeListChatModel`、`RunnableGenerator`、`RunnableLambda`）；异步测试用 `@pytest.mark.anyio` + `httpx.AsyncClient(transport=ASGITransport(app=app))`。
+- **`db/schema.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
+- **容器初始化 SQL 必须用 utf8mb4 读取**（`db/mysql-client.cnf` 挂到 `/etc/mysql/conf.d/`），否则中文双重编码。校验存储字节要用 `HEX()`，字符串比较会被 latin1 客户端"还原"而漏检。
+- **执行 `.sql` 文件用 `exec_driver_sql`，不用 `text()`。** 异步 ORM 提交后读数据库默认值列前先 `await session.refresh()`。测试引擎用 `NullPool`（pytest 每个异步测试一个事件循环）。
+- **第 2 次调用不绑定工具，并在工具结果后追加 `SystemMessage(TOOL_ROUND_CLOSING)`**（不写库）。去掉它，模型会把工具调用标记 `<｜｜DSML｜｜ ...>` 写进正文。服务端另有标记防线：命中时发 `error`、不写库。
+- **`create_ticket` 不重试**（非幂等）；`conversation_id` 由执行器用 `InjectedToolArg` 注入，模型看不到。
+- **`query_faq` 的 keyword 取用户原词，不替换同义词**（"邮费"查不到"运费"是 LIKE 的预期漏召回，留给向量检索）。
+- **提取模型必须关闭思考**；**使用 DeepSeek 时必须设置 `CHAT_THINKING`**；`CHAT_THINKING` 未设置或为空时不发送 `thinking` 字段。
+- **DeepSeek 思考模式下，第 2 次调用依赖服务端按 tool_call id 缓存的思考内容**（`ChatOpenAI` 不回传 `reasoning_content`）。自造 tool_call id 放在当前轮会 400。
+- **SSE 预检放在 yield 依赖 `prepare_chat_turn` 中，会话锁在其 `finally` 释放**（默认 `scope="request"`）。
+- **SSE 事件用 `ServerSentEvent(raw_data=json.dumps(..., ensure_ascii=False))`。**
+- **一轮成功（回复非空、无工具标记）才写消息**；工单副作用独立提交，不回滚。
+- **测试中的聊天模型用 `tests/fakes.py` 的 `ScriptedChatModel`**（支持 `bind_tools`、tool_call chunk、注入异常和等待）；数据库测试用 fixture `db`。
 
 ## 模型与环境变量（`.env`，已 gitignore）
 
@@ -57,9 +74,10 @@ bash scripts/demo.sh                                 # 3 项验收演示（需�
 | 嵌入 | `EMBED_API_KEY`（`EMBED_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/embeddings`，模型 `BAAI/bge-m3`，**1024 维**（Milvus collection 维度按此设） |
 | 重排 | `RERANK_API_KEY`（`RERANK_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/rerank`，模型 `BAAI/bge-reranker-v2-m3`；Jina/Cohere 形状（`query` + `documents` → `results[].index/relevance_score`），不是 OpenAI 协议 |
 
-- ch01 只用到聊天这一组；嵌入、重排尚未接入代码。
+- ch01、ch02 只用到聊天这一组和 `DATABASE_URL`；嵌入、重排尚未接入代码。
+- `DATABASE_URL`：`mysql+asyncmy://aftersales:aftersales@127.0.0.1:3307/aftersales?charset=utf8mb4`（本项目 Docker Compose 的 MySQL）。
 - 嵌入、重排的 base URL 在代码里给默认值 `https://api.siliconflow.cn/v1`，`.env` 中可覆盖。
-- `.env` 只含上表 6 个变量（`CHAT_BASE_URL`、`CHAT_MODEL`、`CHAT_API_KEY`、`CHAT_THINKING`、`EMBED_API_KEY`、`RERANK_API_KEY`）。需要新配置项时，由用户告知后再加入。
+- `.env` 只含上表 6 个变量和 `DATABASE_URL`（ch02 经用户同意加入）。需要新配置项时，由用户告知后再加入。
 - 验证聊天时 `max_tokens` 别设太小：思考 token 计入其中，太小会 `finish_reason=length` 且 `content` 为空。
 
 ## 技术选型（定死，不得更换）

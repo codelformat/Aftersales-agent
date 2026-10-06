@@ -2,17 +2,19 @@
 
 import argparse
 import asyncio
-from datetime import date
+from collections.abc import Iterator
+import json
 import logging
 from pathlib import Path
 import sys
+
+import httpx
 
 # 用脚本位置定位项目和样例文件。
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from app.llm import get_chat_model
-from app.prompts import chat_prompt, chat_prompt_vars
+from app.main import app
 
 logger = logging.getLogger(__name__)
 SAMPLES_PATH = SCRIPT_DIR / "chat_samples.md"
@@ -34,33 +36,84 @@ def load_samples() -> list[tuple[str, str]]:
     return samples
 
 
+def parse_sse(text: str) -> Iterator[tuple[str, dict]]:
+    event = "message"
+    data = []
+    for line in [*text.splitlines(), ""]:
+        if not line:
+            if data:
+                yield event, json.loads("\n".join(data))
+            event = "message"
+            data = []
+            continue
+        if line.startswith(":"):
+            continue
+        field, separator, value = line.partition(":")
+        if separator and value.startswith(" "):
+            value = value[1:]
+        if field == "event":
+            event = value
+        elif field == "data":
+            data.append(value)
+
+
 async def run_samples() -> int:
     samples = load_samples()
-    chain = chat_prompt | get_chat_model()
-    for title, message in samples:
-        response = await chain.ainvoke({
-            **chat_prompt_vars(date.today()),
-            "history": [],
-            "input": message,
-        })
-        reply = response.text
-        length = len(reply)
-        length_passed = length <= 200
-        format_passed = "**" not in reply and not any(
-            line.startswith("#") for line in reply.splitlines()
-        )
-        print(f"\n{title}")
-        print(f"用户：{message}")
-        print(f"回复：\n{reply}")
-        print(f"回复字数：{length}")
-        print(f"字数 ≤ 200：{'通过' if length_passed else '不通过'}")
-        print(f"不含 ** 且没有以 # 开头的行：{'通过' if format_passed else '不通过'}")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://eval", timeout=None
+    ) as client:
+        for title, message in samples:
+            response = await client.post(
+                "/chat/stream", json={"user_id": "eval-chat-samples", "message": message}
+            )
+            response.raise_for_status()
+            tools = []
+            tool_results = {}
+            tokens = []
+            last_event = "无事件"
+            for event, data in parse_sse(response.text):
+                last_event = event
+                if event == "tool_start":
+                    tools.extend(data["tools"])
+                elif event == "tool_end":
+                    for tool in data["tools"]:
+                        tool_results[tool["id"]] = tool["ok"]
+                elif event == "token":
+                    tokens.append(data["text"])
+
+            reply = "".join(tokens)
+            length = len(reply)
+            length_passed = length <= 200
+            format_passed = "**" not in reply and not any(
+                line.startswith("#") for line in reply.splitlines()
+            )
+            markers_passed = not any(
+                marker in reply for marker in ("DSML", "<｜", "invoke name")
+            )
+            print(f"\n{title}")
+            print(f"用户：{message}")
+            print("调用的工具：")
+            if tools:
+                for tool in tools:
+                    args = json.dumps(tool["args"], ensure_ascii=False)
+                    ok = tool_results.get(tool["id"], "未返回")
+                    print(f"  {tool['name']} 参数：{args}；ok：{ok}")
+            else:
+                print("  无")
+            print(f"回复：\n{reply}")
+            print(f"回复字数：{length}")
+            print(f"字数 ≤ 200：{'通过' if length_passed else '不通过'}")
+            print(f"不含 ** 且没有以 # 开头的行：{'通过' if format_passed else '不通过'}")
+            print(f"不含工具调用标记：{'通过' if markers_passed else '不通过'}")
+            if last_event != "done":
+                print(f"失败：{last_event}")
+                return 1
     # 自动检查只供人工参考，不影响退出码。
     return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="检查客服样例，正常运行会调用上游模型。")
+    parser = argparse.ArgumentParser(description="检查客服样例，正常运行会调用上游模型并写入真实数据库。")
     parser.parse_args()
     logging.basicConfig(level=logging.ERROR)
     try:

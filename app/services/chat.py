@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from datetime import date
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 
 from app.db.engine import get_sessionmaker
-from app.prompts import chat_prompt, chat_prompt_vars
+from app.prompts import TOOL_ROUND_CLOSING, chat_prompt, chat_prompt_vars
 from app.repositories import messages
 from app.services.history import turn_rows
 from app.tools.executor import execute_tool_calls
@@ -16,6 +16,7 @@ from app.tools.registry import get_registry
 logger = logging.getLogger(__name__)
 
 UPSTREAM_ERROR = {"code": "upstream_error", "message": "服务暂时不可用，请稍后重试"}
+TOOL_MARKUP_MARKERS = ("<｜", "｜DSML｜", "invoke name=")
 
 
 @dataclass
@@ -76,18 +77,43 @@ async def stream_reply(
     ]}
 
     final_text = ""
+    pending_tokens = []
+    prefix_checked = False
     try:
         async for chunk in (chat_prompt | model).astream({
-            **vars, "tool_round": [request, *[o.message for o in outcomes]]
+            **vars, "tool_round": [
+                request, *[o.message for o in outcomes], SystemMessage(TOOL_ROUND_CLOSING)
+            ]
         }):
             if isinstance(chunk.content, str) and chunk.content:
-                yield "token", {"text": chunk.content}
                 final_text += chunk.content
+                if not prefix_checked:
+                    pending_tokens.append(chunk.content)
+                    if len(final_text) < 2:
+                        continue
+                    if final_text.startswith("<｜"):
+                        break
+                    prefix_checked = True
+                    for token in pending_tokens:
+                        yield "token", {"text": token}
+                    pending_tokens.clear()
+                else:
+                    yield "token", {"text": chunk.content}
     except Exception:
         logger.exception("上游工具结果回复流失败")
         yield "error", UPSTREAM_ERROR
         return
 
+    if final_text.startswith("<｜"):
+        logger.warning("上游工具结果回复流以工具调用标记开头")
+        yield "error", UPSTREAM_ERROR
+        return
+    for token in pending_tokens:
+        yield "token", {"text": token}
+    if any(marker in final_text for marker in TOOL_MARKUP_MARKERS):
+        logger.warning("上游工具结果回复流包含工具调用标记")
+        yield "error", UPSTREAM_ERROR
+        return
     if not final_text:
         logger.warning("上游工具结果回复流返回空回复")
         yield "error", UPSTREAM_ERROR

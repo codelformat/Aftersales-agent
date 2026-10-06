@@ -181,6 +181,13 @@ api → services → repositories → db
    6. 否则写库（4 类消息），发送 `done`。
 5. 任何一次上游调用抛异常：发送 `error`，不写消息。
 
+**执行时修订（2026-10-06）：第 2 次调用的收敛指令与标记防线。**
+
+- 真实验证发现：第 2 次调用时，如果模型还想再查询（FAQ 结果为空想换关键词；或链式依赖，例如"订单 1001 的商品保修多久"需要先查订单再查商品），DeepSeek 会把工具调用以原始标记（`<｜｜DSML｜｜ invoke ...>`）写进正文。链式依赖的问题 5/5 泄漏；只改 Prompt 或改用 `tool_choice="none"` 都无效。
+- 修复：`tool_round` 末尾追加 `SystemMessage(TOOL_ROUND_CLOSING)`，说明本轮不能再调用工具、缺少的信息直接告诉用户。实测 3 类问题各 5 次共 15/15 不泄漏；之后又在真实服务上各跑 6 次，共 18/18 正常。这条 SystemMessage 不写库。
+- 防线：第 2 次调用的回复以 `<｜` 开头时，不推送，发送 `error`；回复中出现 `<｜`、`｜DSML｜`、`invoke name=` 任一标记时，发送 `error`，不写库。
+- 本章不支持链式查询（单轮限制）。模型会说明缺少的信息，用户可以接着问。
+
 **为什么第 2 次调用不绑定工具：** 模型无法再发起工具调用，从结构上保证"一轮只调用一次工具就收敛"。已实测：DeepSeek 在不带 `tools` 参数时正常接受含 `tool_calls` 的历史。
 
 **思考模式：** 两次调用都使用 `CHAT_THINKING` 的配置。已实测：DeepSeek 在 `adaptive` 下能正确选择工具，回灌时不回传 `reasoning_content` 也正常。
@@ -357,3 +364,6 @@ api → services → repositories → db
 - 失败的一轮会留下没有消息的会话；工单副作用不回滚。
 - `query_faq` 的 LIKE 查询无法处理同义词（例如"邮费"与"运费"），由后续章节的向量检索解决。
 - mock 数据与真实系统无关，订单号以外的输入（如不存在的订单）也会生成数据。
+- **DeepSeek 思考模式依赖服务端缓存。** 第 2 次调用回灌的 `AIMessage(tool_calls)` 不带 `reasoning_content`（`ChatOpenAI` 不暴露该字段）。实测：DeepSeek 按 tool_call id 在服务端查找思考内容；id 是第 1 次调用刚生成的就正常，自造的 id 返回 400"reasoning_content must be passed back"。历史轮次中的工具调用不受影响。缓存未命中时，本轮返回 `error`、不写库，会话不损坏。
+- 单轮限制下无法完成链式查询（先查订单再查商品），见 7.2 节的执行时修订。
+- 容器初始化 SQL 必须以 utf8mb4 读取（`db/mysql-client.cnf`），否则中文双重编码；`scripts/reset_db.sh` 用 HEX 校验。
