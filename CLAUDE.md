@@ -8,6 +8,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）
 
+## 模型与环境变量（`.env`，已 gitignore）
+
+`.env` 在项目根目录，从 `~/mewhelp-src/.env` 拷贝而来，不得提交。代码读取配置时用下列变量名，不要硬编码密钥或地址。
+
+| 用途 | 变量 | 上游与协议（2026-10-06 已实测可用） |
+|---|---|---|
+| 聊天 | `CHAT_BASE_URL` / `CHAT_MODEL` / `CHAT_API_KEY` | OpenAI 兼容 `/chat/completions`；当前为 DeepSeek `deepseek-v4-flash` |
+| 思考强度 | `CHAT_THINKING=adaptive` | 映射为请求体 `"thinking": {"type": "adaptive"}`（可选 `disabled`）；思考内容在 `message.reasoning_content`，不在 `content` |
+| 嵌入 | `EMBED_API_KEY`（`EMBED_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/embeddings`，模型 `BAAI/bge-m3`，**1024 维**（Milvus collection 维度按此设） |
+| 重排 | `RERANK_API_KEY`（`RERANK_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/rerank`，模型 `BAAI/bge-reranker-v2-m3`；Jina/Cohere 形状（`query` + `documents` → `results[].index/relevance_score`），不是 OpenAI 协议 |
+
+- 嵌入、重排的 base URL 在代码里给默认值 `https://api.siliconflow.cn/v1`，`.env` 中可覆盖。
+- `.env` 里其余变量（`TOKEN_BUDGET`、`DATABASE_URL`、`MCP_*_URL`、`LANGFUSE_*`、`CHAT_REASONING_SPLIT` 等）沿用自 mewhelp 项目，**未在本项目验证**，用到时先核实。
+- 验证聊天时 `max_tokens` 别设太小：思考 token 计入其中，太小会 `finish_reason=length` 且 `content` 为空。
+
 ## 技术选型（定死，不得更换）
 
 FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
@@ -50,6 +65,18 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
   2. Claude 的关键产出（spec / plan 路径、评审结论）
   3. 用户拒绝或纠偏了什么
   4. 翻车与返工
+
+## 写作规范：ASD-STE100
+
+技术文档（spec、plan、dev-notes、README、代码注释）和给用户的回复、汇报，都按 ASD-STE100（Simplified Technical English）的规则写。用中文写时，按同样的原则执行：
+
+- **短句**：操作步骤每句不超过 20 词（中文约 30 字），说明性句子不超过 25 词（中文约 40 字）。一句只讲一件事。
+- **一段一个主题**：每段不超过 6 句。
+- **操作步骤用祈使句**：一步一个动作，按执行顺序编号。条件写在动作前面（"如果 X，执行 Y"）。
+- **用主动语态**：写清楚谁做什么。不用"被……"句式，除非动作的主体不明。
+- **一词一义**：同一个对象始终用同一个名称，不用同义词替换。用 STE 词表中的批准词义；词表之外的技术名词（库名、API、变量名）原样保留。
+- **不用模糊词**：不写"一些""大概""可能会"等，给出具体数字、名称、路径。
+- **警告和注意放在相关步骤之前**，并说明原因。
 
 ## 完结交付
 
