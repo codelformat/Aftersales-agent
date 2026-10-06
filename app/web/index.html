@@ -19,6 +19,12 @@
       --on-primary: #ffffff;
       --focus: #93b4ff;
       --shadow: #1f29370d;
+      --tool-pending-bg: #e8edf8;
+      --tool-pending-text: #46618f;
+      --tool-success-bg: #e4f3e8;
+      --tool-success-text: #28733e;
+      --tool-failure-bg: #fce8e8;
+      --tool-failure-text: #b32626;
     }
     * { box-sizing: border-box; }
     body {
@@ -87,6 +93,43 @@
       border-bottom-right-radius: 5px;
     }
     .assistant .bubble { border-bottom-left-radius: 5px; }
+    .tool-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+      white-space: normal;
+    }
+    .tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      max-width: 100%;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--tool-pending-bg);
+      color: var(--tool-pending-text);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .tool-badge.success {
+      background: var(--tool-success-bg);
+      color: var(--tool-success-text);
+    }
+    .tool-badge.failure {
+      background: var(--tool-failure-bg);
+      color: var(--tool-failure-text);
+    }
+    .tool-icon { flex-shrink: 0; }
+    .tool-badge.pending .tool-icon {
+      width: 11px;
+      height: 11px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .typing { display: flex; align-items: center; gap: 5px; min-height: 27px; }
     .typing[hidden] { display: none; }
     .typing span {
@@ -138,7 +181,7 @@
       .send { padding: 12px 17px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .typing span { animation: none; }
+      .typing span, .tool-badge.pending .tool-icon { animation: none; }
     }
   </style>
 </head>
@@ -164,10 +207,36 @@
     const newChatButton = document.getElementById('new-chat');
     const composer = document.getElementById('composer');
     const welcome = '您好，我是示例商城的售后客服助手。请问有什么可以帮您？';
+    let userId = null;
     let sessionId = null;
     let streaming = false;
     let followBottom = true;
     let stopTyping = null;
+
+    function getUserId() {
+      if (userId) return userId;
+      try {
+        const stored = localStorage.getItem('aftersales_user_id');
+        if (/^web-[a-f0-9]{16}$/.test(stored)) {
+          userId = stored;
+          return userId;
+        }
+      } catch { /* Storage may be unavailable; keep the ID in memory. */ }
+      const bytes = crypto.getRandomValues(new Uint8Array(8));
+      userId = 'web-' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+      try {
+        localStorage.setItem('aftersales_user_id', userId);
+      } catch { /* Subsequent requests reuse the in-memory ID. */ }
+      return userId;
+    }
+
+    const toolNames = new Map([
+      ['query_order', '查订单'],
+      ['query_product', '查商品'],
+      ['query_logistics', '查物流'],
+      ['query_faq', '查常见问题'],
+      ['create_ticket', '创建工单'],
+    ]);
 
     messages.addEventListener('scroll', () => {
       followBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 80;
@@ -238,6 +307,8 @@
       bubble.append(typing);
       scrollToBottom();
 
+      const toolBadges = new Map();
+      let badgeRow = null;
       let queue = [];
       let queueIndex = 0;
       let animation = null;
@@ -295,6 +366,49 @@
         scrollToBottom();
       }
 
+      function startTools(tools) {
+        if (!badgeRow && tools.length) {
+          badgeRow = document.createElement('div');
+          badgeRow.className = 'tool-badges';
+          bubble.insertBefore(badgeRow, reply);
+        }
+        for (const tool of tools) {
+          const badge = document.createElement('span');
+          badge.className = 'tool-badge pending';
+          const icon = document.createElement('span');
+          icon.className = 'tool-icon';
+          icon.setAttribute('aria-hidden', 'true');
+          const label = document.createElement('span');
+          const args = tool.args || {};
+          const parameter = tool.name === 'create_ticket' ? args.ticket_type :
+            (args.order_id ?? args.product_id ?? args.keyword);
+          const name = toolNames.get(tool.name) || tool.name;
+          label.textContent = parameter !== undefined && parameter !== null && parameter !== '' ?
+            `${name} · ${parameter}` : name;
+          badge.setAttribute('aria-label', `${label.textContent}，进行中`);
+          badge.append(icon, label);
+          badgeRow.append(badge);
+          toolBadges.set(tool.id, { badge, icon, label });
+        }
+        typing.replaceChildren(document.createTextNode('正在查询…'));
+        typing.setAttribute('aria-label', '正在查询');
+        scrollToBottom();
+      }
+
+      function endTools(tools) {
+        for (const tool of tools) {
+          const elements = toolBadges.get(tool.id);
+          if (!elements) continue;
+          const { badge, icon, label } = elements;
+          const ok = tool.ok === true;
+          badge.className = `tool-badge ${ok ? 'success' : 'failure'}`;
+          icon.textContent = ok ? '✓' : '✗';
+          badge.setAttribute('aria-label', `${label.textContent}，${ok ? '已完成' : '查询失败'}`);
+          if (!ok) badge.title = '查询失败';
+        }
+        scrollToBottom();
+      }
+
       function handleEvent(block) {
         const parsed = parseEvent(block);
         if (!parsed) return;
@@ -302,7 +416,12 @@
         if (event === 'session') {
           sessionId = data.session_id;
         } else if (event === 'token') {
+          typing.hidden = true;
           enqueue(data.text);
+        } else if (event === 'tool_start') {
+          startTools(data.tools);
+        } else if (event === 'tool_end') {
+          endTools(data.tools);
         } else if (event === 'done') {
           terminal = true;
         } else if (event === 'error') {
@@ -312,7 +431,7 @@
       }
 
       try {
-        const payload = { message };
+        const payload = { user_id: getUserId(), message };
         if (sessionId) payload.session_id = sessionId;
         const response = await fetch('/chat/stream', {
           method: 'POST',
@@ -323,7 +442,10 @@
           let errorMessage = `请求失败（HTTP ${response.status}）`;
           try {
             const body = await response.json();
-            if (typeof body.detail?.message === 'string' && body.detail.message) {
+            if (response.status === 404 && body.detail?.code === 'conversation_not_found') {
+              sessionId = null;
+              errorMessage = '会话已失效，已为您开始新对话，请重新发送。';
+            } else if (typeof body.detail?.message === 'string' && body.detail.message) {
               errorMessage = body.detail.message;
             }
           } catch { /* Non-JSON errors use the HTTP status fallback. */ }
@@ -383,6 +505,7 @@
       }
     });
     newChatButton.addEventListener('click', resetChat);
+    getUserId();
     resetChat();
   </script>
 </body>
