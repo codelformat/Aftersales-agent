@@ -108,18 +108,18 @@ def _blocks(body: str) -> list[tuple[str, str]]:
 
 
 def _split_table(table: str) -> list[str]:
-    if len(table) <= CHUNK_MAX_CHARS:
-        return [table]
     lines = table.split("\n")
     header, rows = lines[:2], lines[2:]
-    if not rows:
+    if len("\n".join(header)) > CHUNK_MAX_CHARS:
         raise ValueError("表头无法满足块长度上限")
+    if not rows:
+        raise ValueError("表格没有数据行")
+    if len(table) <= CHUNK_MAX_CHARS:
+        return [table]
     pieces: list[str] = []
     current = list(header)
     for row in rows:
-        # 只有数据行本身超长时，允许该行与表头组成超长块。
-        if len(row) <= CHUNK_MAX_CHARS and len("\n".join(header + [row])) > CHUNK_MAX_CHARS:
-            raise ValueError("表头无法满足块长度上限")
+        # 数据行加表头超限时单独成块，保留完整行和表头。
         if len(current) > 2 and len("\n".join(current + [row])) > CHUNK_MAX_CHARS:
             pieces.append("\n".join(current))
             current = list(header)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
-from sqlalchemy import exists, func, select, update
+from sqlalchemy import exists, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation, QaExtractionStaging
@@ -15,13 +15,26 @@ class NewStaging:
     answer: str
 
 
+async def db_utc_offset(s: AsyncSession) -> timedelta:
+    """获取数据库会话时区相对 UTC 的偏移。"""
+    seconds = await s.scalar(text("SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW())"))
+    return timedelta(seconds=seconds)
+
+
+def local_to_db(dt: datetime, offset: timedelta) -> datetime:
+    """按日期对应的本地时区转为数据库墙钟时间，保留夏令时规则。"""
+    return (dt.astimezone(timezone.utc) + offset).replace(tzinfo=None)
+
+
 async def unmined_conversation_ids(s: AsyncSession, day: date) -> list[int]:
-    start = datetime.combine(day, time.min)
+    offset = await db_utc_offset(s)
+    start = local_to_db(datetime.combine(day, time.min), offset)
+    end = local_to_db(datetime.combine(day + timedelta(days=1), time.min), offset)
     ref = func.concat("conversation:", Conversation.id)
     mined = exists().where(QaExtractionStaging.source_ref == ref)
     rows = await s.scalars(
         select(Conversation.id)
-        .where(Conversation.created_at >= start, Conversation.created_at < start + timedelta(days=1), ~mined)
+        .where(Conversation.created_at >= start, Conversation.created_at < end, ~mined)
         .order_by(Conversation.id)
     )
     return list(rows)

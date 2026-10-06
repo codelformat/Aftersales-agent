@@ -161,12 +161,29 @@ def test_oversized_header_is_rejected_instead_of_losing_content(rows):
         parse_markdown(f"# 政策\n\n## 表\n\n{table}\n")
 
 
-def test_normal_row_that_cannot_fit_with_header_is_rejected():
-    row = "| " + "甲" * 395 + " |"
-    assert len(row) <= CHUNK_MAX_CHARS
-    table = "\n".join(["| 品类 |", "|---|", row])
-    with pytest.raises(ValueError, match="表头无法满足块长度上限"):
-        parse_markdown(f"# 政策\n\n## 表\n\n{table}\n")
+def test_row_that_fits_alone_but_not_with_header_gets_own_chunk():
+    header = ["| 品类 | 退货期限 | 说明 |", "|---|---|---|"]
+    long_row = "| " + "甲" * 386 + " |"
+    rows = ["| 乙 | 7 天 | 短 |", long_row, "| 丙 | 15 天 | 短 |"]
+    assert len(long_row) == 390
+    assert len("\n".join(header + [long_row])) > CHUNK_MAX_CHARS
+    doc = parse_markdown("# 政策\n\n## 表\n\n" + "\n".join(header + rows) + "\n")
+    actual_rows = []
+    for chunk in doc.chunks:
+        lines = chunk.answer.split("\n")
+        assert lines[:2] == header
+        actual_rows.extend(lines[2:])
+        if long_row in lines:
+            assert lines[2:] == [long_row]
+            assert len(chunk.answer) > CHUNK_MAX_CHARS
+        else:
+            assert len(chunk.answer) <= CHUNK_MAX_CHARS
+    assert actual_rows == rows
+
+
+def test_table_without_data_rows_is_rejected():
+    with pytest.raises(ValueError, match="表格没有数据行"):
+        parse_markdown("# 政策\n\n| 品类 |\n|---|\n")
 
 
 def test_invalid_table_divider_is_split_as_text():

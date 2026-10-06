@@ -11,6 +11,7 @@ from app.db.engine import get_sessionmaker
 from app.db.models import Message
 from app.knowledge.chunking import PATH_SEP
 from app.knowledge.embeddings import get_embeddings
+from app.knowledge.ingest import MINED_SOURCE
 from app.knowledge.retrieval import search_by_vector
 from app.knowledge.vectorize import vectorize_pending
 from app.repositories import knowledge, messages, staging
@@ -19,7 +20,6 @@ from app.repositories.staging import NewStaging
 
 logger = logging.getLogger(__name__)
 
-MINED_SOURCE = "对话挖掘"
 DEDUP_KB_TOP_K = 5
 
 

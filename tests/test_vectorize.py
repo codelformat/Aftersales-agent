@@ -77,3 +77,18 @@ async def test_status_groups(db, milvus):
     await _seed(db, 2)
     st = await kb_status()
     assert st.groups == [("policy", "pending", 2)]
+
+
+async def test_short_embedding_response_leaves_rows_pending(db, milvus, monkeypatch):
+    await _seed(db, 3)
+    embeddings = get_embeddings()
+    original = embeddings.aembed_documents
+
+    async def short_embedding(texts):
+        return (await original(texts))[:-1]
+
+    monkeypatch.setattr(embeddings, "aembed_documents", short_embedding)
+    with pytest.raises(ValueError, match="嵌入返回数量与输入不一致"):
+        await vectorize_pending()
+    assert await _statuses(db) == [("pending", None)] * 3
+    assert await m.count_vectors() == 0

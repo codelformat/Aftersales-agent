@@ -323,3 +323,7 @@ ch02 中断言"邮费查不到"的测试（`tests/test_repositories.py`、`tests
 - MySQL 为 `done`、Milvus 却没有向量的不一致（例如只清空了 Milvus 卷）不会自动发现。处理方法：`reset_db.sh` 一起清空，或 `build_kb.py --rebuild`。`mined` 块不在 `--rebuild` 范围内。
 - 只有 dense 单路：精确型号、编号这类字面匹配的查询召回可能不如关键词检索。由后续章节的混合检索解决。
 - `keyword` 最长 20 字，长问题只取关键词检索，语义信息比整句少。
+- （code review 补记）在线检索时，嵌入请求的 SDK 超时（10 秒）和重试（2 次）落在执行器的 5 秒超时之内，SDK 超时实际不生效；执行器超时后整体重试最多 3 次，最坏情况用户等待超过 15 秒。
+- （code review 补记）表头中含 `【关键条款】` 时，表头复制到每一块，每一块都会被标为关键条款。现有文档没有这种情况。
+- （code review 补记）选会话时，`source_ref = CONCAT('conversation:', id)` 的 `NOT EXISTS` 没有索引可用，代价随会话数 × 暂存行数增长。演示规模没有影响。
+- （code review 补记）检索评估集按 `questions` 标注期望结果，而不是 10.3 节写的 `section_path`。同一小节递归切出的多块 `questions` 相同，按 `questions` 判定可能把同名的另一块算作命中。

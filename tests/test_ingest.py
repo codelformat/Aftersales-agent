@@ -109,10 +109,19 @@ def test_duplicate_titles_rejected(tmp_path):
         ingest.load_doc_sources(tmp_path)
 
 
-def test_faq_source_title_is_reserved(tmp_path):
-    _write_docs(tmp_path, text="# 常见问答\n\n正文。\n")
-    with pytest.raises(ValueError, match="文档名重复"):
+@pytest.mark.parametrize("title", ["对话挖掘", "常见问答"])
+def test_reserved_titles_rejected(tmp_path, title):
+    _write_docs(tmp_path, name="保留标题.md", text=f"# {title}\n\n正文。\n")
+    with pytest.raises(ValueError, match="保留标题") as exc:
         ingest.load_doc_sources(tmp_path)
+    assert "保留标题.md" in str(exc.value)
+
+
+def test_title_with_path_separator_rejected(tmp_path):
+    _write_docs(tmp_path, name="补充.md", text="# 退货政策 > 补充\n\n正文。\n")
+    with pytest.raises(ValueError, match="标题不能包含路径分隔符") as exc:
+        ingest.load_doc_sources(tmp_path)
+    assert "补充.md" in str(exc.value)
 
 
 @pytest.mark.parametrize("title", ["政策%", "政策_", "政策\\"])
@@ -190,3 +199,10 @@ async def test_rebuild_failure_preserves_sql_rows_and_can_rerun(db, milvus, tmp_
     assert await ingest.rebuild_source(src.title) == 0
     assert await _rows(db) == []
     assert await m.count_vectors() == 0
+
+
+def test_parse_error_names_the_file(tmp_path):
+    _write_docs(tmp_path, name="无标题.md", text="## 没有一级标题\n\n正文。\n")
+    with pytest.raises(ValueError, match=r"无标题\.md：文档必须以一级标题开头") as exc:
+        ingest.load_doc_sources(tmp_path)
+    assert isinstance(exc.value.__cause__, ValueError)

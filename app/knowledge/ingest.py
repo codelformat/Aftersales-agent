@@ -12,6 +12,7 @@ from app.repositories.knowledge import NewChunk
 
 DOCS_DIR = Path(__file__).resolve().parents[2] / "knowledge" / "docs"
 FAQ_SOURCE = "常见问答"
+MINED_SOURCE = "对话挖掘"
 CONTENT_TYPES = ("policy", "faq", "manual")
 
 
@@ -30,9 +31,16 @@ def load_doc_sources(docs_dir: Path = DOCS_DIR) -> list[SourceDoc]:
         content_type = path.parent.name
         if content_type not in CONTENT_TYPES:
             raise ValueError("未知的内容类型目录")
-        doc = parse_markdown(path.read_text(encoding="utf-8"))
+        try:
+            doc = parse_markdown(path.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            raise ValueError(f"{path.name}：{exc}") from exc
+        if doc.title in (FAQ_SOURCE, MINED_SOURCE):
+            raise ValueError(f"{path.name}：文档标题为保留标题：{doc.title}")
+        if PATH_SEP in doc.title:
+            raise ValueError(f"{path.name}：标题不能包含路径分隔符：{PATH_SEP!r}")
         sources.append(SourceDoc(doc.title, content_type, doc.chunks, linked=True))
-    titles = [s.title for s in sources] + [FAQ_SOURCE]
+    titles = [s.title for s in sources]
     if len(titles) != len(set(titles)):
         raise ValueError("文档名重复")
     return sources

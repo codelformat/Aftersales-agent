@@ -33,6 +33,8 @@ async def vectorize_pending(
         vectors = await embeddings.aembed_documents(
             [knowledge_text(r.category, r.questions, r.answer) for r in rows]
         )
+        if len(vectors) != len(rows):
+            raise ValueError("嵌入返回数量与输入不一致")
         await upsert_vectors([(r.id, v) for r, v in zip(rows, vectors)])
         if crash_after_batches is not None and batches == crash_after_batches:
             raise SimulatedCrash(f"第 {batches + 1} 批已写入 Milvus，未回填 MySQL")

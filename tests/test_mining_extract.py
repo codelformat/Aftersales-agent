@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta, timezone
 import json
 
 import pytest
@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.db.models import Conversation, Message, QaExtractionStaging
 from app.knowledge import mining
 from app.knowledge.history_seed import seed_history
+from app.repositories.staging import db_utc_offset, local_to_db, unmined_conversation_ids
 from app.schemas import QaPair, QaPairs
 
 pytestmark = pytest.mark.anyio
@@ -16,7 +17,8 @@ DAY = date(2026, 10, 5)
 
 async def _conv(db, day: date, turns: list[tuple[str, str | None]]) -> int:
     async with db() as s:
-        conv = Conversation(user_id="u1", created_at=datetime.combine(day, datetime.min.time()).replace(hour=10))
+        offset = await db_utc_offset(s)
+        conv = Conversation(user_id="u1", created_at=local_to_db(datetime.combine(day, time(10)), offset))
         s.add(conv)
         await s.flush()
         for role, content in turns:
@@ -124,6 +126,35 @@ async def test_seed_history_is_idempotent(db, tmp_path):
     assert await seed_history(DAY, f) == 3
     assert await seed_history(DAY, f) == 0
     async with db() as s:
-        convs = list((await s.execute(select(Conversation).where(Conversation.user_id == "history-seed"))).scalars())
+        convs = list((await s.execute(select(Conversation).where(Conversation.user_id == "history-seed").order_by(Conversation.id))).scalars())
+        offset = await db_utc_offset(s)
+        messages = list(await s.scalars(select(Message).order_by(Message.id)))
     assert len(convs) == 3
-    assert all(c.created_at.date() == DAY for c in convs)
+    assert all((c.created_at - offset).replace(tzinfo=timezone.utc).astimezone().date() == DAY for c in convs)
+    for i, conv in enumerate(convs):
+        expected = datetime.combine(DAY, time(9)) + timedelta(minutes=10 * i)
+        assert (conv.created_at - offset).replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None) == expected
+        assert conv.updated_at == conv.created_at
+        assert [m.created_at for m in messages if m.conversation_id == conv.id] == [
+            conv.created_at, conv.created_at + timedelta(seconds=1),
+        ]
+
+
+def test_local_to_db_converts_local_to_utc_plus_offset():
+    local = datetime(2026, 10, 5, 4, 0)
+    utc = local.astimezone(timezone.utc).replace(tzinfo=None)
+    assert local_to_db(local, timedelta(0)) == utc
+    assert local_to_db(local, timedelta(hours=1)) == utc + timedelta(hours=1)
+
+
+async def test_local_day_window_includes_early_morning(db):
+    async with db() as s:
+        offset = await db_utc_offset(s)
+        convs = [Conversation(user_id="window", created_at=local_to_db(at, offset)) for at in (
+            datetime.combine(DAY, time(4)),
+            datetime.combine(DAY - timedelta(days=1), time(23)),
+            datetime.combine(DAY, time(23, 30)),
+        )]
+        s.add_all(convs)
+        await s.commit()
+        assert await unmined_conversation_ids(s, DAY) == [convs[0].id, convs[2].id]
