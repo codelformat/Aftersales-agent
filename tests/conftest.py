@@ -157,7 +157,7 @@ async def milvus():
                 await client.drop_collection(KNOWLEDGE_TEST_COLLECTION, timeout=5)
         except Exception:
             logger.exception("无法连接 Milvus")
-            pytest.fail("无法连接 Milvus，请确认服务已启动", pytrace=False)
+            pytest.fail("无法连接 Milvus，请先执行 docker compose up -d --wait", pytrace=False)
         milvus_mod.set_milvus(client, KNOWLEDGE_TEST_COLLECTION)
         await milvus_mod.ensure_collection()
         yield client
