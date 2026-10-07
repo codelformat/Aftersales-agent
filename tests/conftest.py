@@ -59,9 +59,30 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def split_sql(sql: str) -> list[str]:
-    """去掉 -- 注释行，按分号切分语句。"""
+    """去掉 -- 注释行，只按引号外的分号切分语句。"""
     lines = [line for line in sql.splitlines() if not line.strip().startswith("--")]
-    return [s.strip() for s in "\n".join(lines).split(";") if s.strip()]
+    body = "\n".join(lines)
+    statements = []
+    quote = None
+    escaped = False
+    start = 0
+    for i, char in enumerate(body):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+        elif char in "'\"`":
+            quote = char
+        elif char == ";":
+            if statement := body[start:i].strip():
+                statements.append(statement)
+            start = i + 1
+    if statement := body[start:].strip():
+        statements.append(statement)
+    return statements
 
 
 async def _reset_schema(url: str) -> None:
@@ -69,10 +90,11 @@ async def _reset_schema(url: str) -> None:
     try:
         async with engine.begin() as conn:
             for table in (
-                "qa_extraction_staging", "knowledge_chunks", "messages", "tickets", "conversations", "faq",
+                "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
+                "messages", "tickets", "conversations", "faq",
             ):
                 await conn.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
-            for name in ("schema.sql", "schema_ch03.sql", "seed.sql"):
+            for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql"):
                 for stmt in split_sql((ROOT / "db" / name).read_text(encoding="utf-8")):
                     await conn.exec_driver_sql(stmt)
     finally:
@@ -86,7 +108,10 @@ async def _clear_runtime_tables(url: str) -> None:
             await conn.exec_driver_sql(
                 "UPDATE knowledge_chunks SET prev_chunk_id = NULL, next_chunk_id = NULL"
             )
-            for table in ("qa_extraction_staging", "knowledge_chunks", "messages", "tickets", "conversations"):
+            for table in (
+                "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
+                "messages", "tickets", "conversations",
+            ):
                 await conn.exec_driver_sql(f"DELETE FROM {table}")
     finally:
         await engine.dispose()

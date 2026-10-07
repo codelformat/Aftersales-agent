@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, String, Text, text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -86,3 +86,36 @@ class QaExtractionStaging(Base):
         Enum("extracted", "kept", "discarded"), server_default=text("'extracted'")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+
+class LowConfidenceQuestion(Base):
+    __tablename__ = "low_confidence_questions"
+
+    id: Mapped[int] = mapped_column(ID, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int | None] = mapped_column(ID, ForeignKey("conversations.id"), nullable=True)
+    raw_question: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Enum("retrieval_low_conf", "self_check", "user_feedback"))
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+
+class FaithCase(Base):
+    __tablename__ = "faith_cases"
+
+    id: Mapped[int] = mapped_column(ID, primary_key=True, autoincrement=True)
+    eval_id: Mapped[str] = mapped_column(String(16))
+    bucket: Mapped[str] = mapped_column(String(24))
+    query: Mapped[str] = mapped_column(String(512))
+    strategy: Mapped[str] = mapped_column(String(24), server_default=text("'hybrid_rerank'"))
+    answer: Mapped[str] = mapped_column(Text)
+    reason: Mapped[str] = mapped_column(Text)
+    citations: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    judge_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(
+        Enum("未解决", "已解决", "无需解决"), server_default=text("'未解决'")
+    )
+    seen_count: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    resolution: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

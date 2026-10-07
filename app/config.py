@@ -36,6 +36,22 @@ MINE_CONCURRENCY = 4
 DEDUP_KB_MIN_SCORE = 0.55
 DEDUP_STAGING_MIN_SCORE = 0.75
 MINED_CATEGORIES = ("退换货", "运费", "发票", "售后维修", "账户", "支付", "物流", "其他")
+RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
+RERANK_TIMEOUT_SECONDS = 10
+RERANK_MAX_ATTEMPTS = 3
+RERANK_RETRY_BASE_DELAY = 0.5
+RERANK_RETRY_MAX_DELAY = 4.0
+RECALL_LEG_LIMIT = 50
+RRF_K = 60
+FUSED_LIMIT = 50
+EVIDENCE_TOP_N = 10
+# 初值。由评估集的门槛扫描校准（spec §8.2）。
+RERANK_MIN_SCORE = 0.30
+QUERY_FAQ_TIMEOUT_SECONDS = 20
+PRODUCT_CATEGORIES = ("蓝牙耳机", "羊毛衫", "扫地机器人", "电动牙刷", "台灯", "保温杯", "运动鞋", "手机壳")
+GENERAL_CATEGORY = "通用"
+# Milvus VARCHAR 的 max_length 按字节计。
+KNOWLEDGE_TEXT_MAX_BYTES = 16384
 
 
 class Settings(BaseSettings):
@@ -50,6 +66,8 @@ class Settings(BaseSettings):
     embed_api_key: SecretStr
     embed_base_url: str = "https://api.siliconflow.cn/v1"
     milvus_uri: str
+    rerank_api_key: SecretStr
+    rerank_base_url: str = "https://api.siliconflow.cn/v1"
 
 
 def test_database_url(url: str) -> str:
