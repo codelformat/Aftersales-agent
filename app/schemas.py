@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from app.config import MAX_INPUT_CHARS, MINED_CATEGORIES
+from app.config import MAX_INPUT_CHARS, MINED_CATEGORIES, PRODUCT_CATEGORIES
 
 UserText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_INPUT_CHARS)]
 SessionId = Annotated[str, StringConstraints(pattern=r"^\d{1,19}$")]
@@ -56,3 +56,12 @@ class DedupVerdict(BaseModel):
 
     duplicate_of: int | None = Field(description="重复时填候选序号（从 1 开始）；不重复时为 null")
     category: MinedCategory = Field(description="新问答对的分类")
+
+
+class QueryPlan(BaseModel):
+    """知识库检索的标准问法和商品品类。"""
+
+    standard_query: str = Field(min_length=1, description="改写后的标准问法，保留型号、数字和限定条件")
+    product_category: Literal[PRODUCT_CATEGORIES] | None = Field(
+        default=None, description="用户明确提到的商品品类；没有提到时为 null"
+    )

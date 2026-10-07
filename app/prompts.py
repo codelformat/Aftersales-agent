@@ -2,7 +2,7 @@ from datetime import date
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from app.config import SHOP_NAME
+from app.config import PRODUCT_CATEGORIES, SHOP_NAME
 
 # 第 2 次调用时追加在工具结果之后。没有它时，模型在需要再次查询时会把工具调用标记写进正文（已实测）。
 TOOL_ROUND_CLOSING = "（系统提示）以上是本轮工具的查询结果。本轮不能再调用任何工具。请只根据已有结果用纯文本回答；还缺少的信息，直接告诉用户需要什么或可以接着问。"
@@ -103,4 +103,22 @@ DEDUP_JUDGE_SYSTEM_PROMPT = """你是知识库去重审核员。判断一条新�
 dedup_judge_prompt = ChatPromptTemplate.from_messages([
     ("system", DEDUP_JUDGE_SYSTEM_PROMPT),
     ("human", "新问答对：\n问：{question}\n答：{answer}\n\n候选：\n{candidates}"),
+])
+
+
+QUERY_REWRITE_SYSTEM_PROMPT = f"""你是售后知识库的检索改写器。把用户的问题改写成一句适合检索知识库的标准问法，并识别商品品类。
+
+## 改写规则
+1. 去掉情绪、寒暄和与问题无关的内容，保留用户真正想问的点。
+2. 口语和俗称改为店铺常用说法。例如"钱什么时候退回来"改为"退款多久到账"，"不想要了能退吗"改为"无理由退货的条件"。
+3. 原文中的型号、数字、时间和限定条件必须原样保留，例如"X3 Pro""签收第 8 天""拆封后"。
+4. 不补充原文没有的信息，不回答问题。
+5. 一句话问了几件事时，合并为一句，每件事都保留。
+
+## 品类规则
+品类只能从下列选项中选择：{"、".join(PRODUCT_CATEGORIES)}。只有用户明确提到某个品类时才填写，否则为 null。"""
+
+query_rewrite_prompt = ChatPromptTemplate.from_messages([
+    ("system", QUERY_REWRITE_SYSTEM_PROMPT),
+    ("human", "{question}"),
 ])

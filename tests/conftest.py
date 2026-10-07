@@ -189,3 +189,16 @@ async def milvus():
     finally:
         milvus_mod.set_milvus(BlockedMilvus(), KNOWLEDGE_TEST_COLLECTION)
         await client.close()
+
+
+def _blocked_factory(name: str):
+    def factory():
+        raise RuntimeError(f"测试未替换 {name}")
+    return factory
+
+
+@pytest.fixture(autouse=True)
+def _block_llm_runnables(monkeypatch):
+    """测试不调用上游模型。需要时在测试中传入 RunnableLambda。"""
+    from app.knowledge import query
+    monkeypatch.setattr(query, "get_query_rewriter", _blocked_factory("get_query_rewriter"))
