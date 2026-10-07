@@ -7,6 +7,27 @@ from app.config import PRODUCT_CATEGORIES, SHOP_NAME
 # 第 2 次调用时追加在工具结果之后。没有它时，模型在需要再次查询时会把工具调用标记写进正文（已实测）。
 TOOL_ROUND_CLOSING = "（系统提示）以上是本轮工具的查询结果。本轮不能再调用任何工具。请只根据已有结果用纯文本回答；还缺少的信息，直接告诉用户需要什么或可以接着问。"
 
+# 拒答句。System Prompt、评估的拒答判定和验收脚本共用。
+REFUSAL_PREFIX = "抱歉，这个问题我没有在知识库中找到可靠依据。"
+
+SELF_CHECK_SYSTEM_PROMPT = """你是售后知识库的证据审核员。判断给定的知识库证据是否足以回答用户的问题。
+
+## 判定规则
+1. 证据直接写明了问题所需的事实（条件、时限、数字、步骤、型号参数），判为够用。
+2. 问题有几个要点时，每个要点都有证据，才判为够用。
+3. 证据只是同一话题，但没有写到用户问的那一点，判为不够用。例如问 X3 Pro 是否防水，证据只写了 X3 Pro 的续航。
+4. 证据写的是另一个型号或另一个品类，判为不够用。
+5. 用户要求承诺（例如"一定""保证""明天能到吗"），而证据给出了一般规则或时限，判为够用。回答阶段会按规则措辞。
+6. 不使用证据以外的常识。
+
+## reason
+写一句话。够用时写依据的证据编号；不够用时写缺了什么。"""
+
+self_check_prompt = ChatPromptTemplate.from_messages([
+    ("system", SELF_CHECK_SYSTEM_PROMPT),
+    ("human", "问题：\n{question}\n\n证据：\n{evidence}"),
+])
+
 CHAT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{today}。
 
 ## 职责

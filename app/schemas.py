@@ -65,3 +65,8 @@ class QueryPlan(BaseModel):
     product_category: Literal[PRODUCT_CATEGORIES] | None = Field(
         default=None, description="用户明确提到的商品品类；没有提到时为 null"
     )
+
+
+class SelfCheck(BaseModel):
+    useful: bool = Field(description="证据是否足以回答问题的全部要点")
+    reason: str = Field(description="够用时写依据的证据编号；不够用时写缺了什么")

@@ -212,3 +212,6 @@ def _block_llm_runnables(monkeypatch):
     """测试不调用上游模型。需要时在测试中传入 RunnableLambda。"""
     from app.knowledge import query
     monkeypatch.setattr(query, "get_query_rewriter", _blocked_factory("get_query_rewriter"))
+
+    from app.services import grounding
+    monkeypatch.setattr(grounding, "get_self_checker", _blocked_factory("get_self_checker"))
