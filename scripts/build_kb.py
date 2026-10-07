@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.engine import dispose_engine
 from app.knowledge.ingest import ingest_all
-from app.knowledge.milvus import close_milvus, ensure_collection
+from app.knowledge.milvus import close_milvus, ensure_collection, recreate_collection
 from app.knowledge.vectorize import SimulatedCrash, format_status, kb_status, vectorize_pending
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 
 async def run(args) -> int:
     try:
-        await ensure_collection()
+        if args.rebuild:
+            # 集合结构可能已变化，按 id 删除不够，整体重建。
+            await recreate_collection()
+        else:
+            await ensure_collection()
         if args.status or args.check:
             st = await kb_status()
             print(format_status(st))
@@ -47,7 +51,7 @@ async def run(args) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="离线建库")
-    parser.add_argument("--rebuild", action="store_true", help="重建全部文档来源（不含 mined）")
+    parser.add_argument("--rebuild", action="store_true", help="重建 Milvus 集合和全部文档来源；mined 块保留并重新向量化")
     parser.add_argument("--crash-after-batches", type=int, default=None, help="故障注入，只用于演示")
     parser.add_argument("--status", action="store_true", help="只打印状态")
     parser.add_argument(

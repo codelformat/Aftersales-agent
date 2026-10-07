@@ -6,7 +6,9 @@ from sqlalchemy import select
 from app.db.models import KnowledgeChunk
 from app.knowledge import ingest
 from app.knowledge import milvus as m
-from tests.fakes import unit
+from app.repositories import knowledge
+from app.repositories.knowledge import NewChunk
+from tests.fakes import entity, unit
 
 pytestmark = pytest.mark.anyio
 
@@ -80,7 +82,7 @@ async def test_rebuild_source_deletes_milvus_and_mysql(db, milvus, tmp_path):
     [src] = ingest.load_doc_sources(_write_docs(tmp_path))
     await ingest.ingest_source(src)
     ids = [r.id for r in await _rows(db)]
-    await m.upsert_vectors([(i, unit(n)) for n, i in enumerate(ids)])
+    await m.upsert_entities([entity(i, unit(n)) for n, i in enumerate(ids)])
     assert await ingest.rebuild_source("退货政策") == 3
     assert await _rows(db) == []
     assert await m.count_vectors() == 0
@@ -182,7 +184,7 @@ async def test_rebuild_failure_preserves_sql_rows_and_can_rerun(db, milvus, tmp_
     [src] = ingest.load_doc_sources(_write_docs(tmp_path))
     await ingest.ingest_source(src)
     ids = [r.id for r in await _rows(db)]
-    await m.upsert_vectors([(i, unit(n)) for n, i in enumerate(ids)])
+    await m.upsert_entities([entity(i, unit(n)) for n, i in enumerate(ids)])
 
     async def fail_delete(chunk_ids):
         raise RuntimeError("删除失败")
@@ -206,3 +208,19 @@ def test_parse_error_names_the_file(tmp_path):
     with pytest.raises(ValueError, match=r"无标题\.md：文档必须以一级标题开头") as exc:
         ingest.load_doc_sources(tmp_path)
     assert isinstance(exc.value.__cause__, ValueError)
+
+
+async def test_mark_pending_by_content_type_only_touches_mined(db):
+    async with db() as s:
+        rows = await knowledge.insert_chunks(s, [
+            NewChunk("运费", "q1", "a1", "对话挖掘 > 运费", "mined", False),
+            NewChunk("c", "q2", "a2", "退货政策 > x", "policy", False),
+        ])
+        await knowledge.mark_done(s, [r.id for r in rows])
+        await s.commit()
+    async with db() as s:
+        assert await knowledge.mark_pending_by_content_type(s, "mined") == 1
+        await s.commit()
+    async with db() as s:
+        statuses = {r.content_type: r.vectorize_status for r in await s.scalars(select(KnowledgeChunk))}
+    assert statuses == {"mined": "pending", "policy": "done"}

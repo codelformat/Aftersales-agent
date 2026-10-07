@@ -7,7 +7,7 @@ from app.knowledge.vectorize import vectorize_pending
 from app.repositories import knowledge
 from app.repositories.knowledge import NewChunk
 from app.tools.registry import get_registry
-from tests.fakes import FakeEmbeddings, blend, unit
+from tests.fakes import FakeEmbeddings, blend, entity, unit
 
 pytestmark = pytest.mark.anyio
 
@@ -52,7 +52,7 @@ async def test_search_faq_output_shape(db, milvus):
 async def test_search_ignores_pending_rows(db, milvus):
     set_embeddings(_fake())
     [cid] = await _seed(db, [FREIGHT])
-    await m.upsert_vectors([(cid, unit(0))])  # Milvus 有向量，MySQL 仍为 pending
+    await m.upsert_entities([entity(cid, unit(0))])  # Milvus 有向量，MySQL 仍为 pending
     assert await search_faq("邮费") == []
 
 
@@ -60,7 +60,7 @@ async def test_search_skips_ids_missing_in_mysql(db, milvus):
     set_embeddings(_fake())
     await _seed(db, [FREIGHT])
     await vectorize_pending()
-    await m.upsert_vectors([(999999, unit(0))])
+    await m.upsert_entities([entity(999999, unit(0))])
     assert [r["question"] for r in await search_faq("邮费")] == ["运费怎么算？"]
 
 

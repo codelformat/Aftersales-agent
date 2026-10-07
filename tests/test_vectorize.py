@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.db.models import KnowledgeChunk
 from app.knowledge import milvus as m
 from app.knowledge.embeddings import get_embeddings
+from app.knowledge.chunking import knowledge_text
 from app.knowledge.vectorize import SimulatedCrash, kb_status, vectorize_pending
 from app.repositories import knowledge
 from app.repositories.knowledge import NewChunk
@@ -92,3 +93,29 @@ async def test_short_embedding_response_leaves_rows_pending(db, milvus, monkeypa
         await vectorize_pending()
     assert await _statuses(db) == [("pending", None)] * 3
     assert await m.count_vectors() == 0
+
+
+async def _insert_two_chunks_for_fields(db):
+    async with db() as s:
+        rows = await knowledge.insert_chunks(s, [
+            NewChunk("商品手册 > 蓝牙耳机", "X3 续航", "单次续航 6 小时", "商品手册 > 蓝牙耳机 > X3 续航", "manual", False),
+            NewChunk("退货政策 > 退款", "退款时间", "原路退回", "退货政策 > 退款 > 退款时间", "policy", False),
+        ])
+        await s.commit()
+    return [r.id for r in rows]
+
+
+async def test_vectorize_writes_text_and_filter_fields(db, milvus):
+    ids = await _insert_two_chunks_for_fields(db)
+    await vectorize_pending()
+    rows = await milvus.query(
+        m.get_collection(), filter=f"id in {ids}",
+        output_fields=["id", "text", "product_category", "content_type"],
+    )
+    got = {r["id"]: (r["product_category"], r["content_type"]) for r in rows}
+    assert got == {ids[0]: ("蓝牙耳机", "manual"), ids[1]: ("通用", "policy")}
+    async with db() as s:
+        row = await s.get(KnowledgeChunk, ids[0])
+    assert next(r["text"] for r in rows if r["id"] == ids[0]) == knowledge_text(
+        row.category, row.questions, row.answer
+    )

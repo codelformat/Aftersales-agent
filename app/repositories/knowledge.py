@@ -97,3 +97,12 @@ async def status_counts(s: AsyncSession) -> list[tuple[str | None, str, int]]:
         .order_by(KnowledgeChunk.content_type, KnowledgeChunk.vectorize_status)
     )
     return [(ct, st, int(n)) for ct, st, n in rows]
+
+
+async def mark_pending_by_content_type(s: AsyncSession, content_type: str) -> int:
+    result = await s.execute(
+        update(KnowledgeChunk)
+        .where(KnowledgeChunk.content_type == content_type)
+        .values(vectorize_status="pending", vector_id=None)
+    )
+    return result.rowcount

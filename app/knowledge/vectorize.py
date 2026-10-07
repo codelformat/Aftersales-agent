@@ -3,9 +3,9 @@ from dataclasses import dataclass
 
 from app.config import VECTORIZE_BATCH_SIZE
 from app.db.engine import get_sessionmaker
-from app.knowledge.chunking import knowledge_text
+from app.knowledge.chunking import knowledge_text, product_category_of
 from app.knowledge.embeddings import get_embeddings
-from app.knowledge.milvus import count_vectors, upsert_vectors
+from app.knowledge.milvus import Entity, count_vectors, upsert_entities
 from app.repositories import knowledge
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,16 @@ async def vectorize_pending(
         )
         if len(vectors) != len(rows):
             raise ValueError("嵌入返回数量与输入不一致")
-        await upsert_vectors([(r.id, v) for r, v in zip(rows, vectors)])
+        await upsert_entities([
+            Entity(
+                id=r.id,
+                vector=v,
+                text=knowledge_text(r.category, r.questions, r.answer),
+                product_category=product_category_of(r.section_path),
+                content_type=r.content_type or "",
+            )
+            for r, v in zip(rows, vectors)
+        ])
         if crash_after_batches is not None and batches == crash_after_batches:
             raise SimulatedCrash(f"第 {batches + 1} 批已写入 Milvus，未回填 MySQL")
         async with sm() as s:
