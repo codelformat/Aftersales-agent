@@ -27,7 +27,7 @@ class EvalSample:
     bucket: str
     difficulty: str
     query: str
-    relevant: tuple[str, ...]
+    relevant: tuple[tuple[str, ...], ...]
 
 
 def load_samples(path: Path = SAMPLES_PATH) -> list[EvalSample]:
@@ -38,9 +38,12 @@ def load_samples(path: Path = SAMPLES_PATH) -> list[EvalSample]:
         row = json.loads(line)
         if not all(isinstance(row[key], str) for key in ("id", "bucket", "difficulty", "query")):
             raise ValueError("评估集文本字段类型无效")
-        if not isinstance(row["relevant"], list) or not all(isinstance(k, str) for k in row["relevant"]):
+        groups = row["relevant"]
+        if not isinstance(groups, list) or not all(
+                isinstance(g, list) and all(isinstance(k, str) for k in g) for g in groups):
             raise ValueError("评估集来源键类型无效")
-        samples.append(EvalSample(row["id"], row["bucket"], row["difficulty"], row["query"], tuple(row["relevant"])))
+        samples.append(EvalSample(row["id"], row["bucket"], row["difficulty"], row["query"],
+                                  tuple(tuple(g) for g in groups)))
     return samples
 
 
@@ -64,10 +67,16 @@ def validate(samples: list[EvalSample], known_keys: set[str] | None, *, full: bo
                 errors.append(f"{s.id}：D 桶来源键必须为空")
         elif not s.relevant:
             errors.append(f"{s.id}：可答题必须有来源键")
-        elif s.bucket == "E_multi" and len(set(s.relevant)) < 2:
-            errors.append(f"{s.id}：E 桶至少需要 2 个不同来源键")
+        elif s.bucket == "E_multi" and len(s.relevant) < 2:
+            errors.append(f"{s.id}：E 桶至少需要 2 组事实")
+        for group in s.relevant:
+            if not group:
+                errors.append(f"{s.id}：来源键组为空")
+            elif len(set(group)) != len(group):
+                errors.append(f"{s.id}：来源键组内重复")
         if known_keys is not None:
-            errors.extend(f"{s.id}：来源键不存在 {key}" for key in dict.fromkeys(s.relevant) if key not in known_keys)
+            errors.extend(f"{s.id}：来源键不存在 {key}"
+                          for key in dict.fromkeys(k for g in s.relevant for k in g) if key not in known_keys)
     if full:
         buckets = Counter(s.bucket for s in samples)
         difficulties = Counter((s.bucket, s.difficulty) for s in samples)

@@ -166,7 +166,7 @@ async def run_eval(args: argparse.Namespace) -> int:
                         scores.append(score_retrieval(sample.id, sample.bucket, sample.difficulty,
                                                       strategy, ranked, sample.relevant))
                     if strategy == "hybrid_rerank":
-                        rows.append(ThresholdRow(sample.bucket, bool(ranked) and ranked[0] in sample.relevant,
+                        rows.append(ThresholdRow(sample.bucket, bool(ranked) and any(ranked[0] in group for group in sample.relevant),
                                                  r.ranked[0].score if r.ranked else None))
                         if sample.bucket in ANSWERABLE:
                             kept = [source_key(e.section_path, e.question) for e in r.ranked

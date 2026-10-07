@@ -21,14 +21,14 @@ def dedupe(keys: list[str]) -> list[str]:
     return list(dict.fromkeys(keys))
 
 
-def recall_at_k(ranked_keys: list[str], relevant: list[str], k: int) -> float:
-    targets = set(relevant)
-    hits = set(dedupe(ranked_keys)[:max(k, 0)]) & targets
-    return len(hits) / len(targets) if targets else 0.0
+def recall_at_k(ranked_keys: list[str], groups, k: int) -> float:
+    """每组是一个必须答到的事实；组内键等价，命中任一键即覆盖该组。"""
+    top = set(dedupe(ranked_keys)[:max(k, 0)])
+    return sum(bool(top & set(group)) for group in groups) / len(groups) if groups else 0.0
 
 
-def reciprocal_rank(ranked_keys: list[str], relevant: list[str]) -> float:
-    targets = set(relevant)
+def reciprocal_rank(ranked_keys: list[str], groups) -> float:
+    targets = {key for group in groups for key in group}
     return next((1 / i for i, key in enumerate(dedupe(ranked_keys), 1) if key in targets), 0.0)
 
 
@@ -42,10 +42,10 @@ class RetrievalScore:
     rr: float
 
 
-def score_retrieval(sample_id, bucket, difficulty, strategy, ranked_keys, relevant) -> RetrievalScore:
+def score_retrieval(sample_id, bucket, difficulty, strategy, ranked_keys, relevant_groups) -> RetrievalScore:
     return RetrievalScore(sample_id, bucket, difficulty, strategy,
-                          {k: recall_at_k(ranked_keys, relevant, k) for k in KS},
-                          reciprocal_rank(ranked_keys, relevant))
+                          {k: recall_at_k(ranked_keys, relevant_groups, k) for k in KS},
+                          reciprocal_rank(ranked_keys, relevant_groups))
 
 
 def summarize(scores: list[RetrievalScore], group: str) -> dict[tuple[str, str], dict[str, float]]:

@@ -15,21 +15,37 @@ def test_dedupe_keeps_first():
 
 def test_recall_at_k_dedupes_by_source_key():
     ranked = ["x", "x", "a", "b"]          # 表格拆成两块，共用来源键 x
-    assert rm.recall_at_k(ranked, ["a", "b"], 1) == 0.0
-    assert rm.recall_at_k(ranked, ["a", "b"], 2) == 0.5
-    assert rm.recall_at_k(ranked, ["a", "b"], 3) == 1.0
+    groups = [["a"], ["b"]]
+    assert rm.recall_at_k(ranked, groups, 1) == 0.0
+    assert rm.recall_at_k(ranked, groups, 2) == 0.5
+    assert rm.recall_at_k(ranked, groups, 3) == 1.0
+
+
+def test_recall_equivalent_keys_count_as_one_group():
+    assert rm.recall_at_k(["b"], [["a", "b"]], 1) == 1.0
+    assert rm.recall_at_k(["a", "b"], [["a", "b"]], 2) == 1.0
+
+
+def test_recall_each_group_needs_a_hit():
+    groups = [["a"], ["c", "d"]]
+    ranked = ["x", "d", "a"]
+    assert rm.recall_at_k(ranked, groups, 1) == 0.0
+    assert rm.recall_at_k(ranked, groups, 2) == 0.5
+    assert rm.recall_at_k(ranked, groups, 3) == 1.0
+    assert rm.recall_at_k(ranked, [], 3) == 0.0
 
 
 def test_reciprocal_rank():
-    assert rm.reciprocal_rank(["x", "x", "a"], ["a"]) == 0.5
-    assert rm.reciprocal_rank(["x"], ["a"]) == 0.0
-    assert rm.reciprocal_rank([], ["a"]) == 0.0
+    assert rm.reciprocal_rank(["x", "x", "a"], [["a"]]) == 0.5
+    assert rm.reciprocal_rank(["x"], [["a"]]) == 0.0
+    assert rm.reciprocal_rank([], [["a"]]) == 0.0
+    assert rm.reciprocal_rank(["x", "c", "a"], [["a"], ["c", "d"]]) == 0.5   # 任一组的首个命中
 
 
 def test_summarize_by_bucket_and_all():
     s = [
-        rm.score_retrieval("A01", "A_policy", "easy", "bm25", ["a"], ["a"]),
-        rm.score_retrieval("B01", "B_model", "hard", "bm25", ["x", "b"], ["b"]),
+        rm.score_retrieval("A01", "A_policy", "easy", "bm25", ["a"], [["a"]]),
+        rm.score_retrieval("B01", "B_model", "hard", "bm25", ["x", "b"], [["b"]]),
     ]
     out = rm.summarize(s, "bucket")
     assert out[("bm25", "A_policy")]["MRR"] == 1.0

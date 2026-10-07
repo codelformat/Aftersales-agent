@@ -164,9 +164,9 @@ def offline_eval(monkeypatch, tmp_path):
             for _ in range(size):
                 index += 1
                 sid = f"{bucket[0]}{index:02d}"
-                relevant = () if bucket == "D_unanswerable" else (ITEM.section_path,)
+                relevant = () if bucket == "D_unanswerable" else ((ITEM.section_path,),)
                 if bucket == "E_multi":
-                    relevant += ("其他来源",)
+                    relevant += (("其他来源",),)
                 samples.append(EvalSample(sid, bucket, difficulty, f"{sid} q", relevant))
     lifecycle = []
 
