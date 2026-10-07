@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
+from app.config import RERANK_MIN_SCORE
 from app.db.models import FaithCase
 from app.knowledge.retrieval import EvidenceItem, Retrieval
 from app.prompts import REFUSAL_PREFIX
@@ -217,7 +218,7 @@ async def test_retrieval_stage_caches_plans_and_uses_ranked_before_threshold(off
         await asyncio.sleep(0)
         active -= 1
         seen.append((query, strategy, kwargs))
-        return Retrieval(PLAN, [replace(ITEM, score=0.2)], [])
+        return Retrieval(PLAN, [replace(ITEM, score=RERANK_MIN_SCORE - 0.1)], [])
 
     monkeypatch.setattr(rre, "understand", understand)
     monkeypatch.setattr(rre, "retrieve", retrieve)

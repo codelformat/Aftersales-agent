@@ -128,7 +128,7 @@ def test_ch04_constants():
     assert (config.RERANK_RETRY_BASE_DELAY, config.RERANK_RETRY_MAX_DELAY) == (0.5, 4.0)
     assert (config.RECALL_LEG_LIMIT, config.RRF_K, config.FUSED_LIMIT) == (50, 60, 50)
     assert config.EVIDENCE_TOP_N == 10
-    assert config.RERANK_MIN_SCORE == 0.40
+    assert config.RERANK_MIN_SCORE == 0.20
     assert config.QUERY_FAQ_TIMEOUT_SECONDS == 20
     assert config.PRODUCT_CATEGORIES == (
         "蓝牙耳机", "羊毛衫", "扫地机器人", "电动牙刷", "台灯", "保温杯", "运动鞋", "手机壳",
