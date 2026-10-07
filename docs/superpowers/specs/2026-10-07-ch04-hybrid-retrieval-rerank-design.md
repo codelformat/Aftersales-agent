@@ -116,12 +116,12 @@
 
 ```json
 {
-  "models": ["X3", "X3 Pro", "X5", "..."],
+  "models": {"蓝牙耳机": ["X3", "X3 Pro", "X5"], "...": []},
   "synonyms": {"运费": ["邮费", "快递费"], "退款": ["退钱", "钱退回来"], "...": []}
 }
 ```
 
-- `models` 是 24 个规范型号。`synonyms` 的键是标准词，值是俗称列表。
+- `models` 是"品类 → 规范型号"的映射，共 24 个型号。`synonyms` 的键是标准词，值是俗称列表。
 - 文档和词表由 Codex 编写，Claude 审核。
 
 ## 5. 架构
@@ -168,13 +168,15 @@ evals/run_rag_eval.py → knowledge/retrieval, services/grounding, evals/rag_met
        product_category: Literal[<8 个品类>] | None
    ```
 
-   Prompt 要求：把口语、情绪化表达改写为一句标准问法；保留原文中的型号、数字和限定条件；不补充原文没有的信息；只有原文明确涉及某个品类或该品类的型号时，才填 `product_category`。
+   Prompt 要求：把口语、情绪化表达改写为一句标准问法；保留原文中的型号、数字和限定条件；不补充原文没有的信息；只有原文明确提到某个品类时，才填 `product_category`。
+   调用前先对原话做型号归一（第 2 步），再送给 LLM。
 2. **型号归一**：`normalize_models(text)`。对 `lexicon.models` 中的每个型号，构造"忽略大小写、型号内空格和横线可有可无"的正则，按型号长度从长到短匹配，替换为规范写法。例：`x3pro`、`X3-PRO`、`x3 pro` → `X3 Pro`。作用于 `standard_query`。
 3. **同义词**：
    - `dense_query(q)`：把俗称**替换**为标准词。
    - `bm25_query(q)`：保留原文，在末尾**追加**命中键的全部同义词和标准词，用空格分隔。
    - 理由：向量表示整句语义，追加词会让查询向量偏离；BM25 按词项打分，追加词只增加命中机会。
-4. **改写失败**（超时、上游错误、解析错误）：`standard_query` 取原话，`product_category=None`，记日志，继续检索。型号归一和同义词照常执行。
+4. **型号定品类**：`standard_query` 中出现词表型号时，品类取该型号所属品类，覆盖 LLM 的结果。理由：型号与品类的对应是确定的，不依赖 LLM。
+5. **改写失败**（超时、上游错误、解析错误）：`standard_query` 取型号归一后的原话，品类只按第 4 步由型号推断（没有型号时为 `None`），记日志，继续检索。同义词照常执行。
 
 ### 6.2 召回
 
@@ -225,8 +227,8 @@ class EvidenceItem:
 @dataclass
 class Retrieval:
     plan: QueryPlan
-    ranked: list[EvidenceItem]   # 门槛后、排列前，按分数降序
-    evidence: list[EvidenceItem] # 首尾排列后
+    ranked: list[EvidenceItem]   # 门槛前、排列前，按分数降序，最多 EVIDENCE_TOP_N 条（评估用）
+    evidence: list[EvidenceItem] # 门槛后、首尾排列后（送给模型）
 ```
 
 ## 7. 生成质量控制
@@ -375,7 +377,13 @@ class Retrieval:
 ### 8.3 生成段（`--stage generation`）
 
 1. 默认只跑 `hybrid_rerank`。`--gen-strategies all` 跑全部 4 种。
-2. 每题流程：`retrieve` → `collect_evidence` / `render_evidence` → `self_check` → 按线上 System Prompt 和工具轮消息构造第 2 次调用，生成答案。工具轮消息由 `AIMessage`（一个 `query_faq` 调用）、工具消息和 `SystemMessage(TOOL_ROUND_CLOSING)` 组成。评估不写 `low_confidence_questions`。
+2. 每题流程（不写 `low_confidence_questions`、`messages`）：
+   1. **第 1 次调用**：与线上相同，`chat_prompt | model.bind_tools(全部工具, tool_choice="auto")`，输入为题目 `query`，历史为空。
+   2. 模型没有调用 `query_faq` 时，记为"未检索"，不进入后续步骤，在报告中单列。
+   3. 模型调用了 `query_faq` 时，用题目 `query`（不用模型填的 `question`）执行 `retrieve(query, strategy, plan=缓存的改写结果, exclude_mined=True)`。其他工具调用不执行，工具消息内容为 `{"ok": false, "error": "tool_error", "message": "查询失败"}`。
+   4. `collect_evidence` / `render_evidence` → `self_check` → `useful=false` 时替换证据（同 §7.4 第 2 步）。
+   5. **第 2 次调用**：`chat_prompt | model`，工具轮消息为第 1 次调用返回的 `AIMessage`（保留模型给出的 tool_call id）、各工具消息、`SystemMessage(TOOL_ROUND_CLOSING)`。
+   - 理由：DeepSeek 思考模式下，第 2 次调用依赖服务端按 tool_call id 缓存的思考内容，自造 tool_call id 会返回 400（CLAUDE.md 设计约束）。所以必须使用第 1 次调用的真实 id。
 3. **拒答判定**：答案以拒答句开头。
 4. **裁判**（只对未拒答的答案）：一次结构化调用，关闭思考。
 
