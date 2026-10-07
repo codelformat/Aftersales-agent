@@ -70,3 +70,9 @@ class QueryPlan(BaseModel):
 class SelfCheck(BaseModel):
     useful: bool = Field(description="证据是否足以回答问题的全部要点")
     reason: str = Field(description="够用时写依据的证据编号；不够用时写缺了什么")
+
+
+class FaithVerdict(BaseModel):
+    faithful: bool = Field(description="unsupported_claims 为空时为 true")
+    unsupported_claims: list[str] = Field(default_factory=list, description="证据中找不到依据的句子，原样摘录")
+    reason: str = Field(description="一句话说明判定依据")

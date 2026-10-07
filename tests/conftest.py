@@ -215,3 +215,8 @@ def _block_llm_runnables(monkeypatch):
 
     from app.services import grounding
     monkeypatch.setattr(grounding, "get_self_checker", _blocked_factory("get_self_checker"))
+
+    from evals import run_faith_judge_eval, run_rag_eval
+    monkeypatch.setattr(run_rag_eval, "get_chat_model", _blocked_factory("get_chat_model"))
+    for module in (run_rag_eval, run_faith_judge_eval):
+        monkeypatch.setattr(module, "get_faith_judge", _blocked_factory("get_faith_judge"))

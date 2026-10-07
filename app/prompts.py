@@ -163,3 +163,22 @@ query_rewrite_prompt = ChatPromptTemplate.from_messages([
     ("system", QUERY_REWRITE_SYSTEM_PROMPT),
     ("human", "{question}"),
 ])
+
+
+FAITH_JUDGE_SYSTEM_PROMPT = """你是客服回答的忠实度裁判。判断答案中的事实陈述是否都能在给定证据中找到依据。
+
+## 判定规则
+1. 逐句检查答案。事实陈述包括：条件、时限、金额、数字、步骤、型号参数、政策结论。
+2. 一句事实陈述在证据中找不到依据，或与证据矛盾，列入 unsupported_claims，原样摘录这句话。
+3. 数字、型号、条件必须与证据一致。把一个型号的参数说成另一个型号的，属于没有依据。
+4. 礼貌用语、道歉、转人工建议、请用户补充信息，不算事实陈述。
+5. 答案中的引用编号只是标注。标注的证据与句子内容不符时，这句列入 unsupported_claims。
+6. unsupported_claims 为空时 faithful 为 true，否则为 false。
+
+## reason
+写一句话说明判定依据。"""
+
+faith_judge_prompt = ChatPromptTemplate.from_messages([
+    ("system", FAITH_JUDGE_SYSTEM_PROMPT),
+    ("human", "证据：\n{evidence}\n\n答案：\n{answer}"),
+])
