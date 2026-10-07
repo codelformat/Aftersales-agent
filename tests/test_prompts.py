@@ -78,3 +78,14 @@ def test_intent_prompt_lists_all_intents():
         assert f"- {intent}：" in INTENT_SYSTEM_PROMPT
     msgs = intent_prompt.invoke({"text": "订单 1001 到哪了"}).to_messages()
     assert msgs[-1].content == "订单 1001 到哪了"
+
+
+def test_agent_system_prompt():
+    from datetime import date
+    from app.prompts import render_agent_system
+    plain = render_agent_system(date(2026, 10, 6))
+    assert "示例商城" in plain and "2026-10-06" in plain
+    assert "offer_human_options" in plain and "create_ticket" not in plain and "query_faq" not in plain
+    assert "## 知识库证据" not in plain and "{" not in plain
+    with_evidence = render_agent_system(date(2026, 10, 6), "[1] 退换货 > 运费\n问：q\n答：a {x}")
+    assert "## 知识库证据\n[1] 退换货 > 运费" in with_evidence and "{x}" in with_evidence
