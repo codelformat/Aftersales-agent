@@ -10,6 +10,10 @@ TOOL_ROUND_CLOSING = "（系统提示）以上是本轮工具的查询结果。�
 # 拒答句。System Prompt、评估的拒答判定和验收脚本共用。
 REFUSAL_PREFIX = "抱歉，这个问题我没有在知识库中找到可靠依据。"
 
+CHITCHAT_REPLY = "您好，我是示例商城的售后客服助手。订单、物流、退换货和商品使用问题都可以问我。"
+COMPLAINT_REPLY = "非常抱歉给您带来不好的体验，您的反馈我们很重视。如果需要，您可以选择转人工客服，或者提交一张投诉工单，我们会尽快跟进。"
+GATE_FALLBACK_REPLY = REFUSAL_PREFIX + "您可以换个问法再试，或者补充商品型号等具体信息。"
+
 SELF_CHECK_SYSTEM_PROMPT = """你是售后知识库的证据审核员。判断给定的知识库证据是否足以回答用户的问题。
 
 ## 判定规则
