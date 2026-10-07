@@ -92,3 +92,10 @@ class IntentResult(BaseModel):
     """用户这一句话的意图。"""
 
     intent: Literal[INTENTS] = Field(description="七类意图之一")
+
+
+class TicketRequest(BaseModel):
+    session_id: SessionId
+    user_id: UserId
+    description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    ticket_type: Literal["售后", "投诉", "咨询"]
