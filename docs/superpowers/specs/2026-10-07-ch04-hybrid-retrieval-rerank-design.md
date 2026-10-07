@@ -198,7 +198,7 @@ evals/run_rag_eval.py → knowledge/retrieval, services/grounding, evals/rag_met
 ### 6.3 重排（仅 `hybrid_rerank`）
 
 1. 按候选 id 从 MySQL 读 `done` 行。Milvus 有、MySQL 没有（或仍为 `pending`）的 id 跳过（沿用 ch03）。
-2. documents 用 `knowledge_text(...)`。query 用 `standard_query`，不用追加了同义词的版本。
+2. documents 用 `knowledge_text(...)`。query 用 `dense_query(standard_query)`：俗称替换为标准词，但不追加同义词。理由（Task 6 实测）："邮费多少钱"对运费块的重排分为 0.171，"运费多少钱"为 0.796；改写不保证替换俗称。
 3. 调用 `/rerank`，`top_n=EVIDENCE_TOP_N`。失败时经 `retry_async` 重试，重试条件为 `httpx.TransportError`、`httpx.TimeoutException`、HTTP 429 和 5xx。
 4. 重试用尽后抛出异常，`query_faq` 失败，执行器返回 `ok=false`。模型如实告诉用户暂时查不到。理由：重排分数就是置信度门槛，没有它就无法判断证据是否可信。
 

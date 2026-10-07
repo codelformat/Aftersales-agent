@@ -1,9 +1,104 @@
-from app.config import FAQ_MAX_RESULTS, FAQ_MIN_SCORE
+from dataclasses import dataclass, replace
+
+from app.config import EVIDENCE_TOP_N, FUSED_LIMIT, GENERAL_CATEGORY, RECALL_LEG_LIMIT, RERANK_MIN_SCORE
 from app.db.engine import get_sessionmaker
 from app.db.models import KnowledgeChunk
+from app.knowledge import rerank as rerank_mod
+from app.knowledge.chunking import PATH_SEP, knowledge_text
 from app.knowledge.embeddings import get_embeddings
-from app.knowledge.milvus import search_vectors
+from app.knowledge.milvus import search_bm25, search_dense, search_hybrid, search_vectors
+from app.knowledge.query import bm25_query, dense_query, get_lexicon, understand
 from app.repositories import knowledge
+from app.schemas import QueryPlan
+
+STRATEGIES = ("dense", "bm25", "hybrid", "hybrid_rerank")
+FAQ_TABLE_SOURCE = "常见问答"
+
+
+@dataclass(frozen=True)
+class EvidenceItem:
+    chunk_id: int
+    section_path: str
+    question: str
+    answer: str
+    score: float
+
+
+@dataclass(frozen=True)
+class Retrieval:
+    plan: QueryPlan
+    ranked: list[EvidenceItem]
+    evidence: list[EvidenceItem]
+
+
+def build_filter(category: str | None, exclude_mined: bool) -> str:
+    parts = []
+    if category:
+        # 通用政策也必须能召回。
+        parts.append(f'product_category in ["{category}", "{GENERAL_CATEGORY}"]')
+    if exclude_mined:
+        parts.append('content_type != "mined"')
+    return " and ".join(parts)
+
+
+def interleave(items: list) -> list:
+    """按排名交替放首尾：第 1 名放首位，第 2 名放末位，依次向中间填。"""
+    head, tail = [], []
+    for i, item in enumerate(items):
+        (head if i % 2 == 0 else tail).append(item)
+    return head + tail[::-1]
+
+
+def source_key(section_path: str, questions: str) -> str:
+    """评估集的来源键。常见问答同一分类下有多行，需要加上问题文本。"""
+    if section_path.startswith(FAQ_TABLE_SOURCE + PATH_SEP):
+        return f"{section_path}{PATH_SEP}{questions}"
+    return section_path
+
+
+async def _done_rows(ids: list[int]) -> dict[int, KnowledgeChunk]:
+    async with get_sessionmaker()() as s:
+        return await knowledge.get_done_by_ids(s, ids)
+
+
+async def retrieve(
+    question: str,
+    strategy: str = "hybrid_rerank",
+    *,
+    plan: QueryPlan | None = None,
+    exclude_mined: bool = False,
+    min_score: float = RERANK_MIN_SCORE,
+) -> Retrieval:
+    if strategy not in STRATEGIES:
+        raise ValueError(f"未知的检索策略：{strategy}")
+    plan = plan or await understand(question)
+    lex = get_lexicon()
+    flt = build_filter(plan.product_category, exclude_mined)
+    text = bm25_query(plan.standard_query, lex)
+    vector = None
+    if strategy != "bm25":
+        normalized_query = dense_query(plan.standard_query, lex)
+        vector = await get_embeddings().aembed_query(normalized_query)
+    if strategy == "dense":
+        hits = await search_dense(vector, EVIDENCE_TOP_N, flt)
+    elif strategy == "bm25":
+        hits = await search_bm25(text, EVIDENCE_TOP_N, flt)
+    else:
+        limit = FUSED_LIMIT if strategy == "hybrid_rerank" else EVIDENCE_TOP_N
+        hits = await search_hybrid(vector, text, leg_limit=RECALL_LEG_LIMIT, limit=limit, filter=flt)
+    rows = await _done_rows([i for i, _ in hits])
+    # Milvus 有、MySQL 没有（或仍为 pending）的 id 跳过。
+    hits = [(i, sc) for i, sc in hits if i in rows]
+    items = [EvidenceItem(i, rows[i].section_path or "", rows[i].questions, rows[i].answer, sc) for i, sc in hits]
+    if strategy != "hybrid_rerank":
+        ranked = items[:EVIDENCE_TOP_N]
+        return Retrieval(plan, ranked, interleave(ranked))
+    docs = [knowledge_text(rows[i].category, rows[i].questions, rows[i].answer) for i, _ in hits]
+    # 重排用替换了俗称的标准问法，不用追加了同义词的 BM25 查询。
+    scored = await rerank_mod.rerank(normalized_query, docs, EVIDENCE_TOP_N)
+    ranked = [replace(items[idx], score=score) for idx, score in scored]
+    kept = [e for e in ranked if e.score >= min_score]
+    return Retrieval(plan, ranked, interleave(kept))
 
 
 async def search_by_vector(
@@ -17,17 +112,3 @@ async def search_by_vector(
         rows = await knowledge.get_done_by_ids(s, [i for i, _ in hits])
     # Milvus 有、MySQL 没有（或仍为 pending）的 id 跳过。
     return [(rows[i], sc) for i, sc in hits if i in rows]
-
-
-async def search_with_scores(
-    keyword: str, *, limit: int = FAQ_MAX_RESULTS, min_score: float = FAQ_MIN_SCORE
-) -> list[tuple[KnowledgeChunk, float]]:
-    vector = await get_embeddings().aembed_query(keyword)
-    return await search_by_vector(vector, limit=limit, min_score=min_score)
-
-
-async def search_faq(keyword: str) -> list[dict]:
-    return [
-        {"question": r.questions, "answer": r.answer, "category": r.category}
-        for r, _ in await search_with_scores(keyword)
-    ]

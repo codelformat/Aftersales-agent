@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 
 import pytest
@@ -53,7 +54,9 @@ def test_registry_lists_five_tools_and_flags():
     assert sorted(reg.names()) == ["create_ticket", "query_faq", "query_logistics", "query_order", "query_product"]
     assert reg.get("create_ticket").retryable is False
     assert reg.get("create_ticket").inject_conversation_id is True
-    assert reg.get("query_faq").retryable is True
+    faq = reg.get("query_faq")
+    assert faq.retryable is False and faq.timeout == 20
+    assert reg.get("query_order").retryable is True and reg.get("query_order").timeout == 5
     assert reg.get("nope") is None
 
 
@@ -95,3 +98,34 @@ def test_logistics_traces_have_location_and_valid_timeline():
             assert times[0] > created
             assert all(a < b for a, b in zip(times, times[1:]))
             assert times[-1] <= datetime(TODAY.year, TODAY.month, TODAY.day, 23, 59)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("terms, questions, expected", [
+    (["X3 Pro", "续航"], ["X3 Pro 续航多久"], True),
+    (["X3 Pro", "续航"], ["X3 Pro 怎么用"], False),
+    (["X3 Pro", "续航"], ["X3 Pro 怎么用", "续航多久"], False),
+    (["邮费"], [], False),
+    (None, [], True),
+])
+async def test_tool_selection_eval_requires_terms_in_one_question(monkeypatch, terms, questions, expected):
+    from langchain_core.messages import AIMessage
+    from langchain_core.runnables import RunnableLambda
+
+    from evals import run_tool_selection_eval as ev
+
+    calls = [
+        {"id": str(i), "name": "query_faq", "args": {"question": question}}
+        for i, question in enumerate(questions)
+    ]
+
+    class Model:
+        def bind_tools(self, *args, **kwargs):
+            return RunnableLambda(lambda _: AIMessage(content="", tool_calls=calls))
+
+    monkeypatch.setattr(ev, "get_chat_model", lambda: Model())
+    sample = {"text": "用户原话", "expected_tools": ["query_faq"], "faq_terms": terms}
+    _, correct, line = await ev.evaluate_sample(1, sample, asyncio.Semaphore(1))
+    assert correct is expected
+    if questions or terms is not None:
+        assert "query_faq question:" in line

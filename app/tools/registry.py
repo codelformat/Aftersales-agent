@@ -3,7 +3,7 @@ from functools import lru_cache
 
 from langchain_core.tools import BaseTool
 
-from app.config import TOOL_TIMEOUT_SECONDS
+from app.config import QUERY_FAQ_TIMEOUT_SECONDS, TOOL_TIMEOUT_SECONDS
 from app.tools.faq import query_faq
 from app.tools.logistics import query_logistics
 from app.tools.order import query_order
@@ -40,8 +40,10 @@ class ToolRegistry:
 
 def build_default_registry() -> ToolRegistry:
     registry = ToolRegistry()
-    for registered_tool in (query_order, query_product, query_logistics, query_faq):
+    for registered_tool in (query_order, query_product, query_logistics):
         registry.register(ToolSpec(registered_tool, retryable=True, timeout=TOOL_TIMEOUT_SECONDS))
+    # 嵌入、Milvus、重排、改写各自已有指数回退重试。外层不再重试，避免放大等待时间。
+    registry.register(ToolSpec(query_faq, retryable=False, timeout=QUERY_FAQ_TIMEOUT_SECONDS))
     registry.register(ToolSpec(
         create_ticket,
         retryable=False,

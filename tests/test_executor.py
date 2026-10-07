@@ -177,3 +177,17 @@ async def test_internal_validation_error_is_tool_error():
     out = await execute_tool_calls([{"id": "a", "name": "inner", "args": {"order_id": "1"}}],
                                    conversation_id=7, registry=reg, sleep=no_sleep)
     assert payload(out[0])["error"] == "tool_error"
+
+
+async def test_success_outcome_keeps_raw_data():
+    reg, _ = make_registry()
+    [out] = await execute_tool_calls([{"id": "a", "name": "echo", "args": {"order_id": "1"}}],
+                                     conversation_id=7, registry=reg, sleep=no_sleep)
+    assert out.ok and out.data == {"order_id": "1", "pad": ""}
+
+
+async def test_failure_outcome_has_no_data():
+    reg, _ = make_registry(fail=True, retryable=False)
+    [out] = await execute_tool_calls([{"id": "a", "name": "echo", "args": {"order_id": "1"}}],
+                                     conversation_id=7, registry=reg, sleep=no_sleep)
+    assert out.ok is False and out.data is None

@@ -80,7 +80,6 @@ def test_tool_constants():
     assert config.TOOL_RETRY_BASE_DELAY == 0.2
     assert config.TOOL_RETRY_MAX_DELAY == 2.0
     assert config.TOOL_RESULT_MAX_CHARS == 1500
-    assert config.FAQ_MAX_RESULTS == 3
 
 
 def test_reads_knowledge_variables(monkeypatch):
@@ -100,7 +99,6 @@ def test_knowledge_constants():
     assert config.CHUNK_MAX_CHARS == 400
     assert config.OVERLAP_MAX_CHARS == 100
     assert config.VECTORIZE_BATCH_SIZE == 16
-    assert config.FAQ_MIN_SCORE == 0.50
     assert config.MINE_BATCH_SIZE == 20
     assert config.MINE_CONCURRENCY == 4
     assert config.DEDUP_KB_MIN_SCORE == 0.55
@@ -137,3 +135,7 @@ def test_ch04_constants():
     )
     assert config.GENERAL_CATEGORY == "通用"
     assert config.KNOWLEDGE_TEXT_MAX_BYTES == 16384
+
+
+def test_obsolete_faq_constants_are_removed():
+    assert not hasattr(config, "FAQ_MIN_SCORE") and not hasattr(config, "FAQ_MAX_RESULTS")
