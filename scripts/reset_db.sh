@@ -3,6 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 docker compose down -v
+# MySQL 重建后会话 ID 从 1 开始。删除 checkpoint，避免新会话读到旧会话的 State。
+rm -f data/checkpoints.sqlite data/checkpoints.sqlite-wal data/checkpoints.sqlite-shm
 docker compose up -d --wait
 docker exec aftersales-mysql mysql -uaftersales -paftersales -e "SELECT COUNT(*) FROM aftersales.faq;"
 faq_question_hex=$(docker exec aftersales-mysql mysql -N -uaftersales -paftersales aftersales -e "SELECT HEX(question) FROM faq WHERE id = 1")

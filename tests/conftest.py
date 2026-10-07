@@ -40,7 +40,7 @@ def use_script(locks):
 
 
 @pytest.fixture
-async def client():
+async def client(memory_graph):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 

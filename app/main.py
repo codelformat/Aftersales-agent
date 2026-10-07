@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api import chat, extract, faith_cases, health, knowledge, web
+from app.graph.builder import open_graph
 from app.knowledge.milvus import close_milvus
 from app.knowledge.rerank import close_rerank
 
@@ -13,7 +14,8 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        yield
+        async with open_graph():
+            yield
     finally:
         try:
             await close_milvus()

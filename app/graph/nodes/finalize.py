@@ -1,4 +1,3 @@
-# app/graph/nodes/finalize.py
 """日志记录节点：写结构化日志和 messages 表，再把本轮并入 State 历史。"""
 
 import logging

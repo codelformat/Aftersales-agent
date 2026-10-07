@@ -201,3 +201,19 @@ async def test_open_graph_creates_sqlite_file(tmp_path):
     assert path.exists()
     with pytest.raises(RuntimeError):
         get_graph()
+
+
+async def test_sqlite_checkpointer_concurrent_conversations(db, tmp_path, use_intent):
+    import asyncio
+    from app.graph.builder import open_graph
+    use_intent("物流", "物流")
+    a, b = await new_cid(db), await new_cid(db)
+    async with open_graph(str(tmp_path / "cp.sqlite")) as graph:
+        await asyncio.gather(
+            run(graph, a, "订单 1 到哪了", tools(("a1", "query_logistics", {"order_id": "1"})), text("A")),
+            run(graph, b, "订单 2 到哪了", tools(("b1", "query_logistics", {"order_id": "2"})), text("B")),
+        )
+        sa = await graph.aget_state(thread_config(a))
+        sb = await graph.aget_state(thread_config(b))
+    assert [m.content for m in sa.values["messages"]][0] == "订单 1 到哪了"
+    assert [m.content for m in sb.values["messages"]][-1] == "B"
