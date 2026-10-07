@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.api import chat, extract, health, web
 from app.knowledge.milvus import close_milvus
+from app.knowledge.rerank import close_rerank
 
 logging.basicConfig(level=logging.INFO)
 
@@ -14,7 +15,10 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await close_milvus()
+        try:
+            await close_milvus()
+        finally:
+            await close_rerank()
 
 
 app = FastAPI(title="Aftersales Agent", lifespan=lifespan)

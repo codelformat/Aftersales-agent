@@ -150,6 +150,7 @@ from pymilvus import AsyncMilvusClient
 
 from app.config import KNOWLEDGE_TEST_COLLECTION
 from app.knowledge import milvus as milvus_mod
+import app.knowledge.rerank as rerank_mod
 from app.knowledge.embeddings import set_embeddings
 from tests.fakes import FakeEmbeddings
 
@@ -163,13 +164,22 @@ class BlockedMilvus:
         raise RuntimeError("测试未启用 fixture milvus")
 
 
+class BlockedReranker:
+    """测试访问真实重排接口时立即失败。"""
+
+    def __getattr__(self, name):
+        raise RuntimeError("测试未替换重排客户端")
+
+
 @pytest.fixture(autouse=True)
 def _isolate_knowledge():
     set_embeddings(FakeEmbeddings())
     milvus_mod.set_milvus(BlockedMilvus(), KNOWLEDGE_TEST_COLLECTION)
+    rerank_mod.set_rerank_client(BlockedReranker())
     yield
     set_embeddings(None)
     milvus_mod.set_milvus(None)
+    rerank_mod.set_rerank_client(None)
 
 
 @pytest.fixture
