@@ -93,6 +93,13 @@
       border-bottom-right-radius: 5px;
     }
     .assistant .bubble { border-bottom-left-radius: 5px; }
+    .message.has-actions { flex-direction: column; align-items: flex-start; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .system-message { margin-bottom: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+    .sender { margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+    .action-fields { display: grid; gap: 8px; margin: 18px 0; }
+    .action-fields[hidden] { display: none; }
+    .action-fields textarea { width: 100%; }
     .citation {
       padding: 0 2px;
       border: 0;
@@ -264,6 +271,23 @@
       <button id="citation-next" class="new-chat" type="button" hidden>下一段</button>
     </div>
   </dialog>
+  <dialog id="action-dialog" class="citation-card" aria-labelledby="action-title">
+    <form id="action-form">
+      <div class="citation-heading">
+        <h2 id="action-title"></h2>
+      </div>
+      <div id="action-fields" class="action-fields" hidden>
+        <div>工单类型：<span id="ticket-type"></span></div>
+        <label for="ticket-description">描述</label>
+        <textarea id="ticket-description" rows="4" maxlength="500" required></textarea>
+      </div>
+      <div id="action-error" class="citation-status error" role="alert"></div>
+      <div class="citation-nav">
+        <button id="action-cancel" class="new-chat" type="button">取消</button>
+        <button id="action-confirm" class="send" type="submit">确认</button>
+      </div>
+    </form>
+  </dialog>
   <script>
     const messages = document.getElementById('messages');
     const input = document.getElementById('input');
@@ -285,6 +309,127 @@
     const citationNext = document.getElementById('citation-next');
     let chunkRequest = 0;
     let currentChunk = null;
+    const actionDialog = document.getElementById('action-dialog');
+    const actionTitle = document.getElementById('action-title');
+    const actionFields = document.getElementById('action-fields');
+    const ticketType = document.getElementById('ticket-type');
+    const ticketDescription = document.getElementById('ticket-description');
+    const actionError = document.getElementById('action-error');
+    const actionCancel = document.getElementById('action-cancel');
+    const actionConfirm = document.getElementById('action-confirm');
+    let actionContext = null;
+
+    function addSystemMessage(text) {
+      const row = document.createElement('div');
+      row.className = 'system-message';
+      row.textContent = text;
+      messages.append(row);
+      scrollToBottom();
+    }
+
+    function renderActions(bubble, state, options) {
+      if (options !== undefined) {
+        state.options = Array.isArray(options) ? options : [];
+        if (actionContext?.state === state && !actionContext.submitting) {
+          actionContext = null;
+          if (actionDialog.open) actionDialog.close();
+        }
+      }
+      if (!state.row) {
+        state.row = document.createElement('div');
+        state.row.className = 'actions';
+        bubble.parentElement.classList.add('has-actions');
+        bubble.after(state.row);
+      }
+      state.row.replaceChildren();
+      for (const option of state.options) {
+        if (option.type !== 'handoff' && option.type !== 'ticket') continue;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'new-chat';
+        button.textContent = option.type === 'handoff' ? '转人工' : '建工单';
+        button.disabled = state.completed.has(option.type);
+        button.addEventListener('click', () => {
+          actionContext = { bubble, state, option, sessionId, userId: getUserId(), submitting: false };
+          const isTicket = option.type === 'ticket';
+          actionTitle.textContent = isTicket ? '确认创建工单' : '确认转接人工客服吗？';
+          actionFields.hidden = !isTicket;
+          ticketDescription.disabled = !isTicket;
+          ticketType.textContent = isTicket ? option.ticket_type : '';
+          ticketDescription.value = isTicket ? (option.description || '').slice(0, 500) : '';
+          actionError.textContent = '';
+          actionCancel.disabled = false;
+          actionConfirm.disabled = false;
+          actionDialog.showModal();
+        });
+        state.row.append(button);
+      }
+      scrollToBottom();
+    }
+
+    actionCancel.addEventListener('click', () => actionDialog.close());
+    actionDialog.addEventListener('cancel', event => {
+      if (actionContext?.submitting) event.preventDefault();
+    });
+    actionDialog.addEventListener('close', () => { actionContext = null; });
+    document.getElementById('action-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const context = actionContext;
+      if (!context || context.submitting) return;
+      const { bubble, state, option } = context;
+      if (option.type === 'handoff') {
+        addSystemMessage('已转接人工客服');
+        const { bubble: humanBubble } = addMessage('assistant', '您好，我是客服小猫，请问有什么可以帮您的');
+        const sender = document.createElement('div');
+        sender.className = 'sender';
+        sender.textContent = '客服小猫';
+        humanBubble.prepend(sender);
+        state.completed.add('handoff');
+        renderActions(bubble, state);
+        actionDialog.close();
+        return;
+      }
+      context.submitting = true;
+      actionCancel.disabled = true;
+      actionConfirm.disabled = true;
+      ticketDescription.disabled = true;
+      actionError.textContent = '';
+      try {
+        const response = await fetch('/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: context.sessionId, user_id: context.userId,
+            description: ticketDescription.value, ticket_type: option.ticket_type }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (response.status !== 200) {
+          throw new Error(response.status === 409 ? '当前正在回复中，请稍后再试' :
+            (typeof body.detail?.message === 'string' && body.detail.message ?
+              body.detail.message : '工单创建失败，请稍后重试'));
+        }
+        state.completed.add('ticket');
+        if (bubble.isConnected) {
+          addSystemMessage(`工单已创建：${body.ticket_no}`);
+          renderActions(bubble, state);
+        }
+        if (actionContext === context) actionDialog.close();
+      } catch (error) {
+        if (actionContext === context && !state.options.includes(option)) {
+          actionContext = null;
+          actionDialog.close();
+        } else if (actionContext === context) {
+          actionError.textContent = error instanceof TypeError ? '工单创建失败，请稍后重试' :
+            (error.message || '工单创建失败，请稍后重试');
+        }
+      } finally {
+        context.submitting = false;
+        if (actionContext === context) {
+          actionCancel.disabled = false;
+          actionConfirm.disabled = false;
+          ticketDescription.disabled = false;
+        }
+      }
+    });
 
     function showCitationContent(item) {
       citationTitle.textContent = item.section_path || '知识库原文';
@@ -417,6 +562,7 @@
       ['query_logistics', '查物流'],
       ['query_faq', '查常见问题'],
       ['create_ticket', '创建工单'],
+      ['offer_human_options', '推荐人工选项'],
     ]);
 
     messages.addEventListener('scroll', () => {
@@ -454,6 +600,8 @@
       sessionId = null;
       answerIndex = 0;
       if (citationCard.open) citationCard.close();
+      if (actionDialog.open) actionDialog.close();
+      actionContext = null;
       messages.replaceChildren();
       followBottom = true;
       addMessage('assistant', welcome);
@@ -482,6 +630,7 @@
       updateControls();
       addMessage('user', message);
       const { bubble, reply } = addMessage('assistant');
+      const actions = { row: null, options: [], completed: new Set() };
       // Count submitted assistant turns from zero; the welcome message is excluded.
       const answer = { index: answerIndex++, sessionId, text: '', citations: { items: [], refused: false } };
       const typing = document.createElement('div');
@@ -609,6 +758,8 @@
           startTools(data.tools);
         } else if (event === 'tool_end') {
           endTools(data.tools);
+        } else if (event === 'actions') {
+          renderActions(bubble, actions, data.options);
         } else if (event === 'citations') {
           answer.citations = { items: Array.isArray(data.items) ? data.items : [], refused: data.refused === true };
           renderReply(reply, answer.text, answer.citations);
