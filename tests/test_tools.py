@@ -129,3 +129,33 @@ async def test_tool_selection_eval_requires_terms_in_one_question(monkeypatch, t
     assert correct is expected
     if questions or terms is not None:
         assert "query_faq question:" in line
+
+
+def test_query_product_accepts_product_id_only():
+    from app.tools.product import query_product
+
+    schema = query_product.args_schema
+    for ok in ("P001", "P12345678"):
+        schema.model_validate({"product_id": ok})
+    for bad in ("X3", "X3 Pro", "p001", "P01", "K1"):
+        with pytest.raises(ValidationError):
+            schema.model_validate({"product_id": bad})
+
+
+def test_query_product_description_rejects_model_lookup():
+    from app.tools.product import query_product
+
+    assert "不能按型号查询" in query_product.description
+
+
+@pytest.mark.anyio
+async def test_query_product_model_name_is_invalid_arguments():
+    import json
+
+    from app.tools.executor import execute_tool_calls
+
+    out = await execute_tool_calls(
+        [{"id": "c1", "name": "query_product", "args": {"product_id": "X3"}}], conversation_id=1
+    )
+    assert out[0].ok is False
+    assert json.loads(out[0].message.content)["error"] == "invalid_arguments"

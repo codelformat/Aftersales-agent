@@ -42,8 +42,8 @@ RECALL_LEG_LIMIT = 50
 RRF_K = 60
 FUSED_LIMIT = 50
 EVIDENCE_TOP_N = 10
-# 初值。由评估集的门槛扫描校准（spec §8.2）。
-RERANK_MIN_SCORE = 0.30
+# 由评估集的门槛扫描校准（spec §8.2）：Top-1 保留率 ≥ 95% 的最高门槛。
+RERANK_MIN_SCORE = 0.40
 QUERY_FAQ_TIMEOUT_SECONDS = 20
 PRODUCT_CATEGORIES = ("蓝牙耳机", "羊毛衫", "扫地机器人", "电动牙刷", "台灯", "保温杯", "运动鞋", "手机壳")
 GENERAL_CATEGORY = "通用"

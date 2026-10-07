@@ -107,3 +107,8 @@ def test_real_lexicon_loads():
 def test_query_plan_rejects_unknown_category():
     with pytest.raises(ValueError):
         QueryPlan(standard_query="x", product_category="冰箱")
+
+
+@pytest.mark.parametrize("raw", ["null", " ", "None", " NULL ", ""])
+def test_query_plan_null_like_category_is_none(raw):
+    assert QueryPlan(standard_query="x", product_category=raw).product_category is None

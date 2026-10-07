@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from app.config import MAX_INPUT_CHARS, MINED_CATEGORIES, PRODUCT_CATEGORIES
 
@@ -65,6 +65,13 @@ class QueryPlan(BaseModel):
     product_category: Literal[PRODUCT_CATEGORIES] | None = Field(
         default=None, description="用户明确提到的商品品类；没有提到时为 null"
     )
+
+    @field_validator("product_category", mode="before")
+    @classmethod
+    def _null_like_to_none(cls, value):
+        if isinstance(value, str) and value.strip().lower() in ("", "null", "none"):
+            return None
+        return value
 
 
 class SelfCheck(BaseModel):

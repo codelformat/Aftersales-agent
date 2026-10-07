@@ -14,7 +14,7 @@ THRESHOLDS = tuple(i / 100 for i in range(5, 81, 5))
 
 
 def is_refusal(answer: str) -> bool:
-    return answer.lstrip().startswith(REFUSAL_PREFIX)
+    return answer.lstrip().startswith(REFUSAL_PREFIX.rstrip("。"))
 
 
 def dedupe(keys: list[str]) -> list[str]:

@@ -90,14 +90,27 @@ async def test_generate_one_refused_skips_judge(fake_retrieve):
 async def test_other_tool_calls_are_not_executed(fake_retrieve):
     rec = Recorder()
     model = ScriptedChatModel(scripts=[
-        tools(("c1", "query_order", {"order_id": "1001"}), ("c2", "query_faq", {"question": "q"})),
+        tools(("c1", "query_order", {"order_id": "1001"}), ("c2", "query_faq", {"question": "q"}),
+              ("c3", "create_ticket", {"title": "t", "description": "d"})),
         text("答[1]"),
     ], recorder=rec)
     judge, _ = fixed(FaithVerdict(faithful=True, unsupported_claims=[], reason="ok"))
     await rre.generate_one(SAMPLE, PLAN, "hybrid_rerank", model=model, judge=judge,
                            checker=fixed(SelfCheck(useful=True, reason="ok"))[0], today=date(2026, 10, 7))
     contents = {m.tool_call_id: m.content for m in rec[1]["messages"] if isinstance(m, ToolMessage)}
-    assert json.loads(contents["c1"]) == {"ok": False, "error": "tool_error", "message": "查询失败"}
+    order = json.loads(contents["c1"])
+    assert order["ok"] is True and "1001" in contents["c1"]
+    assert json.loads(contents["c3"]) == {"ok": False, "error": "tool_error", "message": "查询失败"}
+
+
+async def test_non_faq_tool_call_still_makes_second_call(fake_retrieve):
+    model = ScriptedChatModel(scripts=[tools(("c1", "query_product", {"product_id": "P1001"})),
+                                       text("L5 的参数请见商品页")])
+    judge, judge_calls = fixed(None)
+    res = await rre.generate_one(SAMPLE, PLAN, "hybrid_rerank", model=model, judge=judge,
+                                 checker=fixed(None)[0], today=date(2026, 10, 7))
+    assert (res.retrieved, res.answer, res.citations) == (False, "L5 的参数请见商品页", [])
+    assert fake_retrieve == [] and judge_calls == []
 
 
 async def test_write_faith_cases_filters(db):

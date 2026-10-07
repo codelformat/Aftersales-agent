@@ -25,10 +25,11 @@ from app.knowledge.retrieval import STRATEGIES, retrieve, source_key
 from app.llm import get_chat_model, get_faith_judge
 from app.prompts import TOOL_ROUND_CLOSING, chat_prompt, chat_prompt_vars
 from app.repositories import faith_cases
-from app.schemas import FaithVerdict, QueryPlan
+from app.schemas import FaithVerdict, QueryPlan, SelfCheck
 from app.services.grounding import (
     REFUSED_CONTENT, collect_evidence, format_evidence, render_evidence, self_check,
 )
+from app.tools.executor import execute_tool_calls
 from app.tools.registry import get_registry
 from evals.rag_eval_set import BUCKET_SIZES, EvalSample, known_source_keys, load_samples, validate
 from evals.rag_metrics import (
@@ -38,6 +39,7 @@ from evals.rag_metrics import (
 
 logger = logging.getLogger(__name__)
 REPORTS_DIR = SCRIPT_DIR / "reports"
+READ_ONLY_TOOLS = ("query_order", "query_product", "query_logistics")
 EVAL_SKIPPED_TOOL = json.dumps(
     {"ok": False, "error": "tool_error", "message": "查询失败"}, ensure_ascii=False
 )
@@ -63,15 +65,24 @@ async def generate_one(
     )
     first_text = first.content if isinstance(first.content, str) else ""
     faq_calls = [c for c in first.tool_calls if c["name"] == "query_faq"]
-    if not faq_calls:
+    if not first.tool_calls:
         return GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
                          False, is_refusal(first_text), first_text, [], None, [], "")
-    r = await retrieve(sample.query, strategy, plan=plan, exclude_mined=True)
-    data = {"evidence": [asdict(e) for e in r.evidence]}
-    evidence = collect_evidence([(c["id"], sample.query, data) for c in faq_calls])
-    check = await self_check([sample.query], evidence.citations, checker=checker)
+    evidence = collect_evidence([])
+    check = SelfCheck(useful=False, reason="")
+    if faq_calls:
+        r = await retrieve(sample.query, strategy, plan=plan, exclude_mined=True)
+        data = {"evidence": [asdict(e) for e in r.evidence]}
+        evidence = collect_evidence([(c["id"], sample.query, data) for c in faq_calls])
+        check = await self_check([sample.query], evidence.citations, checker=checker)
+    read_calls = [c for c in first.tool_calls if c["name"] in READ_ONLY_TOOLS]
+    outcomes = await execute_tool_calls(read_calls, conversation_id=0) if read_calls else []
+    executed = {o.call_id: o.message for o in outcomes}
     messages = []
     for call in first.tool_calls:
+        if call["id"] in executed:
+            messages.append(executed[call["id"]])
+            continue
         if call["name"] != "query_faq":
             content = EVAL_SKIPPED_TOOL
         elif check.useful:
@@ -84,6 +95,9 @@ async def generate_one(
         **base, "tool_round": [request, *messages, SystemMessage(TOOL_ROUND_CLOSING)],
     })
     answer = second.content if isinstance(second.content, str) else ""
+    if not faq_calls:
+        return GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
+                         False, is_refusal(answer), answer, [], None, [], "")
     citations = [c.to_dict() for c in evidence.citations] if check.useful else []
     refused = is_refusal(answer)
     if refused:

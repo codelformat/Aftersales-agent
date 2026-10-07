@@ -7,6 +7,7 @@ from evals import rag_metrics as rm
 def test_is_refusal():
     assert rm.is_refusal("  " + REFUSAL_PREFIX + "建议转人工")
     assert not rm.is_refusal("可以退" + REFUSAL_PREFIX)
+    assert rm.is_refusal(REFUSAL_PREFIX.rstrip("。") + "，建议转人工")
 
 
 def test_dedupe_keeps_first():

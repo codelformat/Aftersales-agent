@@ -51,3 +51,14 @@ def test_system_prompt_ch04_rules():
         assert phrase in s
     assert "300 字" in s and "200 字" not in s
     assert "keyword" not in s and "时限除外" not in s
+
+
+def test_system_prompt_evidence_only_rule():
+    s = render_chat_system(date(2026, 10, 7))
+    assert "只陈述证据中写明的事实" in s and "一字不差" in s
+
+
+def test_faith_judge_prompt_conservative_wording():
+    from app.prompts import FAITH_JUDGE_SYSTEM_PROMPT
+
+    assert "以审核结果为准" in FAITH_JUDGE_SYSTEM_PROMPT and "本店" in FAITH_JUDGE_SYSTEM_PROMPT
