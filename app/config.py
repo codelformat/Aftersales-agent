@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -54,6 +55,15 @@ PRODUCT_CATEGORIES = ("蓝牙耳机", "羊毛衫", "扫地机器人", "电动牙
 GENERAL_CATEGORY = "通用"
 # Milvus VARCHAR 的 max_length 按字节计。
 KNOWLEDGE_TEXT_MAX_BYTES = 16384
+CHECKPOINT_DB_PATH = str(Path(__file__).resolve().parent.parent / "data" / "checkpoints.sqlite")
+# 限制意图识别等待时间，超时后走 business 出口。
+INTENT_TIMEOUT_SECONDS = 8
+AGENT_MAX_STEPS = 4
+# 一轮中 Agent 累计 token（输入 + 输出，含思考）。
+AGENT_TOKEN_BUDGET = 16000
+GRAPH_RECURSION_LIMIT = 25
+# 置信度闸的 Top-1 重排分门槛。与检索门槛分开设置。
+GATE_MIN_SCORE = 0.20
 
 
 class Settings(BaseSettings):

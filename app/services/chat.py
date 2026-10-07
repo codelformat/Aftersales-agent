@@ -19,7 +19,7 @@ from app.services.grounding import (
 )
 from app.services.history import turn_rows
 from app.tools.executor import execute_tool_calls
-from app.tools.registry import get_registry
+from app.tools.registry import CH04_CHAT_TOOLS, get_registry
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ async def stream_reply(
     gathered = None
     try:
         async for chunk in (
-            chat_prompt | model.bind_tools(get_registry().tools_for_model(), tool_choice="auto")
+            chat_prompt | model.bind_tools(get_registry().tools_for_model(CH04_CHAT_TOOLS), tool_choice="auto")
         ).astream(prompt_vars):
             if isinstance(chunk.content, str) and chunk.content:
                 yield "token", {"text": chunk.content}

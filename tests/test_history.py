@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from app.context import build_history
 from app.db.models import Message
 from app.prompts import chat_prompt, chat_prompt_vars
-from app.services.history import to_langchain, turn_rows
+from app.services.history import to_langchain, turn_messages_rows, turn_rows
 
 CALLS = [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]
 
@@ -66,3 +66,24 @@ def test_prompt_tool_round_placeholder_and_rules():
     without = chat_prompt.invoke({**chat_prompt_vars(date(2026, 10, 6)),
                                   "history": [], "input": "q"}).to_messages()
     assert [type(m) for m in without] == [SystemMessage, HumanMessage]
+
+
+def test_turn_messages_rows_multi_round():
+    turn = [
+        AIMessage(content="", tool_calls=[{"id": "c1", "name": "query_order", "args": {"order_id": "1"}}]),
+        ToolMessage(content="{}", tool_call_id="c1"),
+        AIMessage(content="我查一下物流", tool_calls=[{"id": "c2", "name": "query_logistics", "args": {"order_id": "1"}}]),
+        ToolMessage(content="{}", tool_call_id="c2"),
+        AIMessage(content="好了"),
+    ]
+    rows = turn_messages_rows("问", turn)
+    assert [(r.role, r.content, r.tool_call_id) for r in rows] == [
+        ("user", "问", None), ("assistant", None, None), ("tool", "{}", "c1"),
+        ("assistant", "我查一下物流", None), ("tool", "{}", "c2"), ("assistant", "好了", None)]
+    assert rows[1].tool_calls == [{"id": "c1", "name": "query_order", "args": {"order_id": "1"}}]
+    assert rows[5].tool_calls is None
+
+
+def test_turn_messages_rows_fixed_reply():
+    rows = turn_messages_rows("你好", [AIMessage(content="您好")])
+    assert [(r.role, r.content) for r in rows] == [("user", "你好"), ("assistant", "您好")]

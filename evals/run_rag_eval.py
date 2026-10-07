@@ -30,7 +30,7 @@ from app.services.grounding import (
     REFUSED_CONTENT, collect_evidence, format_evidence, render_evidence, self_check,
 )
 from app.tools.executor import execute_tool_calls
-from app.tools.registry import get_registry
+from app.tools.registry import CH04_CHAT_TOOLS, get_registry
 from evals.rag_eval_set import BUCKET_SIZES, EvalSample, known_source_keys, load_samples, validate
 from evals.rag_metrics import (
     ANSWERABLE, GenResult, ThresholdRow, is_refusal, render_report, score_retrieval,
@@ -61,7 +61,7 @@ async def generate_one(
     """沿用首轮模型给出的工具调用 id。第 2 次调用不绑定工具。"""
     base = {**chat_prompt_vars(today), "history": [], "input": sample.query}
     first = await _stream(
-        chat_prompt | model.bind_tools(get_registry().tools_for_model(), tool_choice="auto"), base,
+        chat_prompt | model.bind_tools(get_registry().tools_for_model(CH04_CHAT_TOOLS), tool_choice="auto"), base,
     )
     first_text = first.content if isinstance(first.content, str) else ""
     faq_calls = [c for c in first.tool_calls if c["name"] == "query_faq"]

@@ -10,7 +10,7 @@ import app.services.grounding as g
 import app.config as config
 
 from app.db.models import Conversation, LowConfidenceQuestion
-from app.repositories import low_confidence
+from app.repositories import conversations, low_confidence
 from app.schemas import SelfCheck
 
 pytestmark = pytest.mark.anyio
@@ -134,3 +134,14 @@ async def test_record_low_confidence_swallows_errors(db, monkeypatch, caplog):
     monkeypatch.setattr(low_confidence, "add", boom)
     await g.record_low_confidence(1, "q", "r")
     assert "低置信度问题入池失败" in caplog.text
+
+
+async def test_record_low_confidence_source(db):
+    async with db() as s:
+        cid = (await conversations.create(s, "u1")).id
+        await s.commit()
+    await g.record_low_confidence(cid, "问", "分数低", source="retrieval_low_conf")
+    await g.record_low_confidence(cid, "问2", "不够")
+    async with db() as s:
+        rows = (await s.execute(select(LowConfidenceQuestion).order_by(LowConfidenceQuestion.id))).scalars().all()
+    assert [(r.source, r.reason) for r in rows] == [("retrieval_low_conf", "分数低"), ("self_check", "不够")]

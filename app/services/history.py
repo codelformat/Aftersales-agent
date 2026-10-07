@@ -52,3 +52,20 @@ def turn_rows(
         )
     rows.append(NewMessage(role="assistant", content=final_text))
     return rows
+
+
+def turn_messages_rows(user_input: str, turn: Sequence[BaseMessage]) -> list[NewMessage]:
+    """一轮的记录：用户消息，然后按顺序写 AI 工具请求、工具结果和最终回复。"""
+    rows = [NewMessage(role="user", content=user_input)]
+    for message in turn:
+        if isinstance(message, ToolMessage):
+            rows.append(NewMessage(role="tool", content=message.content, tool_call_id=message.tool_call_id))
+        elif message.tool_calls:
+            rows.append(NewMessage(
+                role="assistant",
+                content=message.content or None,
+                tool_calls=[{"id": c["id"], "name": c["name"], "args": c["args"]} for c in message.tool_calls],
+            ))
+        else:
+            rows.append(NewMessage(role="assistant", content=message.content))
+    return rows
