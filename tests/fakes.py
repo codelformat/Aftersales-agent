@@ -13,6 +13,7 @@ from langchain_core.messages.tool import tool_call_chunk
 from langchain_core.outputs import ChatGenerationChunk
 
 from app.config import EMBED_DIM
+from app.knowledge.milvus import Entity
 
 
 def unit(i: int) -> list[float]:
@@ -117,3 +118,8 @@ def tools(*calls: tuple[str, str, dict]) -> list:
             name=name, args=json.dumps(args, ensure_ascii=False), id=cid, index=i)])
         for i, (cid, name, args) in enumerate(calls)
     ]
+
+
+def entity(id: int, vector: list[float], text: str = "t", category: str = "通用",
+           content_type: str = "policy") -> Entity:
+    return Entity(id=id, vector=vector, text=text, product_category=category, content_type=content_type)

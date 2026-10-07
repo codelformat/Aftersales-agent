@@ -1,16 +1,16 @@
-{"text": "订单 1001 的物流到哪了", "expected_tools": ["query_logistics"], "faq_keyword": null}
-{"text": "订单 1001 买的是什么？物流到哪了？", "expected_tools": ["query_order", "query_logistics"], "faq_keyword": null}
-{"text": "帮我看下订单 2002 现在什么状态", "expected_tools": ["query_order"], "faq_keyword": null}
-{"text": "订单 3003 的快递单号是多少", "expected_tools": ["query_logistics"], "faq_keyword": null}
-{"text": "订单 1001 什么时候能到", "expected_tools": ["query_logistics"], "faq_keyword": null}
-{"text": "商品 P003 支持七天无理由吗", "expected_tools": ["query_product"], "faq_keyword": null}
-{"text": "P001 这款耳机保修多久", "expected_tools": ["query_product"], "faq_keyword": null}
-{"text": "退货政策是什么", "expected_tools": ["query_faq"], "faq_keyword": "退货"}
-{"text": "邮费是多少", "expected_tools": ["query_faq"], "faq_keyword": "邮费"}
-{"text": "怎么开发票", "expected_tools": ["query_faq"], "faq_keyword": "发票"}
-{"text": "账户密码忘了怎么办", "expected_tools": ["query_faq"], "faq_keyword": "密码"}
-{"text": "你好", "expected_tools": [], "faq_keyword": null}
-{"text": "谢谢，没有别的问题了", "expected_tools": [], "faq_keyword": null}
-{"text": "帮我写一首关于秋天的诗", "expected_tools": [], "faq_keyword": null}
-{"text": "我要投诉你们的快递员，给我转人工", "expected_tools": ["create_ticket"], "faq_keyword": null}
-{"text": "我不想跟机器人说话，转人工处理", "expected_tools": ["create_ticket"], "faq_keyword": null}
+{"text": "订单 1001 的物流到哪了", "expected_tools": ["query_logistics"], "faq_terms": null}
+{"text": "订单 1001 买的是什么？物流到哪了？", "expected_tools": ["query_order", "query_logistics"], "faq_terms": null}
+{"text": "帮我看下订单 2002 现在什么状态", "expected_tools": ["query_order"], "faq_terms": null}
+{"text": "订单 3003 的快递单号是多少", "expected_tools": ["query_logistics"], "faq_terms": null}
+{"text": "订单 1001 什么时候能到", "expected_tools": ["query_logistics"], "faq_terms": null}
+{"text": "商品 P003 支持七天无理由吗", "expected_tools": ["query_product"], "faq_terms": null}
+{"text": "P001 这款耳机保修多久", "expected_tools": ["query_product"], "faq_terms": null}
+{"text": "退货政策是什么", "expected_tools": ["query_faq"], "faq_terms": ["退货"]}
+{"text": "邮费是多少", "expected_tools": ["query_faq"], "faq_terms": ["邮费"]}
+{"text": "怎么开发票", "expected_tools": ["query_faq"], "faq_terms": ["发票"]}
+{"text": "账户密码忘了怎么办", "expected_tools": ["query_faq"], "faq_terms": ["密码"]}
+{"text": "你好", "expected_tools": [], "faq_terms": null}
+{"text": "谢谢，没有别的问题了", "expected_tools": [], "faq_terms": null}
+{"text": "帮我写一首关于秋天的诗", "expected_tools": [], "faq_terms": null}
+{"text": "我要投诉你们的快递员，给我转人工", "expected_tools": ["create_ticket"], "faq_terms": null}
+{"text": "我不想跟机器人说话，转人工处理", "expected_tools": ["create_ticket"], "faq_terms": null}

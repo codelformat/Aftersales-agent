@@ -1,7 +1,7 @@
 import pytest
 
 from app.config import CHUNK_MAX_CHARS, OVERLAP_MAX_CHARS
-from app.knowledge.chunking import KEY_CLAUSE_MARK, knowledge_text, parse_markdown
+from app.knowledge.chunking import KEY_CLAUSE_MARK, knowledge_text, parse_markdown, product_category_of
 
 SENT = "这是一句用来凑长度的完整句子，内容没有实际含义。"  # 25 字
 
@@ -231,3 +231,16 @@ def test_key_clause_mark_is_not_split_at_character_boundary(prefix_length):
 
 def test_knowledge_text_format():
     assert knowledge_text("运费", "运费怎么算？", "满 99 元免运费。") == "运费\n运费怎么算？\n满 99 元免运费。"
+
+
+@pytest.mark.parametrize("path, expected", [
+    ("商品FAQ > 蓝牙耳机 > 耳机怎么连手机？", "蓝牙耳机"),
+    ("商品手册 > 扫地机器人 > S10 Max 续航", "扫地机器人"),
+    ("退货政策 > 退款 > 退款时间", "通用"),
+    ("对话挖掘 > 退换货", "通用"),
+    ("常见问答 > 运费", "通用"),
+    (None, "通用"),
+    ("商品手册 > 蓝牙耳机配件", "通用"),  # 只认整段相等
+])
+def test_product_category_of(path, expected):
+    assert product_category_of(path) == expected

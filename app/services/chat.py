@@ -4,11 +4,19 @@ from dataclasses import dataclass
 from datetime import date
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 
 from app.db.engine import get_sessionmaker
 from app.prompts import TOOL_ROUND_CLOSING, chat_prompt, chat_prompt_vars
 from app.repositories import messages
+from app.services.grounding import (
+    REFUSED_CONTENT,
+    collect_evidence,
+    parse_citations,
+    record_low_confidence,
+    render_evidence,
+    self_check,
+)
 from app.services.history import turn_rows
 from app.tools.executor import execute_tool_calls
 from app.tools.registry import get_registry
@@ -86,6 +94,39 @@ async def stream_reply(
         {"id": o.call_id, "name": o.name, "ok": o.ok} for o in outcomes
     ]}
 
+    citations = []
+    faq_calls = [
+        (o, call) for o, call in zip(outcomes, tool_calls) if o.name == "query_faq" and o.ok
+    ]
+    if faq_calls:
+        try:
+            evidence = collect_evidence([
+                (o.call_id, str(call["args"].get("question", "")), o.data)
+                for o, call in faq_calls
+            ])
+            check = await self_check(evidence.questions, evidence.citations)
+        except Exception:
+            logger.exception("知识库证据处理失败")
+            yield "error", UPSTREAM_ERROR
+            return
+        if check.useful:
+            citations = evidence.citations
+            for o, _ in faq_calls:
+                o.message = ToolMessage(
+                    content=render_evidence(evidence.by_call[o.call_id]),
+                    tool_call_id=o.call_id, name=o.name,
+                )
+            yield "citations", {"items": [c.to_dict() for c in citations], "refused": False}
+        else:
+            # 独立事务，失败只记日志。
+            await record_low_confidence(turn.conversation_id, turn.user_input, check.reason)
+            for o, _ in faq_calls:
+                # 模型看不到不足的证据；写库时存模型实际看到的内容。
+                o.message = ToolMessage(
+                    content=REFUSED_CONTENT, tool_call_id=o.call_id, name=o.name,
+                )
+            yield "citations", {"items": [], "refused": True}
+
     final_text = ""
     pending_tokens = []
     prefix_checked = False
@@ -128,6 +169,9 @@ async def stream_reply(
         logger.warning("上游工具结果回复流返回空回复")
         yield "error", UPSTREAM_ERROR
         return
+    out_of_range = [n for n in parse_citations(final_text) if not 1 <= n <= len(citations)]
+    if out_of_range:
+        logger.warning("回复含越界引用编号：%s", out_of_range)
     try:
         async with get_sessionmaker()() as s:
             await messages.add_turn(

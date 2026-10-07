@@ -3,12 +3,19 @@ import json
 
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
 from app.api.chat import get_token_budget
-from app.db.models import Message, Ticket
+from app.db.models import LowConfidenceQuestion, Message, Ticket
+from app.knowledge.rerank import RerankError
+from app.knowledge.retrieval import EvidenceItem, Retrieval
 from app.llm import get_chat_model
 from app.main import app
+from app.prompts import REFUSAL_PREFIX
+from app.repositories import low_confidence
+from app.schemas import QueryPlan, SelfCheck
+from app.services import grounding
 from tests.fakes import text, tools
 
 pytestmark = pytest.mark.anyio
@@ -358,3 +365,163 @@ async def test_existing_session_holds_lock_while_reading_history(client, db, use
     assert r.status_code == 422
     assert observed == [True]
     assert not locks.get(int(sid)).locked()
+
+
+def ev_item(cid, path="商品手册 > 蓝牙耳机 > X3 Pro 续航", q="X3 Pro 续航", a="单次续航 8 小时"):
+    return EvidenceItem(cid, path, q, a, 0.9)
+
+
+@pytest.fixture
+def kb(monkeypatch):
+    state = {"evidence": [], "by_question": {}, "check": SelfCheck(useful=True, reason="[1]"),
+             "check_calls": [], "retrieve_error": None}
+
+    async def fake_retrieve(question, *a, **k):
+        if state["retrieve_error"] is not None:
+            raise state["retrieve_error"]
+        items = state["by_question"].get(question, state["evidence"])
+        return Retrieval(QueryPlan(standard_query=question), items, items)
+
+    def factory():
+        def run(inputs):
+            state["check_calls"].append(inputs)
+            if isinstance(state["check"], Exception):
+                raise state["check"]
+            return {"parsed": state["check"], "raw": None}
+        return RunnableLambda(run)
+
+    monkeypatch.setattr("app.tools.faq.retrieve", fake_retrieve)
+    monkeypatch.setattr(grounding, "get_self_checker", factory)
+    return state
+
+
+async def pool_rows(db):
+    async with db() as s:
+        return list(await s.scalars(select(LowConfidenceQuestion).order_by(LowConfidenceQuestion.id)))
+
+
+def event(ev, name):
+    return next(d for n, d in ev if n == name)
+
+
+def tool_contents(rec_call):
+    return {m.tool_call_id: m.content for m in rec_call["messages"] if isinstance(m, ToolMessage)}
+
+
+async def test_faq_useful_sends_citations_and_renders_evidence(client, db, use_script, kb):
+    kb["evidence"] = [ev_item(11)]
+    rec = use_script(tools(("c1", "query_faq", {"question": "X3 Pro 能用多久"})), text("约 8 小时[1]"))
+    _, ev = await chat(client, "X3 Pro 能用多久")
+    names = [n for n, _ in ev]
+    assert names.index("tool_end") < names.index("citations") < names.index("token") < names.index("done")
+    assert event(ev, "citations") == {"items": [{
+        "n": 1, "chunk_id": 11, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 续航",
+        "question": "X3 Pro 续航", "answer": "单次续航 8 小时",
+    }], "refused": False}
+    content = tool_contents(rec[1])["c1"]
+    assert json.loads(content) == {"ok": True, "data": {"evidence": [{
+        "n": 1, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 续航", "content": "问：X3 Pro 续航\n答：单次续航 8 小时",
+    }]}}
+    assert [m.content for m in await rows(db) if m.role == "tool"] == [content]
+    assert kb["check_calls"][0]["question"] == "X3 Pro 能用多久"
+    assert await pool_rows(db) == []
+
+
+async def test_faq_not_useful_records_pool_and_refuses(client, db, use_script, kb):
+    kb["evidence"] = [ev_item(11)]
+    kb["check"] = SelfCheck(useful=False, reason="证据没写防水")
+    rec = use_script(tools(("c1", "query_faq", {"question": "X3 Pro 防水吗"})),
+                     text(REFUSAL_PREFIX + "建议转人工。"))
+    _, ev = await chat(client, "X3 Pro 防水吗？着急")
+    assert event(ev, "citations") == {"items": [], "refused": True}
+    assert tool_contents(rec[1])["c1"] == grounding.REFUSED_CONTENT
+    session_id = int(ev[0][1]["session_id"])
+    assert [(r.conversation_id, r.raw_question, r.source, r.reason) for r in await pool_rows(db)] == [
+        (session_id, "X3 Pro 防水吗？着急", "self_check", "证据没写防水"),
+    ]
+    assert [m.content for m in await rows(db) if m.role == "tool"] == [grounding.REFUSED_CONTENT]
+
+
+async def test_empty_evidence_skips_checker_and_pools(client, db, use_script, kb):
+    kb["evidence"] = []
+    kb["check"] = AssertionError("不应调用自评")
+    use_script(tools(("c1", "query_faq", {"question": "X9 能无线充电吗"})), text(REFUSAL_PREFIX))
+    _, ev = await chat(client, "X9 能无线充电吗")
+    assert kb["check_calls"] == []
+    assert event(ev, "citations") == {"items": [], "refused": True}
+    assert [r.reason for r in await pool_rows(db)] == [grounding.EMPTY_EVIDENCE_REASON]
+
+
+async def test_self_check_failure_fails_open(client, db, use_script, kb):
+    kb["evidence"] = [ev_item(11)]
+    kb["check"] = RuntimeError("upstream")
+    use_script(tools(("c1", "query_faq", {"question": "X3 Pro 能用多久"})), text("约 8 小时[1]"))
+    _, ev = await chat(client, "X3 Pro 能用多久")
+    assert event(ev, "citations")["refused"] is False
+    assert await pool_rows(db) == []
+    assert ev[-1][0] == "done"
+
+
+async def test_two_faq_calls_number_continuously(client, db, use_script, kb):
+    a, b, c = ev_item(1, q="A"), ev_item(2, q="B"), ev_item(3, q="C")
+    kb["by_question"] = {"运费": [a, b], "发票": [b, c]}
+    rec = use_script(
+        tools(("c1", "query_faq", {"question": "运费"}), ("c2", "query_faq", {"question": "发票"})),
+        text("答[1][3]"),
+    )
+    _, ev = await chat(client, "运费和发票")
+    assert [(i["n"], i["chunk_id"]) for i in event(ev, "citations")["items"]] == [(1, 1), (2, 2), (3, 3)]
+    contents = tool_contents(rec[1])
+    assert [e["n"] for e in json.loads(contents["c1"])["data"]["evidence"]] == [1, 2]
+    assert [e["n"] for e in json.loads(contents["c2"])["data"]["evidence"]] == [3]
+    assert kb["check_calls"][0]["question"] == "运费\n发票"
+
+
+async def test_mixed_order_and_faq_refused_still_answers_order(client, db, use_script, kb):
+    kb["evidence"] = []
+    rec = use_script(
+        tools(("c1", "query_order", {"order_id": "1001"}), ("c2", "query_faq", {"question": "X9 能无线充电吗"})),
+        text("订单已发货。" + REFUSAL_PREFIX),
+    )
+    _, ev = await chat(client, "订单 1001 到哪了，另外 X9 能无线充电吗")
+    contents = tool_contents(rec[1])
+    assert json.loads(contents["c1"])["ok"] is True and "1001" in contents["c1"]
+    assert contents["c2"] == grounding.REFUSED_CONTENT
+    assert ev[-1][0] == "done"
+
+
+async def test_rerank_failure_gives_tool_error_without_pool(client, db, use_script, kb):
+    kb["retrieve_error"] = RerankError("x")
+    rec = use_script(tools(("c1", "query_faq", {"question": "运费"})), text("暂时查不到"))
+    _, ev = await chat(client, "运费多少")
+    assert "citations" not in [n for n, _ in ev]
+    assert json.loads(tool_contents(rec[1])["c1"])["ok"] is False
+    assert await pool_rows(db) == []
+    assert ev[-1][0] == "done"
+
+
+async def test_pool_write_failure_does_not_break_turn(client, db, use_script, kb, monkeypatch):
+    async def boom(*a, **k):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(low_confidence, "add", boom)
+    kb["evidence"] = []
+    use_script(tools(("c1", "query_faq", {"question": "X9"})), text(REFUSAL_PREFIX))
+    _, ev = await chat(client, "X9 怎么样")
+    assert ev[-1][0] == "done"
+    assert [m.role for m in await rows(db)] == ["user", "assistant", "tool", "assistant"]
+
+
+async def test_out_of_range_citation_is_logged_not_blocked(client, db, use_script, kb, caplog):
+    kb["evidence"] = [ev_item(11)]
+    use_script(tools(("c1", "query_faq", {"question": "X3 Pro 能用多久"})), text("约 8 小时[7]"))
+    _, ev = await chat(client, "X3 Pro 能用多久")
+    assert ev[-1][0] == "done"
+    assert "越界引用编号" in caplog.text
+    assert (await rows(db))[-1].content == "约 8 小时[7]"
+
+
+async def test_turn_without_faq_has_no_citations_event(client, db, use_script, kb):
+    use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
+    _, ev = await chat(client, "订单 1001 的物流到哪了")
+    assert "citations" not in [n for n, _ in ev]

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
-from app.config import CHUNK_MAX_CHARS, OVERLAP_MAX_CHARS
+from app.config import CHUNK_MAX_CHARS, GENERAL_CATEGORY, OVERLAP_MAX_CHARS, PRODUCT_CATEGORIES
 
 PATH_SEP = " > "
 KEY_CLAUSE_MARK = "【关键条款】"
@@ -160,3 +160,11 @@ def _with_overlap(pieces: list[str]) -> list[tuple[str, bool]]:
         text = f"{prefix}{piece}" if prefix else piece
         result.append((text, KEY_CLAUSE_MARK in piece))
     return result
+
+
+def product_category_of(section_path: str | None) -> str:
+    """路径中第一个等于品类名的段就是品类。没有时为通用。"""
+    for part in (section_path or "").split(PATH_SEP):
+        if part in PRODUCT_CATEGORIES:
+            return part
+    return GENERAL_CATEGORY

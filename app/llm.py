@@ -10,8 +10,15 @@ from app.config import (
     Settings,
     get_settings,
 )
-from app.prompts import dedup_judge_prompt, extract_prompt, qa_extract_prompt
-from app.schemas import AfterSalesRequest, DedupVerdict, QaPairs
+from app.prompts import (
+    dedup_judge_prompt,
+    extract_prompt,
+    faith_judge_prompt,
+    qa_extract_prompt,
+    query_rewrite_prompt,
+    self_check_prompt,
+)
+from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, QaPairs, QueryPlan, SelfCheck
 
 
 def _build(settings: Settings, thinking: str | None) -> ChatOpenAI:
@@ -67,4 +74,29 @@ def get_dedup_judge() -> Runnable:
     model = build_extract_model(get_settings())
     return dedup_judge_prompt | model.with_structured_output(
         DedupVerdict, method="function_calling", include_raw=True
+    )
+
+
+@lru_cache
+def get_query_rewriter() -> Runnable:
+    # 与 /extract 一样关闭思考：强制 tool_choice 与 DeepSeek 思考模式冲突。
+    model = build_extract_model(get_settings())
+    return query_rewrite_prompt | model.with_structured_output(
+        QueryPlan, method="function_calling", include_raw=True
+    )
+
+
+@lru_cache
+def get_self_checker() -> Runnable:
+    model = build_extract_model(get_settings())
+    return self_check_prompt | model.with_structured_output(
+        SelfCheck, method="function_calling", include_raw=True
+    )
+
+
+@lru_cache
+def get_faith_judge() -> Runnable:
+    model = build_extract_model(get_settings())
+    return faith_judge_prompt | model.with_structured_output(
+        FaithVerdict, method="function_calling", include_raw=True
     )

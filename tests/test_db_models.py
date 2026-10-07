@@ -1,10 +1,31 @@
 import pytest
 from sqlalchemy import select
+from sqlalchemy import text as sql_text
 
-from app.db.models import Conversation, Faq, KnowledgeChunk, Message, QaExtractionStaging
-from tests.conftest import ROOT
+from app.db.models import (
+    Conversation, FaithCase, Faq, KnowledgeChunk, LowConfidenceQuestion, Message, QaExtractionStaging,
+)
+from tests.conftest import ROOT, split_sql
 
 pytestmark = pytest.mark.anyio
+
+
+def test_split_sql_preserves_ch04_comment_semicolons():
+    statements = split_sql((ROOT / "db" / "schema_ch04.sql").read_text(encoding="utf-8"))
+    assert len(statements) == 3
+    assert statements[0] == "SET NAMES utf8mb4"
+    assert statements[1].startswith("CREATE TABLE low_confidence_questions")
+    assert statements[2].startswith("CREATE TABLE faith_cases")
+    assert "COMMENT '评估集题号,如 A43;一题一行'" in statements[2]
+    assert statements[2].endswith("COMMENT='ch04 忠实度编造个案台账'")
+
+
+def test_split_sql_preserves_quoted_and_escaped_delimiters():
+    sql = "-- 注释;\nSELECT 'a;b', 'it''s;c', 'it\\'s;d', \"e;f\", `g;h`; SELECT 1;"
+    assert split_sql(sql) == [
+        "SELECT 'a;b', 'it''s;c', 'it\\'s;d', \"e;f\", `g;h`",
+        "SELECT 1",
+    ]
 
 
 async def test_conversation_defaults(db):
@@ -75,3 +96,35 @@ async def test_staging_defaults(db):
         await s.commit()
         await s.refresh(row)
     assert row.status == "extracted"
+
+
+async def test_low_confidence_question_defaults(db):
+    async with db() as s:
+        conv = Conversation(user_id="u1")
+        s.add(conv)
+        await s.flush()
+        row = LowConfidenceQuestion(
+            conversation_id=conv.id, raw_question="X9 能无线充电吗", source="self_check", reason="证据没写",
+        )
+        s.add(row)
+        await s.commit()
+        await s.refresh(row)
+        assert row.id > 0 and row.created_at is not None
+        assert row.source == "self_check"
+
+
+async def test_faith_case_defaults_and_utf8_enum(db):
+    async with db() as s:
+        row = FaithCase(
+            eval_id="A01", bucket="A_policy", query="q", answer="a", reason="r",
+            citations=[{"n": 1, "chunk_id": 3, "section_path": "p", "question": "q", "answer": "a"}],
+        )
+        s.add(row)
+        await s.commit()
+        await s.refresh(row)
+        assert (row.strategy, row.status, row.seen_count) == ("hybrid_rerank", "未解决", 1)
+        assert row.first_seen_at is not None and row.last_seen_at is not None
+        assert row.citations[0]["chunk_id"] == 3
+        # HEX 校验存储字节，避免双重编码被反向还原后漏检。
+        hexed = await s.scalar(sql_text("SELECT HEX(status) FROM faith_cases WHERE id = :i"), {"i": row.id})
+        assert hexed == "E69CAAE8A7A3E586B3"

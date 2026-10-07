@@ -24,7 +24,7 @@ async def evaluate_sample(
     index: int, sample: dict, semaphore: asyncio.Semaphore
 ) -> tuple[bool, bool, str]:
     expected_tools = set(sample["expected_tools"])
-    expected_keyword = sample["faq_keyword"]
+    expected_terms: list[str] | None = sample["faq_terms"]
     async with semaphore:
         try:
             response = await (
@@ -38,8 +38,8 @@ async def evaluate_sample(
                 "input": sample["text"],
             })
             actual_tools = {call["name"] for call in response.tool_calls}
-            keywords = [
-                call["args"].get("keyword")
+            questions = [
+                call["args"].get("question")
                 for call in response.tool_calls
                 if call["name"] == "query_faq"
             ]
@@ -49,18 +49,18 @@ async def evaluate_sample(
             return False, False, line
 
     tools_correct = actual_tools == expected_tools
-    keyword_correct = expected_keyword is None or any(
-        isinstance(keyword, str) and expected_keyword in keyword
-        for keyword in keywords
+    question_correct = expected_terms is None or any(
+        isinstance(question, str) and all(term in question for term in expected_terms)
+        for question in questions
     )
-    marker = "✅" if tools_correct and keyword_correct else "❌"
+    marker = "✅" if tools_correct and question_correct else "❌"
     line = (
         f"{index:02d} {marker} "
         f"{sorted(expected_tools)!r} → {sorted(actual_tools)!r}"
     )
-    if keywords or expected_keyword is not None:
-        line += f" | query_faq keyword: {keywords!r}"
-    return tools_correct, keyword_correct, line
+    if questions or expected_terms is not None:
+        line += f" | query_faq question: {questions!r}"
+    return tools_correct, question_correct, line
 
 
 async def run_eval() -> int:
@@ -85,14 +85,14 @@ async def run_eval() -> int:
     tools_correct = sum(result[0] for result in results)
     faq_results = [
         result for sample, result in zip(samples, results)
-        if sample["faq_keyword"] is not None
+        if sample["faq_terms"] is not None
     ]
     faq_total = len(faq_results)
     faq_correct = sum(result[1] for result in faq_results)
     tools_rate = tools_correct / total
     faq_rate = faq_correct / faq_total if faq_total else 1.0
     print(f"工具集合完全匹配率: {tools_rate:.2%} ({tools_correct}/{total})")
-    print(f"FAQ 原词包含率: {faq_rate:.2%} ({faq_correct}/{faq_total})")
+    print(f"FAQ 原话包含率: {faq_rate:.2%} ({faq_correct}/{faq_total})")
     passed = tools_rate >= 0.9 and faq_rate == 1.0
     return 0 if passed else 1
 

@@ -90,4 +90,8 @@ async def ingest_all(docs_dir: Path = DOCS_DIR, *, rebuild: bool = False) -> dic
     if rebuild:
         for src in sources:
             await rebuild_source(src.title)
+        async with get_sessionmaker()() as s:
+            # 集合已整体重建。挖掘块保留 MySQL 行，置回 pending，由同一次向量化重新写入。
+            await knowledge.mark_pending_by_content_type(s, "mined")
+            await s.commit()
     return {src.title: await ingest_source(src) for src in sources}

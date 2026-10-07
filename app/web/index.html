@@ -93,6 +93,58 @@
       border-bottom-right-radius: 5px;
     }
     .assistant .bubble { border-bottom-left-radius: 5px; }
+    .citation {
+      padding: 0 2px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--primary);
+      font-size: .75em;
+      line-height: 1;
+      vertical-align: super;
+    }
+    .citation:hover { background: var(--tool-pending-bg); }
+    .feedback {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      white-space: normal;
+    }
+    .feedback button {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+    }
+    .feedback button.selected {
+      border-color: var(--primary);
+      background: var(--tool-pending-bg);
+      opacity: 1;
+    }
+    .feedback-status { color: var(--muted); font-size: 12px; }
+    .citation-card {
+      width: min(560px, calc(100% - 32px));
+      max-height: 80vh;
+      max-height: 80dvh;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 12px 40px #1f293726;
+      overflow-wrap: anywhere;
+    }
+    .citation-card::backdrop { background: #1f29374d; }
+    .citation-heading { display: flex; align-items: flex-start; gap: 16px; }
+    .citation-heading h2 { flex: 1; margin: 0; font-size: 17px; }
+    .citation-body { margin: 18px 0; line-height: 1.7; white-space: pre-wrap; }
+    .citation-status { color: var(--muted); font-size: 13px; }
+    .citation-status.error { color: var(--error); }
+    .citation-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; }
+    .citation-nav button:last-child { margin-left: auto; }
+    .citation-nav button[hidden] { display: none; }
+    .citation-card:focus-visible { outline: 3px solid var(--focus); }
     .tool-badges {
       display: flex;
       flex-wrap: wrap;
@@ -200,6 +252,18 @@
       <p id="hint" class="hint">Enter 发送 · Shift+Enter 换行 · 最多 2000 字符</p>
     </form>
   </main>
+  <dialog id="citation-card" class="citation-card" aria-labelledby="citation-title">
+    <div class="citation-heading">
+      <h2 id="citation-title"></h2>
+      <button id="citation-close" class="new-chat" type="button" aria-label="关闭原文卡片">关闭</button>
+    </div>
+    <div id="citation-body" class="citation-body"></div>
+    <div id="citation-status" class="citation-status" role="status"></div>
+    <div class="citation-nav">
+      <button id="citation-prev" class="new-chat" type="button" hidden>上一段</button>
+      <button id="citation-next" class="new-chat" type="button" hidden>下一段</button>
+    </div>
+  </dialog>
   <script>
     const messages = document.getElementById('messages');
     const input = document.getElementById('input');
@@ -212,6 +276,123 @@
     let streaming = false;
     let followBottom = true;
     let stopTyping = null;
+    let answerIndex = 0;
+    const citationCard = document.getElementById('citation-card');
+    const citationTitle = document.getElementById('citation-title');
+    const citationBody = document.getElementById('citation-body');
+    const citationStatus = document.getElementById('citation-status');
+    const citationPrev = document.getElementById('citation-prev');
+    const citationNext = document.getElementById('citation-next');
+    let chunkRequest = 0;
+    let currentChunk = null;
+
+    function showCitationContent(item) {
+      citationTitle.textContent = item.section_path || '知识库原文';
+      citationBody.textContent = `问：${item.question ?? item.questions ?? ''}\n答：${item.answer ?? ''}`;
+    }
+
+    async function loadChunk(id) {
+      const request = ++chunkRequest;
+      currentChunk = null;
+      citationPrev.hidden = true;
+      citationNext.hidden = true;
+      citationStatus.className = 'citation-status';
+      citationStatus.textContent = '正在加载原文…';
+      try {
+        const response = await fetch(`/api/knowledge/chunks/${encodeURIComponent(id)}`);
+        if (!response.ok) throw new Error('原文加载失败');
+        const chunk = await response.json();
+        if (request !== chunkRequest || !citationCard.open) return;
+        currentChunk = chunk;
+        showCitationContent(chunk);
+        citationPrev.hidden = chunk.prev_chunk_id == null;
+        citationNext.hidden = chunk.next_chunk_id == null;
+        citationStatus.textContent = '';
+      } catch {
+        if (request !== chunkRequest || !citationCard.open) return;
+        citationStatus.className = 'citation-status error';
+        citationStatus.textContent = '原文加载失败';
+      }
+    }
+
+    function openCitation(item) {
+      showCitationContent(item);
+      if (!citationCard.open) citationCard.showModal();
+      loadChunk(item.chunk_id);
+    }
+
+    document.getElementById('citation-close').addEventListener('click', () => citationCard.close());
+    citationCard.addEventListener('close', () => { chunkRequest++; currentChunk = null; });
+    citationCard.addEventListener('click', event => {
+      if (event.target !== citationCard) return;
+      const bounds = citationCard.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) citationCard.close();
+    });
+    citationPrev.addEventListener('click', () => {
+      if (currentChunk?.prev_chunk_id != null) loadChunk(currentChunk.prev_chunk_id);
+    });
+    citationNext.addEventListener('click', () => {
+      if (currentChunk?.next_chunk_id != null) loadChunk(currentChunk.next_chunk_id);
+    });
+
+    function renderReply(reply, text, citations) {
+      const items = new Map(citations.items.map(item => [item.n, item]));
+      const fragment = document.createDocumentFragment();
+      let offset = 0;
+      for (const match of text.matchAll(/\[(\d+)\]/g)) {
+        fragment.append(document.createTextNode(text.slice(offset, match.index)));
+        const item = items.get(Number(match[1]));
+        if (item) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'citation';
+          button.textContent = match[0];
+          button.setAttribute('aria-label', `查看引用 ${item.n} 的原文`);
+          button.addEventListener('click', () => openCitation(item));
+          fragment.append(button);
+        } else {
+          fragment.append(document.createTextNode(match[0]));
+        }
+        offset = match.index + match[0].length;
+      }
+      fragment.append(document.createTextNode(text.slice(offset)));
+      reply.replaceChildren(fragment);
+    }
+
+    function addFeedback(bubble, answer) {
+      const row = document.createElement('div');
+      row.className = 'feedback';
+      const status = document.createElement('span');
+      status.className = 'feedback-status';
+      status.setAttribute('role', 'status');
+      const buttons = [];
+      for (const [rating, icon, label] of [['up', '👍', '有帮助'], ['down', '👎', '没有帮助']]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = icon;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('click', () => {
+          button.classList.add('selected');
+          button.setAttribute('aria-pressed', 'true');
+          buttons.forEach(item => { item.disabled = true; });
+          status.textContent = '已反馈';
+          try {
+            const stored = JSON.parse(localStorage.getItem('aftersales_feedback') || '[]');
+            const records = Array.isArray(stored) ? stored : [];
+            records.push({ session_id: answer.sessionId, answer_index: answer.index,
+              rating, at: new Date().toISOString() });
+            localStorage.setItem('aftersales_feedback', JSON.stringify(records));
+          } catch { /* Feedback still works when storage is unavailable. */ }
+        });
+        buttons.push(button);
+        row.append(button);
+      }
+      row.append(status);
+      bubble.append(row);
+      scrollToBottom();
+    }
 
     function getUserId() {
       if (userId) return userId;
@@ -271,6 +452,8 @@
       if (streaming && !stopTyping) return;
       if (stopTyping) stopTyping();
       sessionId = null;
+      answerIndex = 0;
+      if (citationCard.open) citationCard.close();
       messages.replaceChildren();
       followBottom = true;
       addMessage('assistant', welcome);
@@ -299,6 +482,8 @@
       updateControls();
       addMessage('user', message);
       const { bubble, reply } = addMessage('assistant');
+      // Count submitted assistant turns from zero; the welcome message is excluded.
+      const answer = { index: answerIndex++, sessionId, text: '', citations: { items: [], refused: false } };
       const typing = document.createElement('div');
       typing.className = 'typing';
       typing.setAttribute('role', 'status');
@@ -325,7 +510,8 @@
       }
 
       function appendText(text) {
-        reply.append(document.createTextNode(text));
+        answer.text += text;
+        renderReply(reply, answer.text, answer.citations);
         scrollToBottom();
       }
 
@@ -415,6 +601,7 @@
         const { event, data } = parsed;
         if (event === 'session') {
           sessionId = data.session_id;
+          answer.sessionId = sessionId;
         } else if (event === 'token') {
           typing.hidden = true;
           enqueue(data.text);
@@ -422,8 +609,13 @@
           startTools(data.tools);
         } else if (event === 'tool_end') {
           endTools(data.tools);
+        } else if (event === 'citations') {
+          answer.citations = { items: Array.isArray(data.items) ? data.items : [], refused: data.refused === true };
+          renderReply(reply, answer.text, answer.citations);
+          scrollToBottom();
         } else if (event === 'done') {
           terminal = true;
+          addFeedback(bubble, answer);
         } else if (event === 'error') {
           showError(data.message || '服务暂时不可用，请稍后重试');
           terminal = true;

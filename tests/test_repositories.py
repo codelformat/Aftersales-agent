@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from app.repositories import conversations, messages, tickets
+from app.repositories import conversations, low_confidence, messages, tickets
 from app.repositories.messages import NewMessage
 
 pytestmark = pytest.mark.anyio
@@ -109,3 +109,11 @@ async def test_ticket_number_uses_numeric_max_across_widths(db):
         await s.commit()
     t = await tickets.create_ticket_record(db, cid, "y", "售后", date(2026, 10, 6))
     assert t.ticket_no == "T202610061001"
+
+
+async def test_low_confidence_add(db):
+    async with db() as s:
+        row = await low_confidence.add(s, conversation_id=None, raw_question="q", source="self_check", reason=None)
+        await s.commit()
+        await s.refresh(row)
+    assert row.id > 0 and row.created_at is not None and row.conversation_id is None

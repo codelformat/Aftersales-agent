@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 电商售后智能客服（Aftersales-agent）。
 - ch01：SSE 流式多轮对话 + 售后描述结构化提取。
 - ch02：Function Calling 工具链（5 个工具，单轮调用），会话和消息落 MySQL。不做 Agent Loop。
-- ch03：知识库。Markdown 文档结构感知切分 + 历史对话挖掘问答对，MySQL `knowledge_chunks` 与 Milvus 集合 `knowledge` 双写；`query_faq` 内部改为 dense 向量检索（契约不变）。不做关键词召回、混合检索、重排。
+- ch03：知识库。Markdown 文档结构感知切分 + 历史对话挖掘问答对，MySQL `knowledge_chunks` 与 Milvus 集合 `knowledge` 双写；`query_faq` 内部改为 dense 向量检索。
+- ch04：混合检索与评估。Query 理解（LLM 改写、型号归一、同义词）→ Milvus dense + BM25 各 Top-50 → RRF → `bge-reranker-v2-m3` Top-10 → 门槛 → 首尾排列；回答带引用编号，自评不足时拒答并写入 `low_confidence_questions`；300 题评估集对比 4 种检索策略并评 Faithfulness，编造个案写入 `faith_cases`；聊天页引用卡片和 👍/👎，台账页 `/admin/faith-cases`。不做指代消解、多轮改写。
+- 开发中搁置的问题记录在 `docs/backlog/`。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
 - 每章的 spec 在 `docs/superpowers/specs/`，plan 在 `docs/superpowers/plans/`，开发记录在 `dev-notes/chNN.md`。
@@ -19,7 +21,7 @@ uv sync                                              # 安装依赖（Python 3.1
 docker compose up -d --wait                          # 启动 MySQL（宿主端口 3307）和 Milvus（19530，健康检查 9091）
 bash scripts/reset_db.sh                             # 删除 MySQL 和 Milvus 数据卷并重建，校验 FAQ 中文编码和 Milvus 健康
 uv run python scripts/build_kb.py                    # 离线建库：文档和 faq 表入库（pending），再向量化写 Milvus；已入库的文档跳过
-uv run python scripts/build_kb.py --rebuild          # 重建全部文档来源（不含 mined）；--status 只看状态；--check 不一致时退出码 1
+uv run python scripts/build_kb.py --rebuild          # 删除并重建 Milvus 集合和全部文档来源，mined 块保留并重新向量化；--status 只看状态；--check 不一致时退出码 1
 uv run python scripts/seed_history.py --date 2026-10-05   # 导入 30 通样例历史对话（默认昨天）
 uv run python scripts/mine_qa.py --date 2026-10-05   # 挖掘任务：抽取 → 暂存 → 去重 → 入库 → 向量化（默认昨天；crontab 示例见脚本头）
 uv run uvicorn app.main:app --reload --port 8000     # 启动服务；聊天页 http://127.0.0.1:8000/
@@ -28,9 +30,13 @@ uv run pytest tests/test_chat_api.py::test_tool_round_events_and_persistence -q 
 uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（真实上游，只执行第 1 次调用；未达标退出码 1）
 uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集（真实上游）
 uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
-uv run python evals/run_retrieval_eval.py            # 检索评估集（真实嵌入 + 生产集合；先 build_kb）
+uv run python evals/run_rag_eval.py --check          # 检查 300 题评估集（来源键、题号、桶和难度计数）；--list-keys 列出来源键
+uv run python evals/run_rag_eval.py --stage retrieval # 四策略检索对比 + 门槛扫描（真实上游 + 生产集合）；--stage generation 评 Faithfulness 并写 faith_cases
+uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurrency 3   # 完整报告，写入 evals/reports/（并发高于 4 会触发上游限流）
+uv run python evals/run_faith_judge_eval.py          # 忠实度裁判自检（30 条，准确率 < 90% 退出码 1）
 uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
 uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
+bash scripts/demo4.sh                                # ch04 四项验收（需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo3.sh                                # ch03 验收（需先启动服务、MySQL 和 Milvus）
 bash scripts/demo2.sh                                # ch02 三项验收（需先启动服务和 MySQL）
 bash scripts/demo.sh                                 # ch01 三项验收
@@ -43,37 +49,46 @@ bash scripts/demo.sh                                 # ch01 三项验收
 ```
 api → services → repositories → db
          ↘ tools (registry, executor) → repositories
-                  ↘ knowledge.retrieval → knowledge.embeddings, knowledge.milvus
+                  ↘ knowledge.retrieval → knowledge.query, knowledge.embeddings, knowledge.milvus, knowledge.rerank
+         ↘ services.grounding → repositories.low_confidence
          ↘ llm, prompts, history, context
+api.knowledge, api.faith_cases → repositories
+evals/run_rag_eval.py → knowledge.retrieval, services.grounding, repositories.faith_cases
 scripts/build_kb.py → knowledge.ingest, knowledge.vectorize
 scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 ```
 
 | 模块 | 职责 |
 |---|---|
-| `app/config.py` | `Settings` 读 4 个 `CHAT_*`、`DATABASE_URL`、`EMBED_API_KEY`、`EMBED_BASE_URL`、`MILVUS_URI`；`test_database_url()` 推导测试库；其余为代码常量 |
-| `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker` / `dispose_engine`）与 6 张表的 ORM 映射 |
-| `app/repositories/` | 只负责 SQL：会话、消息、工单（指数回退重试主键冲突）、知识块 `knowledge`、挖掘暂存 `staging` |
-| `app/knowledge/` | `milvus`（客户端 get/set、集合定义、经 `retry_async` 重试）、`embeddings`（`OpenAIEmbeddings` 工厂）、`chunking`（Markdown 切分、`knowledge_text`）、`ingest`（文档和 faq 表入库）、`vectorize`（`vectorize_pending`、状态）、`retrieval`（在线检索）、`mining`（抽取、去重）、`history_seed` |
+| `app/config.py` | `Settings` 读 4 个 `CHAT_*`、`DATABASE_URL`、`EMBED_API_KEY`、`EMBED_BASE_URL`、`MILVUS_URI`、`RERANK_API_KEY`、`RERANK_BASE_URL`；`test_database_url()` 推导测试库；其余为代码常量 |
+| `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker` / `dispose_engine`）与 8 张表的 ORM 映射 |
+| `app/repositories/` | 只负责 SQL：会话、消息、工单（指数回退重试主键冲突）、知识块 `knowledge`、挖掘暂存 `staging`、问题池 `low_confidence`、编造台账 `faith_cases` |
+| `app/knowledge/` | `milvus`（客户端 get/set、集合定义、经 `retry_async` 重试）、`embeddings`（`OpenAIEmbeddings` 工厂）、`chunking`（Markdown 切分、`knowledge_text`）、`ingest`（文档和 faq 表入库）、`vectorize`（`vectorize_pending`、状态）、`query`（改写、型号归一、同义词，词表 `knowledge/lexicon.json`）、`rerank`（硅基流动 `/rerank`）、`retrieval`（4 种策略、门槛、首尾排列、`source_key`）、`mining`（抽取、去重）、`history_seed` |
 | `app/tools/` | 5 个 `@tool`、`mock_data`（确定性 mock）、注册表、执行器（校验、超时、重试、错误转换、截断、并行） |
 | `app/services/chat.py` | 一轮对话：第 1 次调用绑定工具并流式输出 → 并行执行工具 → 第 2 次调用（不绑定工具）流式输出 → 一个事务写库 |
+| `app/services/grounding.py` | 证据合并与全局编号、渲染、自评、入池 |
 | `app/services/history.py` | 数据库消息 ↔ LangChain 消息 |
 | `app/locks.py` | 按会话 ID 的进程内锁 |
 | `app/context.py` | `count_tokens`（2.0 字符/token）和 `build_history`（裁剪历史） |
 
 必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/`）：
 
-- **`db/schema.sql`、`db/schema_ch03.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
+- **`db/schema.sql`、`db/schema_ch03.sql`、`db/schema_ch04.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
 - **容器初始化 SQL 必须用 utf8mb4 读取**（`db/mysql-client.cnf` 挂到 `/etc/mysql/conf.d/`），否则中文双重编码。校验存储字节要用 `HEX()`，字符串比较会被 latin1 客户端"还原"而漏检。
 - **执行 `.sql` 文件用 `exec_driver_sql`，不用 `text()`。** 异步 ORM 提交后读数据库默认值列前先 `await session.refresh()`。测试引擎用 `NullPool`（pytest 每个异步测试一个事件循环）。
 - **第 2 次调用不绑定工具，并在工具结果后追加 `SystemMessage(TOOL_ROUND_CLOSING)`**（不写库）。去掉它，模型会把工具调用标记 `<｜｜DSML｜｜ ...>` 写进正文。服务端另有标记防线：命中时发 `error`、不写库。
 - **`create_ticket` 不重试**（非幂等）；`conversation_id` 由执行器用 `InjectedToolArg` 注入，模型看不到。
-- **`query_faq` 的入参、描述、出参不改**；内部是向量检索：关键词嵌入 → Milvus Top 3 → 丢弃低于 `FAQ_MIN_SCORE=0.50`（检索评估集校准）→ 按 id 读 MySQL 的 `done` 行。
-- **Milvus 主键 = MySQL `knowledge_chunks.id`，集合只存 id + 向量，集合级 `Strong` 一致性。** 正文和元数据只在 MySQL。
+- **`query_faq` 入参为 `question`（用户原话，≤ 200 字），返回 `{"evidence": [...]}`，不重试，超时 20 秒。** 聊天服务从 `ToolOutcome.data` 合并证据、全局编号后再渲染给模型（模型看不到 `chunk_id` 和分数）。
+- **Milvus 集合 6 个字段：`id`（= MySQL 主键）、`vector`、`text`（BM25 源文本，`chinese` analyzer）、`sparse`（BM25 Function 输出）、`product_category`、`content_type`，集合级 `Strong` 一致性。** 正文和元数据的权威来源是 MySQL；结构变化后用 `build_kb.py --rebuild` 整体重建集合。
+- **`chinese` analyzer 区分大小写、不拆连写型号**：文档只用规范型号写法（`X3 Pro`），查询侧用词表归一（`x3pro` → `X3 Pro`）；问题中出现型号时，品类由型号决定。
+- **重排 query 用 `dense_query(standard_query)`**（俗称替换为标准词、不追加同义词）；门槛 `RERANK_MIN_SCORE=0.20` 只挡明显无关的证据，能否回答由自评判断。
+- **自评失败按通过处理；证据为空不调 LLM 直接判不够。`useful=false` 时把工具消息替换为 `answerable=false` 并写问题池（独立事务）。** 引用编号 `[n]` 为首尾排列后的全局序号；越界编号只记日志。
+- **`query_product` 只接受 `^P\d{3,8}$` 商品号**（模型曾把型号当商品号，mock 返回随机品类）。
+- **评估生成段必须做真实的第 1 次调用**，沿用模型给出的 tool_call id（DeepSeek 思考模式下自造 id 返回 400）；评估集 `relevant` 为分组格式，Recall 按组计算。
 - **入库只写 MySQL `pending`，统一由 `vectorize_pending()` 写 Milvus 并回填 `done`。** 按主键 `upsert`，中断后重跑不产生重复。
 - **`OpenAIEmbeddings` 必须设 `check_embedding_ctx_length=False` 和 `model_kwargs={"encoding_format": "float"}`**（硅基流动不接受 token id）。
 - **`knowledge_chunks` 有自引用外键，删除行之前先把 `prev_chunk_id`、`next_chunk_id` 置 NULL。**
-- **测试不访问真实嵌入和生产集合**：autouse fixture 用 `FakeEmbeddings` 和 `BlockedMilvus`；需要 Milvus 的测试用 fixture `milvus`（每个测试重建 `knowledge_test`）。抽取器和裁定器用 `RunnableLambda`。
+- **测试不访问真实嵌入、重排、上游模型和生产集合**：autouse fixture 用 `FakeEmbeddings`、`BlockedMilvus`、`BlockedReranker`，并拦截改写器和自评器工厂；需要 Milvus 的测试用 fixture `milvus`（每个测试重建 `knowledge_test`）。抽取器、裁定器、改写器、自评器、裁判用 `RunnableLambda`。
 - **提取模型必须关闭思考**；**使用 DeepSeek 时必须设置 `CHAT_THINKING`**；`CHAT_THINKING` 未设置或为空时不发送 `thinking` 字段。
 - **DeepSeek 思考模式下，第 2 次调用依赖服务端按 tool_call id 缓存的思考内容**（`ChatOpenAI` 不回传 `reasoning_content`）。自造 tool_call id 放在当前轮会 400。
 - **SSE 预检放在 yield 依赖 `prepare_chat_turn` 中，会话锁在其 `finally` 释放**（默认 `scope="request"`）。
@@ -92,7 +107,7 @@ scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 | 嵌入 | `EMBED_API_KEY`（`EMBED_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/embeddings`，模型 `BAAI/bge-m3`，**1024 维**（Milvus collection 维度按此设） |
 | 重排 | `RERANK_API_KEY`（`RERANK_BASE_URL` 默认 `https://api.siliconflow.cn/v1`） | 硅基流动 `/rerank`，模型 `BAAI/bge-reranker-v2-m3`；Jina/Cohere 形状（`query` + `documents` → `results[].index/relevance_score`），不是 OpenAI 协议 |
 
-- ch01、ch02 只用到聊天这一组和 `DATABASE_URL`；ch03 接入嵌入和 `MILVUS_URI`；重排尚未接入代码。
+- ch01、ch02 只用到聊天这一组和 `DATABASE_URL`；ch03 接入嵌入和 `MILVUS_URI`；ch04 接入重排。
 - `DATABASE_URL`：`mysql+asyncmy://aftersales:aftersales@127.0.0.1:3307/aftersales?charset=utf8mb4`（本项目 Docker Compose 的 MySQL）。
 - 嵌入、重排的 base URL 在代码里给默认值 `https://api.siliconflow.cn/v1`，`.env` 中可覆盖。
 - `MILVUS_URI`：`http://127.0.0.1:19530`（本项目 Docker Compose 的 Milvus，ch03 经用户同意加入）。
@@ -120,7 +135,6 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
   ```bash
   codex exec -C /Users/harry/Aftersales-agent \
     -m gpt-6.1-sol -c model_reasoning_effort="high" \
-    -c service_tier="priority" \
     -s workspace-write \
     -c sandbox_workspace_write.network_access=true \
     -c 'sandbox_workspace_write.writable_roots=["/Users/harry/.cache/uv","/Users/harry/.local/share/uv"]' \
@@ -129,7 +143,7 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
 
   后两个 `-c` 是必需的。原因：默认沙箱禁止网络，也不能写 uv 的缓存目录，`uv add` / `uv sync` 会失败。
 
-  `service_tier="priority"` 开启 Codex 的 fast 模式（用户要求，2026-10-06）。`~/.codex/config.toml` 默认为 `default`，所以必须在命令中覆盖。
+  不开启 Codex 的 fast 模式（不加 `-c service_tier="priority"`）。用户 2026-10-06 要求开启，2026-10-07 因额度用完改为关闭。
 
   Codex 的沙箱不能执行 `docker build`（不能写 `~/.docker/buildx/`）。涉及 docker 的步骤由 Claude 执行。
 

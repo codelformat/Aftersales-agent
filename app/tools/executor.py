@@ -4,6 +4,7 @@ import logging
 import random
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
 from langchain_core.messages import ToolMessage
 from pydantic import ValidationError
@@ -34,9 +35,12 @@ class ToolOutcome:
     name: str
     ok: bool
     message: ToolMessage
+    data: Any = None
 
 
-def _make_outcome(call_id: str, name: str, *, ok: bool, content: str) -> ToolOutcome:
+def _make_outcome(
+    call_id: str, name: str, *, ok: bool, content: str, data: Any = None
+) -> ToolOutcome:
     if len(content) > TOOL_RESULT_MAX_CHARS:
         content = content[:TOOL_RESULT_MAX_CHARS] + "…(结果过长，已截断)"
     return ToolOutcome(
@@ -44,6 +48,7 @@ def _make_outcome(call_id: str, name: str, *, ok: bool, content: str) -> ToolOut
         name=name,
         ok=ok,
         message=ToolMessage(content=content, tool_call_id=call_id, name=name),
+        data=data,
     )
 
 
@@ -110,7 +115,7 @@ async def execute_tool_calls(
             content = json.dumps(
                 {"ok": True, "data": result}, ensure_ascii=False, default=str
             )
-            return _make_outcome(call_id, name, ok=True, content=content)
+            return _make_outcome(call_id, name, ok=True, content=content, data=result)
         except Exception:
             logger.exception("工具执行失败")
             # 标识字段异常时使用空字符串，保证失败结果仍可构造。
