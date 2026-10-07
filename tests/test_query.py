@@ -1,7 +1,11 @@
+import asyncio
+from time import perf_counter
+
 import pytest
 from langchain_core.runnables import RunnableLambda
 
 import app.knowledge.query as q
+import app.config as config
 from app.schemas import QueryPlan
 
 pytestmark = pytest.mark.anyio
@@ -92,6 +96,22 @@ async def test_understand_falls_back_on_failure(rewriter, caplog):
     assert "Query 改写失败" in caplog.text
 
 
+async def test_understand_slow_rewriter_falls_back_within_budget(monkeypatch, caplog):
+    monkeypatch.setattr(config, "QUERY_REWRITE_TIMEOUT_SECONDS", 0.05, raising=False)
+
+    async def slow_rewriter(inputs):
+        await asyncio.sleep(1)
+        return {"parsed": QueryPlan(standard_query="改写后的问题", product_category=None), "raw": "raw"}
+
+    started = perf_counter()
+    plan = await q.understand("x3pro 续航", rewriter=RunnableLambda(slow_rewriter), lexicon=LEX)
+    elapsed = perf_counter() - started
+
+    assert elapsed < 0.5
+    assert plan == QueryPlan(standard_query="X3 Pro 续航", product_category="蓝牙耳机")
+    assert "Query 改写失败" in caplog.text
+
+
 async def test_understand_without_rewriter_uses_factory_and_is_blocked_in_tests():
     with pytest.raises(RuntimeError, match="get_query_rewriter"):
         await q.understand("运费", lexicon=LEX)
@@ -102,6 +122,18 @@ def test_real_lexicon_loads():
     assert len(lex.model_categories) == 24
     assert lex.model_categories["X3 Pro"] == "蓝牙耳机"
     assert "邮费" in lex.synonyms["运费"]
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("七天无理由退货怎么办", "无理由退货怎么办"),
+    ("怎么恢复出厂设置", "怎么恢复出厂设置"),
+    ("七天无理由吗", "无理由退货吗"),
+    ("邮费多少钱", "运费多少钱"),
+])
+def test_dense_query_real_lexicon_avoids_duplicate_standard_suffix(raw, expected):
+    result = q.dense_query(raw, q.load_lexicon())
+    assert result == expected
+    assert "退货退货" not in result
 
 
 def test_query_plan_rejects_unknown_category():

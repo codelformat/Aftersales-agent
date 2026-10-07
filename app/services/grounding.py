@@ -1,5 +1,6 @@
 """证据合并、渲染、自评与入池。线上聊天和评估共用。"""
 
+import asyncio
 import json
 import logging
 import re
@@ -7,6 +8,7 @@ from dataclasses import asdict, dataclass
 
 from langchain_core.runnables import Runnable
 
+import app.config as config
 from app.db.engine import get_sessionmaker
 from app.llm import get_self_checker
 from app.repositories import low_confidence
@@ -88,8 +90,11 @@ async def self_check(
     # 工厂在 try 之外调用：配置错误和测试中未替换时立即暴露。
     checker = checker or get_self_checker()
     try:
-        result = await checker.ainvoke(
-            {"question": "\n".join(questions), "evidence": format_evidence(citations)}
+        result = await asyncio.wait_for(
+            checker.ainvoke(
+                {"question": "\n".join(questions), "evidence": format_evidence(citations)}
+            ),
+            config.SELF_CHECK_TIMEOUT_SECONDS,
         )
         if result["parsed"] is None:
             raise ValueError(f"自评结果无效：raw={result.get('raw')!r}")

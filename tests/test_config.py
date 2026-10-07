@@ -139,3 +139,8 @@ def test_ch04_constants():
 
 def test_obsolete_faq_constants_are_removed():
     assert not hasattr(config, "FAQ_MIN_SCORE") and not hasattr(config, "FAQ_MAX_RESULTS")
+
+
+def test_rewrite_and_self_check_timeout_constants():
+    assert config.QUERY_REWRITE_TIMEOUT_SECONDS == 8
+    assert config.SELF_CHECK_TIMEOUT_SECONDS == 10

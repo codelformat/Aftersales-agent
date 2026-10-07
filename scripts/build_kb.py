@@ -49,15 +49,28 @@ async def run(args) -> int:
             await dispose_engine()
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="离线建库")
+class _BuildParser(argparse.ArgumentParser):
+    def parse_args(self, args=None, namespace=None):
+        parsed = super().parse_args(args, namespace)
+        # 参数冲突须在访问数据库和 Milvus 前退出。
+        if parsed.rebuild and (parsed.status or parsed.check):
+            self.error("--rebuild 不能与 --status 或 --check 同时使用")
+        return parsed
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = _BuildParser(description="离线建库")
     parser.add_argument("--rebuild", action="store_true", help="重建 Milvus 集合和全部文档来源；mined 块保留并重新向量化")
     parser.add_argument("--crash-after-batches", type=int, default=None, help="故障注入，只用于演示")
     parser.add_argument("--status", action="store_true", help="只打印状态")
     parser.add_argument(
         "--check", action="store_true", help="打印状态；有 pending 行或 Milvus 数量不一致时退出码为 1"
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
     logging.basicConfig(level=logging.WARNING)
     try:
         return asyncio.run(run(args))

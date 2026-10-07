@@ -1,10 +1,13 @@
+import asyncio
 import json
+from time import perf_counter
 
 import pytest
 from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
 import app.services.grounding as g
+import app.config as config
 
 from app.db.models import Conversation, LowConfidenceQuestion
 from app.repositories import low_confidence
@@ -84,6 +87,23 @@ async def test_self_check_passes_questions_and_evidence():
 async def test_self_check_failure_fails_open(bad, caplog):
     ev = g.collect_evidence([("c1", "运费", {"evidence": [item(7)]})])
     res = await g.self_check(["运费"], ev.citations, checker=bad)
+    assert res == SelfCheck(useful=True, reason=g.SELF_CHECK_FAILED_REASON)
+    assert "自评调用失败" in caplog.text
+
+
+async def test_self_check_slow_checker_fails_open_within_budget(monkeypatch, caplog):
+    monkeypatch.setattr(config, "SELF_CHECK_TIMEOUT_SECONDS", 0.05, raising=False)
+
+    async def slow_checker(inputs):
+        await asyncio.sleep(1)
+        return {"parsed": SelfCheck(useful=False, reason="证据不足"), "raw": "raw"}
+
+    ev = g.collect_evidence([("c1", "运费", {"evidence": [item(7)]})])
+    started = perf_counter()
+    res = await g.self_check(["运费"], ev.citations, checker=RunnableLambda(slow_checker))
+    elapsed = perf_counter() - started
+
+    assert elapsed < 0.5
     assert res == SelfCheck(useful=True, reason=g.SELF_CHECK_FAILED_REASON)
     assert "自评调用失败" in caplog.text
 

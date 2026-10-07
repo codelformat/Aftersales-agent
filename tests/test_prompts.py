@@ -58,6 +58,12 @@ def test_system_prompt_evidence_only_rule():
     assert "只陈述证据中写明的事实" in s and "一字不差" in s
 
 
+def test_system_prompt_citations_only_use_current_round():
+    s = render_chat_system(date(2026, 10, 7))
+    assert "只引用本轮知识库结果中的编号" in s
+    assert "不引用历史消息中的编号" in s
+
+
 def test_faith_judge_prompt_conservative_wording():
     from app.prompts import FAITH_JUDGE_SYSTEM_PROMPT
 

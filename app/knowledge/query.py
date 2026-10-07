@@ -1,5 +1,6 @@
 """Query 理解：LLM 改写、型号归一、同义词处理。同义词只在检索侧处理，不改入库文本。"""
 
+import asyncio
 import json
 import logging
 import re
@@ -9,6 +10,7 @@ from pathlib import Path
 
 from langchain_core.runnables import Runnable
 
+import app.config as config
 from app.llm import get_query_rewriter
 from app.schemas import QueryPlan
 
@@ -34,7 +36,7 @@ class Lexicon:
         alts = [r"[\s\-]*".join(re.escape(ch) for ch in k) for k in keys]
         object.__setattr__(self, "_model_re", re.compile(
             rf"(?<![{_ALNUM}])(?:{'|'.join(alts)})(?![{_ALNUM}])", re.IGNORECASE))
-        aliases = sorted((a for al in self.synonyms.values() for a in al), key=len, reverse=True)
+        aliases = sorted(self.alias_to_key, key=len, reverse=True)
         object.__setattr__(self, "_alias_re", re.compile("|".join(map(re.escape, aliases))) if aliases else None)
 
     @property
@@ -43,7 +45,17 @@ class Lexicon:
 
     @property
     def alias_to_key(self) -> dict[str, str]:
-        return {a: k for k, al in self.synonyms.items() for a in al}
+        mapping = {a: k for k, al in self.synonyms.items() for a in al}
+        for key, aliases in self.synonyms.items():
+            for alias in aliases:
+                # 先匹配重叠后的完整短语，如“七天无理由退货”，避免重复补上“退货”。
+                for overlap in range(min(len(alias), len(key)), 0, -1):
+                    if alias.endswith(key[:overlap]):
+                        mapping.setdefault(alias + key[overlap:], key)
+                        break
+        # 标准词整体匹配并保留，避免“恢复出厂设置”被再次补上“设置”。
+        mapping.update({key: key for key in self.synonyms})
+        return mapping
 
 
 def load_lexicon(path: Path = LEXICON_PATH) -> Lexicon:
@@ -95,7 +107,9 @@ async def understand(
     # 工厂在 try 之外调用：测试中未替换时立即暴露。
     rewriter = rewriter or get_query_rewriter()
     try:
-        result = await rewriter.ainvoke({"question": normalized})
+        result = await asyncio.wait_for(
+            rewriter.ainvoke({"question": normalized}), config.QUERY_REWRITE_TIMEOUT_SECONDS
+        )
         parsed = result["parsed"]
         if parsed is None:
             raise ValueError(f"改写结果无效：raw={result.get('raw')!r}")

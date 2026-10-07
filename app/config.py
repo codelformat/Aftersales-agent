@@ -46,6 +46,10 @@ EVIDENCE_TOP_N = 10
 # 0.40（评估集 Top-1 保留率 ≥ 95% 的最高值）误伤宽泛口语问题，实测正确证据 0.31–0.37。
 RERANK_MIN_SCORE = 0.20
 QUERY_FAQ_TIMEOUT_SECONDS = 20
+# 限制改写等待时间，超时后用原话检索。
+QUERY_REWRITE_TIMEOUT_SECONDS = 8
+# 限制自评等待时间，超时后按通过处理。
+SELF_CHECK_TIMEOUT_SECONDS = 10
 PRODUCT_CATEGORIES = ("蓝牙耳机", "羊毛衫", "扫地机器人", "电动牙刷", "台灯", "保温杯", "运动鞋", "手机壳")
 GENERAL_CATEGORY = "通用"
 # Milvus VARCHAR 的 max_length 按字节计。
