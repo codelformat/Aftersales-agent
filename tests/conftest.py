@@ -259,3 +259,13 @@ def emitted(monkeypatch):
     out = []
     monkeypatch.setattr(events, "get_stream_writer", lambda: out.append)
     return out
+
+
+@pytest.fixture
+def memory_graph():
+    from langgraph.checkpoint.memory import InMemorySaver
+    from app.graph.builder import build_graph, set_graph
+    graph = build_graph(InMemorySaver())
+    set_graph(graph)
+    yield graph
+    set_graph(None)
