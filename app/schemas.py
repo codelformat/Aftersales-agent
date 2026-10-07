@@ -83,3 +83,12 @@ class FaithVerdict(BaseModel):
     faithful: bool = Field(description="unsupported_claims 为空时为 true")
     unsupported_claims: list[str] = Field(default_factory=list, description="证据中找不到依据的句子，原样摘录")
     reason: str = Field(description="一句话说明判定依据")
+
+
+INTENTS = ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊")
+
+
+class IntentResult(BaseModel):
+    """用户这一句话的意图。"""
+
+    intent: Literal[INTENTS] = Field(description="七类意图之一")

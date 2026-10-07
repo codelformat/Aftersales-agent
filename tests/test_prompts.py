@@ -68,3 +68,13 @@ def test_faith_judge_prompt_conservative_wording():
     from app.prompts import FAITH_JUDGE_SYSTEM_PROMPT
 
     assert "以审核结果为准" in FAITH_JUDGE_SYSTEM_PROMPT and "本店" in FAITH_JUDGE_SYSTEM_PROMPT
+
+
+def test_intent_prompt_lists_all_intents():
+    from app.prompts import INTENT_SYSTEM_PROMPT, intent_prompt
+    from app.schemas import INTENTS
+    assert INTENTS == ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊")
+    for intent in INTENTS:
+        assert f"- {intent}：" in INTENT_SYSTEM_PROMPT
+    msgs = intent_prompt.invoke({"text": "订单 1001 到哪了"}).to_messages()
+    assert msgs[-1].content == "订单 1001 到哪了"
