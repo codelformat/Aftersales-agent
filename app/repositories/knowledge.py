@@ -90,6 +90,12 @@ async def get_done_by_ids(s: AsyncSession, ids: list[int]) -> dict[int, Knowledg
     return {r.id: r for r in rows}
 
 
+async def get_done(s: AsyncSession, chunk_id: int) -> KnowledgeChunk | None:
+    return await s.scalar(select(KnowledgeChunk).where(
+        KnowledgeChunk.id == chunk_id, KnowledgeChunk.vectorize_status == "done",
+    ))
+
+
 async def status_counts(s: AsyncSession) -> list[tuple[str | None, str, int]]:
     rows = await s.execute(
         select(KnowledgeChunk.content_type, KnowledgeChunk.vectorize_status, func.count())
