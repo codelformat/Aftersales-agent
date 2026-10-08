@@ -265,6 +265,43 @@ def use_small_intent(monkeypatch):
     return _intent_fixture(monkeypatch, "get_small_intent_classifier")
 
 
+def _resolver_runnable(values, calls):
+    from langchain_core.runnables import RunnableLambda
+    from app.schemas import ResolvedQuery
+
+    async def resolve(inputs):
+        calls.append(inputs)
+        value = values.pop(0) if values is not None else {}
+        if isinstance(value, BaseException):
+            raise value
+        if value is None:
+            return {"parsed": None, "raw": None}
+        fields = {"resolved_input": inputs["question"], "standard_query": inputs["question"], **value}
+        return {"parsed": ResolvedQuery(**fields), "raw": None}
+
+    return RunnableLambda(resolve)
+
+
+@pytest.fixture(autouse=True)
+def _default_resolver(monkeypatch):
+    """默认透传，等价于 ch05 的 resolve_reference。需要时用 use_resolver 覆盖。"""
+    from app.services import understanding
+    monkeypatch.setattr(understanding, "get_reference_resolver", lambda: _resolver_runnable(None, []))
+
+
+@pytest.fixture
+def use_resolver(monkeypatch):
+    """用法：use_resolver({"resolved_input": ..., "order_id": ...}, None, ValueError())。"""
+    from app.services import understanding
+
+    def _use(*values):
+        queue, calls = list(values), []
+        monkeypatch.setattr(understanding, "get_reference_resolver", lambda: _resolver_runnable(queue, calls))
+        return calls
+
+    return _use
+
+
 @pytest.fixture
 def emitted(monkeypatch):
     """直接调用节点时，收集节点发出的事件。"""

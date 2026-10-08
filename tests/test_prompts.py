@@ -100,3 +100,11 @@ def test_intent_prompt_four_parts():
         assert f"{letter}. " in INTENT_SYSTEM_PROMPT
     assert '"intent"' in INTENT_SYSTEM_PROMPT and '"confidence"' in INTENT_SYSTEM_PROMPT
     assert "JSON" in INTENT_SYSTEM_PROMPT and "## 示例" in INTENT_SYSTEM_PROMPT
+
+
+def test_resolve_prompt_rules_and_json():
+    from app.prompts import RESOLVE_SYSTEM_PROMPT, resolve_prompt
+    for key in ('"resolved_input"', '"standard_query"', '"product_category"', '"order_scoped"', '"order_id"'):
+        assert key in RESOLVE_SYSTEM_PROMPT
+    assert "一字不差" in RESOLVE_SYSTEM_PROMPT and "JSON" in RESOLVE_SYSTEM_PROMPT
+    assert set(resolve_prompt.input_variables) == {"history", "question"}

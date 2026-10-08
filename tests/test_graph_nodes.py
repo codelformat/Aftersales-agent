@@ -46,17 +46,36 @@ async def test_start_turn_resets_turn_fields(caplog):
     caplog.set_level("INFO")
     stale = {"intent": "投诉", "route": "complaint", "evidence": [{"n": 1}], "gate": {"passed": False},
              "agent_messages": ["x"], "steps": 3, "tokens_used": 999, "force_final": True,
+             "standard_query": "旧问题", "product_category": "蓝牙耳机", "order_scoped": True,
+             "order_id": "1001", "order": {"order_id": "1001"}, "queries": ["旧问题"], "intent_confidence": 0.9,
              "reply": "旧", "actions": [{"type": "handoff"}], "trace": ["a", "b"]}
     out = await start_turn(stale, rt(conversation_id=7))
     assert out == {"resolved_input": "", "intent": None, "route": "", "evidence": [], "gate": None,
+                   "standard_query": "", "product_category": None, "order_scoped": False,
+                   "order_id": None, "order": None, "queries": [], "intent_confidence": None,
                    "agent_messages": [], "steps": 0, "tokens_used": 0, "force_final": False,
                    "reply": "", "actions": [], "trace": ["start_turn"]}
+    assert out["standard_query"] == ""
+    assert out["order_id"] is None
+    assert out["order"] is None
+    assert out["queries"] == []
+    assert out["order_scoped"] is False
+    assert out["product_category"] is None
+    assert out["intent_confidence"] is None
     assert "node=start_turn conversation=7" in caplog.text
 
 
-async def test_resolve_reference_passes_through():
-    out = await resolve_reference({"user_input": "那它呢", "trace": ["start_turn"]}, rt())
-    assert out == {"resolved_input": "那它呢", "trace": ["start_turn", "resolve_reference"]}
+async def test_resolve_reference_writes_resolution(use_resolver, caplog):
+    from langchain_core.messages import AIMessage, HumanMessage
+    caplog.set_level("INFO")
+    calls = use_resolver({"resolved_input": "订单 1001 能退吗", "standard_query": "退货条件",
+                          "order_scoped": True, "order_id": "1001"})
+    state = {"user_input": "它能退吗", "messages": [HumanMessage("订单 1001 到哪了"), AIMessage("运输中")], "trace": []}
+    out = await resolve_reference(state, rt())
+    assert out["resolved_input"] == "订单 1001 能退吗" and out["standard_query"] == "退货条件"
+    assert out["order_scoped"] is True and out["order_id"] == "1001" and out["trace"] == ["resolve_reference"]
+    assert calls[0]["history"] == "用户：订单 1001 到哪了\n客服：运输中"
+    assert "resolved=订单 1001 能退吗" in caplog.text
 
 
 async def test_classify_intent_sets_route_and_emits_understood(use_intent, emitted, caplog):

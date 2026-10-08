@@ -2,13 +2,80 @@
 
 import asyncio
 import logging
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+
 import app.config as config
-from app.llm import get_intent_classifier, get_small_intent_classifier
+from app.knowledge.query import Lexicon, get_lexicon, model_category, normalize_models
+from app.llm import get_intent_classifier, get_reference_resolver, get_small_intent_classifier
 from app.schemas import IntentResult
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Resolution:
+    resolved_input: str
+    standard_query: str
+    product_category: str | None
+    order_scoped: bool
+    order_id: str | None
+
+
+def history_text(messages: Sequence[BaseMessage], limit: int = config.RESOLVE_HISTORY_MESSAGES,
+                 max_chars: int = config.RESOLVE_MESSAGE_MAX_CHARS) -> str:
+    lines = []
+    for m in messages:
+        if isinstance(m, HumanMessage):
+            lines.append(f"用户：{m.content[:max_chars]}")
+        elif isinstance(m, AIMessage) and isinstance(m.content, str) and m.content:
+            lines.append(f"客服：{m.content[:max_chars]}")
+    return "\n".join(lines[-limit:])
+
+
+def _category(lex: Lexicon, *texts: str, fallback: str | None = None) -> str | None:
+    # 型号与品类的对应是确定的，覆盖 LLM 的结果。
+    for t in texts:
+        if category := model_category(t, lex):
+            return category
+    return fallback
+
+
+def _mentions(text: str, order_id: str) -> bool:
+    return re.search(rf"(?<![A-Za-z0-9]){re.escape(order_id)}(?![A-Za-z0-9])", text) is not None
+
+
+async def resolve(user_input: str, history: str, *, resolver=None, lexicon: Lexicon | None = None) -> Resolution:
+    lex = lexicon or get_lexicon()
+    normalized = normalize_models(user_input, lex)
+    # 工厂在 try 之外调用：测试中未替换时立即暴露。
+    resolver = resolver or get_reference_resolver()
+    try:
+        result = await asyncio.wait_for(
+            resolver.ainvoke({"history": history or "（无）", "question": user_input}),
+            config.RESOLVE_TIMEOUT_SECONDS)
+        parsed = result["parsed"]
+        if parsed is None:
+            raise ValueError(f"指代消解结果无效：raw={result.get('raw')!r}")
+    except Exception:
+        logger.warning("指代消解失败，原样透传", exc_info=True)
+        return Resolution(user_input, normalized, _category(lex, normalized), False, None)
+    resolved = parsed.resolved_input if history else user_input
+    standard = normalize_models(parsed.standard_query, lex)
+    order_id = parsed.order_id
+    if order_id and not _mentions(user_input, order_id) and not _mentions(history, order_id):
+        logger.info("order_id_dropped order_id=%s", order_id)
+        order_id = None
+    return Resolution(
+        resolved_input=resolved,
+        standard_query=standard,
+        product_category=_category(lex, standard, normalize_models(resolved, lex), fallback=parsed.product_category),
+        order_scoped=parsed.order_scoped or order_id is not None,
+        order_id=order_id,
+    )
 
 
 @dataclass(frozen=True)
