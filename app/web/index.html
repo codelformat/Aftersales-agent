@@ -33,10 +33,10 @@
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    button, textarea { font: inherit; }
+    button, textarea, select { font: inherit; }
     button { cursor: pointer; }
     button:disabled { cursor: not-allowed; opacity: .5; }
-    button:focus-visible, textarea:focus-visible {
+    button:focus-visible, textarea:focus-visible, select:focus-visible {
       outline: 3px solid var(--focus);
       outline-offset: 3px;
     }
@@ -76,7 +76,7 @@
       overflow-anchor: none;
       padding: 28px;
     }
-    .message { display: flex; margin-bottom: 20px; }
+    .message { display: flex; min-width: 0; margin-bottom: 20px; }
     .message.user { justify-content: flex-end; }
     .bubble {
       max-width: 75%;
@@ -100,6 +100,40 @@
     .action-fields { display: grid; gap: 8px; margin: 18px 0; }
     .action-fields[hidden] { display: none; }
     .action-fields textarea { width: 100%; }
+    .understood { max-width: 100%; margin-bottom: 6px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .order-picker { width: 75%; min-width: 0; margin-top: 10px; }
+    .order-prompt { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+    .order-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .order-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+    .order-card:hover:enabled { border-color: var(--primary); background: var(--tool-pending-bg); }
+    .order-card.selected { border-color: var(--primary); background: var(--tool-pending-bg); }
+    .order-title { font-weight: 600; }
+    .order-detail { color: var(--muted); font-size: 12px; }
+    .order-status { padding: 2px 8px; border-radius: 999px; background: var(--assistant); color: var(--muted); font-size: 12px; }
+    .message.order-selection .bubble { padding: 8px 13px; font-size: 13px; }
+    .refund-fields select {
+      width: 100%;
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .refund-count { color: var(--muted); font-size: 12px; text-align: right; }
     .citation {
       padding: 0 2px;
       border: 0;
@@ -113,6 +147,7 @@
     .citation:hover { background: var(--tool-pending-bg); }
     .feedback {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
       margin-top: 12px;
@@ -236,6 +271,8 @@
       h1 { font-size: 16px; }
       .messages { padding: 20px 16px; }
       .bubble { max-width: 85%; }
+      .order-picker { width: 100%; }
+      .order-cards { grid-template-columns: minmax(0, 1fr); }
       .composer { padding: 14px 16px max(14px, env(safe-area-inset-bottom)); }
       .send { padding: 12px 17px; }
     }
@@ -281,6 +318,22 @@
         <label for="ticket-description">描述</label>
         <textarea id="ticket-description" rows="4" maxlength="500" required></textarea>
       </div>
+      <div id="refund-fields" class="action-fields refund-fields" hidden>
+        <div>订单号：<span id="refund-order"></span></div>
+        <label for="refund-reason">退款原因</label>
+        <select id="refund-reason" required disabled>
+          <option value="">请选择退款原因</option>
+          <option>七天无理由</option>
+          <option>质量问题</option>
+          <option>商品与描述不符</option>
+          <option>发错货或漏发</option>
+          <option>物流损坏</option>
+          <option>其他</option>
+        </select>
+        <label for="refund-note">备注（可选）</label>
+        <textarea id="refund-note" rows="4" maxlength="200" aria-describedby="refund-count" disabled></textarea>
+        <div id="refund-count" class="refund-count" aria-live="polite">剩余 200 字</div>
+      </div>
       <div id="action-error" class="citation-status error" role="alert"></div>
       <div class="citation-nav">
         <button id="action-cancel" class="new-chat" type="button">取消</button>
@@ -314,10 +367,28 @@
     const actionFields = document.getElementById('action-fields');
     const ticketType = document.getElementById('ticket-type');
     const ticketDescription = document.getElementById('ticket-description');
+    const refundFields = document.getElementById('refund-fields');
+    const refundOrder = document.getElementById('refund-order');
+    const refundReason = document.getElementById('refund-reason');
+    const refundNote = document.getElementById('refund-note');
+    const refundCount = document.getElementById('refund-count');
     const actionError = document.getElementById('action-error');
     const actionCancel = document.getElementById('action-cancel');
     const actionConfirm = document.getElementById('action-confirm');
     let actionContext = null;
+
+    function actionKey(option) {
+      return option.type === 'refund' ? `refund:${option.order_id}` : option.type;
+    }
+
+    function updateRefundForm() {
+      refundCount.textContent = `剩余 ${200 - refundNote.value.length} 字`;
+      if (actionContext?.option.type === 'refund') {
+        actionConfirm.disabled = actionContext.submitting || !refundReason.value;
+      }
+    }
+    refundReason.addEventListener('change', updateRefundForm);
+    refundNote.addEventListener('input', updateRefundForm);
 
     function addSystemMessage(text) {
       const row = document.createElement('div');
@@ -343,23 +414,34 @@
       }
       state.row.replaceChildren();
       for (const option of state.options) {
-        if (option.type !== 'handoff' && option.type !== 'ticket') continue;
+        if (!['handoff', 'ticket', 'refund'].includes(option.type)) continue;
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'new-chat';
-        button.textContent = option.type === 'handoff' ? '转人工' : '建工单';
-        button.disabled = state.completed.has(option.type);
+        const completed = state.completed.has(actionKey(option));
+        button.textContent = option.type === 'refund' ? (completed ? '已提交' : '提交退款单') :
+          (option.type === 'handoff' ? '转人工' : '建工单');
+        button.disabled = completed;
         button.addEventListener('click', () => {
-          actionContext = { bubble, state, option, sessionId, userId: getUserId(), submitting: false };
+          actionContext = { bubble, state, option, sessionId: state.sessionId, userId: getUserId(), submitting: false };
           const isTicket = option.type === 'ticket';
-          actionTitle.textContent = isTicket ? '确认创建工单' : '确认转接人工客服吗？';
+          const isRefund = option.type === 'refund';
+          actionTitle.textContent = isRefund ? '提交退款单' : (isTicket ? '确认创建工单' : '确认转接人工客服吗？');
           actionFields.hidden = !isTicket;
           ticketDescription.disabled = !isTicket;
           ticketType.textContent = isTicket ? option.ticket_type : '';
           ticketDescription.value = isTicket ? (option.description || '').slice(0, 500) : '';
+          refundFields.hidden = !isRefund;
+          refundReason.disabled = !isRefund;
+          refundNote.disabled = !isRefund;
+          refundOrder.textContent = isRefund ? option.order_id : '';
+          refundReason.value = '';
+          refundNote.value = '';
           actionError.textContent = '';
           actionCancel.disabled = false;
           actionConfirm.disabled = false;
+          actionConfirm.textContent = isRefund ? '提交' : '确认';
+          updateRefundForm();
           actionDialog.showModal();
         });
         state.row.append(button);
@@ -377,6 +459,8 @@
       const context = actionContext;
       if (!context || context.submitting) return;
       const { bubble, state, option } = context;
+      const isRefund = option.type === 'refund';
+      if (isRefund && !refundReason.value) return;
       if (option.type === 'handoff') {
         addSystemMessage('已转接人工客服');
         const { bubble: humanBubble } = addMessage('assistant', '您好，我是客服小猫，请问有什么可以帮您的');
@@ -393,23 +477,38 @@
       actionCancel.disabled = true;
       actionConfirm.disabled = true;
       ticketDescription.disabled = true;
+      refundReason.disabled = true;
+      refundNote.disabled = true;
       actionError.textContent = '';
+      const failureMessage = isRefund ? '退款申请提交失败，请稍后重试' : '工单创建失败，请稍后重试';
       try {
-        const response = await fetch('/tickets', {
+        const payload = { session_id: context.sessionId, user_id: context.userId };
+        if (isRefund) {
+          payload.order_id = option.order_id;
+          payload.reason = refundReason.value;
+          if (refundNote.value.trim()) payload.note = refundNote.value.trim();
+        } else {
+          payload.description = ticketDescription.value;
+          payload.ticket_type = option.ticket_type;
+        }
+        const response = await fetch(isRefund ? '/refunds' : '/tickets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: context.sessionId, user_id: context.userId,
-            description: ticketDescription.value, ticket_type: option.ticket_type }),
+          body: JSON.stringify(payload),
         });
         const body = await response.json().catch(() => ({}));
-        if (response.status !== 200) {
+        if (!response.ok) {
           throw new Error(response.status === 409 ? '当前正在回复中，请稍后再试' :
             (typeof body.detail?.message === 'string' && body.detail.message ?
-              body.detail.message : '工单创建失败，请稍后重试'));
+              body.detail.message : (typeof body.detail === 'string' ? body.detail : failureMessage)));
         }
-        state.completed.add('ticket');
+        state.completed.add(actionKey(option));
         if (bubble.isConnected) {
-          addSystemMessage(`工单已创建：${body.ticket_no}`);
+          if (isRefund) {
+            addMessage('assistant', `已为您提交退款申请 ${body.refund_no}，状态：待审核。`);
+          } else {
+            addSystemMessage(`工单已创建：${body.ticket_no}`);
+          }
           renderActions(bubble, state);
         }
         if (actionContext === context) actionDialog.close();
@@ -418,15 +517,18 @@
           actionContext = null;
           actionDialog.close();
         } else if (actionContext === context) {
-          actionError.textContent = error instanceof TypeError ? '工单创建失败，请稍后重试' :
-            (error.message || '工单创建失败，请稍后重试');
+          actionError.textContent = error instanceof TypeError ? failureMessage :
+            (error.message || failureMessage);
         }
       } finally {
         context.submitting = false;
         if (actionContext === context) {
           actionCancel.disabled = false;
           actionConfirm.disabled = false;
-          ticketDescription.disabled = false;
+          ticketDescription.disabled = isRefund;
+          refundReason.disabled = !isRefund;
+          refundNote.disabled = !isRefund;
+          updateRefundForm();
         }
       }
     });
@@ -592,6 +694,57 @@
       input.disabled = streaming;
       sendButton.disabled = streaming || !input.value.trim();
       newChatButton.disabled = streaming;
+      for (const card of messages.querySelectorAll('.order-card')) {
+        card.disabled = streaming || card.parentElement.dataset.locked === 'true';
+      }
+    }
+
+    function renderOrderPicker(bubble, orders, pickerSessionId) {
+      const picker = document.createElement('div');
+      picker.className = 'order-picker';
+      const prompt = document.createElement('p');
+      prompt.className = 'order-prompt';
+      prompt.textContent = '请选择要办理的订单';
+      const cards = document.createElement('div');
+      cards.className = 'order-cards';
+      const pickerUserId = getUserId();
+      for (const order of Array.isArray(orders) ? orders : []) {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'order-card';
+        card.setAttribute('aria-pressed', 'false');
+        for (const [className, text] of [
+          ['order-title', order.title],
+          ['order-detail', `订单号：${order.order_id}`],
+          ['order-detail', `金额：¥${order.total}`],
+          ['order-detail', `下单时间：${order.created_at}`],
+          ['order-status', order.status],
+        ]) {
+          const line = document.createElement('span');
+          line.className = className;
+          line.textContent = text;
+          card.append(line);
+        }
+        card.disabled = streaming;
+        card.addEventListener('click', () => {
+          if (streaming || cards.dataset.locked === 'true') return;
+          cards.dataset.locked = 'true';
+          for (const item of cards.children) item.disabled = true;
+          card.classList.add('selected');
+          card.setAttribute('aria-pressed', 'true');
+          const message = `选择订单 ${order.order_id}`;
+          const { bubble: selectedBubble } = addMessage('user', message);
+          selectedBubble.parentElement.classList.add('order-selection');
+          streamReply('/chat/resume', {
+            session_id: pickerSessionId, user_id: pickerUserId, order_id: order.order_id,
+          }, message);
+        });
+        cards.append(card);
+      }
+      picker.append(prompt, cards);
+      bubble.parentElement.classList.add('has-actions');
+      bubble.after(picker);
+      scrollToBottom();
     }
 
     function resetChat() {
@@ -625,14 +778,20 @@
     async function sendMessage() {
       const message = input.value.trim();
       if (streaming || !message) return;
-      streaming = true;
       input.value = '';
-      updateControls();
       addMessage('user', message);
+      const payload = { user_id: getUserId(), message };
+      if (sessionId) payload.session_id = sessionId;
+      await streamReply('/chat/stream', payload, message);
+    }
+
+    async function streamReply(endpoint, payload, originalInput) {
+      streaming = true;
+      updateControls();
       const { bubble, reply } = addMessage('assistant');
-      const actions = { row: null, options: [], completed: new Set() };
+      const actions = { row: null, options: [], completed: new Set(), sessionId: payload.session_id ?? sessionId };
       // Count submitted assistant turns from zero; the welcome message is excluded.
-      const answer = { index: answerIndex++, sessionId, text: '', citations: { items: [], refused: false } };
+      const answer = { index: answerIndex++, sessionId: actions.sessionId, text: '', citations: { items: [], refused: false } };
       const typing = document.createElement('div');
       typing.className = 'typing';
       typing.setAttribute('role', 'status');
@@ -649,9 +808,16 @@
       let reader = null;
       let terminal = false;
       let streamEnded = false;
+      let understoodHint = null;
 
       function finishTurn() {
         typing.hidden = true;
+        const hasContent = Array.from(bubble.children).some(child =>
+          child !== typing && !child.classList.contains('feedback') && child.textContent.trim());
+        if (!hasContent) {
+          bubble.hidden = true;
+          if (bubble.parentElement.children.length === 1) bubble.parentElement.remove();
+        }
         stopTyping = null;
         streaming = false;
         updateControls();
@@ -751,6 +917,21 @@
         if (event === 'session') {
           sessionId = data.session_id;
           answer.sessionId = sessionId;
+          actions.sessionId = sessionId;
+        } else if (event === 'understood') {
+          if (understoodHint) understoodHint.remove();
+          understoodHint = null;
+          if (data.resolved_input && data.resolved_input !== originalInput) {
+            understoodHint = document.createElement('div');
+            understoodHint.className = 'understood';
+            understoodHint.textContent = `已理解为：${data.resolved_input}${data.intent == null ? '' : `（${data.intent}）`}`;
+            bubble.parentElement.classList.add('has-actions');
+            bubble.before(understoodHint);
+            scrollToBottom();
+          }
+        } else if (event === 'order_picker') {
+          typing.hidden = true;
+          renderOrderPicker(bubble, data.orders, answer.sessionId);
         } else if (event === 'token') {
           typing.hidden = true;
           enqueue(data.text);
@@ -766,7 +947,12 @@
           scrollToBottom();
         } else if (event === 'done') {
           terminal = true;
-          addFeedback(bubble, answer);
+          if (data.finish_reason === 'interrupted') {
+            flushQueue();
+            typing.hidden = true;
+          } else {
+            addFeedback(bubble, answer);
+          }
         } else if (event === 'error') {
           showError(data.message || '服务暂时不可用，请稍后重试');
           terminal = true;
@@ -774,14 +960,15 @@
       }
 
       try {
-        const payload = { user_id: getUserId(), message };
-        if (sessionId) payload.session_id = sessionId;
-        const response = await fetch('/chat/stream', {
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
           body: JSON.stringify(payload),
         });
         if (!response.ok) {
+          if (endpoint === '/chat/resume' && (response.status === 409 || response.status === 422)) {
+            throw new Error('订单选择已失效，请重新提问');
+          }
           let errorMessage = `请求失败（HTTP ${response.status}）`;
           try {
             const body = await response.json();
@@ -826,10 +1013,7 @@
           finishTurn();
         } else {
           stopTyping = () => {
-            clearInterval(animation);
-            animation = null;
-            queue = [];
-            queueIndex = 0;
+            flushQueue();
             finishTurn();
           };
         }
