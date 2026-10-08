@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch03：知识库。Markdown 文档结构感知切分 + 历史对话挖掘问答对，MySQL `knowledge_chunks` 与 Milvus 集合 `knowledge` 双写；`query_faq` 内部改为 dense 向量检索。
 - ch04：混合检索与评估。Query 理解（LLM 改写、型号归一、同义词）→ Milvus dense + BM25 各 Top-50 → RRF → `bge-reranker-v2-m3` Top-10 → 门槛 → 首尾排列；回答带引用编号，自评不足时拒答并写入 `low_confidence_questions`；300 题评估集对比 4 种检索策略并评 Faithfulness，编造个案写入 `faith_cases`；聊天页引用卡片和 👍/👎，台账页 `/admin/faith-cases`。不做指代消解、多轮改写。
 - ch05：LangGraph Workflow 骨架 + 主力 ReAct Agent。`start_turn → resolve_reference`（透传）`→ classify_intent`（7 类）`→` 写死分流 4 出口：knowledge（强制检索 → 置信度闸 → Agent 或兜底话术）、business（直接进 Agent）、complaint（安抚话术 + 按钮）、chitchat（固定话术）`→ finalize`（日志记录、写库）。State + `AsyncSqliteSaver`（`data/checkpoints.sqlite`）。「转人工」「建工单」由用户在前端自选，`POST /tickets` 才建单。热身裸循环 `app/agent/bare_loop.py`。
+- ch06：正式版分流器。`resolve_reference` 用 LLM 结合历史补全指代并改写（`resolved_input` 给意图和 Agent，`standard_query` 给检索，另出 `order_scoped`、`order_id`），生产链路不再调 `understand()`；意图 8 类四件套（选择题、json_mode `{intent, confidence}`、边界 few-shot、「其他」兜底，降级路默认关闭）；退款退货、售后走 aftersales 出口：`ensure_order`（缺订单号时 `interrupt` 弹订单选择器）→ `fetch_order` → `expand_query`（`{queries}`）→ `retrieve_multi`（多查询召回、只重排一次）→ 置信度闸（只看分数）→ Agent（订单段 + 任务指令，可给「提交退款单」按钮）；`POST /chat/resume` 恢复、`POST /refunds` mock 不落库；聊天页订单卡片、退款单表单、`understood` 灰字。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
@@ -30,7 +31,9 @@ uv run pytest -q                                     # 全量测试（需要 MyS
 uv run pytest tests/test_chat_api.py::test_business_tool_round_events -q   # 单个测试
 uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（真实上游，只执行第 1 次调用；未达标退出码 1）
 uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集（真实上游）
-uv run python evals/run_intent_eval.py               # 意图识别样例集（42 条，真实上游；准确率 < 90% 退出码 1）
+uv run python evals/run_intent_eval.py               # 意图识别样例集（60 条，真实上游；准确率 ≥ 90%、JSON 解析率 100%、「其他」召回 100% 才退出码 0）
+uv run python evals/run_multiturn_eval.py            # 多轮指代消解 + 意图（6 组 20 轮，真实上游；全部通过才退出码 0）
+uv run python evals/run_expand_eval.py               # Query 扩写（15 条，真实上游；解析、条数、型号数字保留全部通过才退出码 0）
 uv run python scripts/bare_agent.py "订单 1001 到哪了"   # 热身裸 Agent 循环（只用 openai SDK，真实上游）
 uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
 uv run python evals/run_rag_eval.py --check          # 检查 300 题评估集（来源键、题号、桶和难度计数）；--list-keys 列出来源键
@@ -39,6 +42,7 @@ uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurren
 uv run python evals/run_faith_judge_eval.py          # 忠实度裁判自检（30 条，准确率 < 90% 退出码 1）
 uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
 uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
+bash scripts/demo6.sh /tmp/ch06-server.log           # ch06 四项验收（参数为服务日志路径；需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo5.sh /tmp/ch05-server.log           # ch05 五项验收（参数为服务日志路径；需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo4.sh                                # ch04 四项验收（需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo3.sh                                # ch03 验收（需先启动服务、MySQL 和 Milvus）
@@ -56,7 +60,9 @@ api.chat → graph (builder, nodes) → repositories → db
                ↘ knowledge.retrieval → knowledge.query, knowledge.embeddings, knowledge.milvus, knowledge.rerank
                ↘ services.grounding → repositories.low_confidence
                ↘ llm, prompts, services.history, context
-api.tickets → tools.executor (create_ticket), graph.aupdate_state, repositories.messages
+api.chat (/chat/resume) → graph (Command(resume=order_id))
+api.tickets, api.refunds → tools.executor (create_ticket) / mock, graph.aupdate_state, repositories.messages
+graph.nodes (turn, intent, aftersales) → services.understanding → llm, knowledge.query
 api.knowledge, api.faith_cases → repositories
 main.lifespan → graph.builder.open_graph (AsyncSqliteSaver)
 evals/run_rag_eval.py → knowledge.retrieval, services.grounding, repositories.faith_cases
@@ -75,6 +81,9 @@ scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 | `app/graph/` | `state`（`ChatState`、`GraphContext`）、`events`（`emit`、`enter`）、`routing`（分流表、条件边）、`nodes/`（turn、intent、knowledge、agent、replies、finalize）、`builder`（`build_graph`、`get_graph`/`set_graph`、`thread_config`、`open_graph`） |
 | `app/api/chat.py` | 预检、会话锁；`graph.astream(stream_mode="custom")` 转 SSE |
 | `app/api/tickets.py` | `POST /tickets`：用户点击才建单，写 `messages` 表并 `aupdate_state` |
+| `app/services/understanding.py` | 分流前的 Query 理解：`history_text`、`resolve`（指代消解 + 改写 + 订单槽位）、`classify`（意图 + 降级路）、`expand`（扩写）；节点和评估脚本共用 |
+| `app/graph/nodes/aftersales.py` | 售后子流程：`ensure_order`（interrupt 订单选择器）、`fetch_order`、`expand_query`、`retrieve_multi_evidence` |
+| `app/api/refunds.py` | `POST /refunds`：mock 退款单号，提示写 `messages` 表和 State，不落库 |
 | `app/services/grounding.py` | 证据合并与全局编号、渲染、自评、入池 |
 | `app/services/history.py` | 数据库消息 ↔ LangChain 消息 |
 | `app/locks.py` | 按会话 ID 的进程内锁 |
@@ -106,8 +115,15 @@ scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 - **State `messages` 只由 `finalize` 和 `POST /tickets` 追加；本轮字段由 `start_turn` 重置。** 一轮失败时历史不变，checkpoint 的 `next` 停在失败节点，下一轮新输入从 START 重新开始。
 - **节点用 `events.emit(name, data)` 发 SSE 事件，API 用 `stream_mode="custom"`；每轮依赖（会话 ID、日期、聊天模型、执行函数）走 `context=GraphContext(...)`，不进 State。** 每个节点进入时打 `node=<名> conversation=<id>`，`finalize` 打一行 `turn ...` 汇总日志。
 - **Agent 只绑定 `AGENT_TOOLS`（查订单、查物流、查商品、`offer_human_options`）。`create_ticket` 只由 `POST /tickets` 调用；`offer_human_options` 只写 `actions`，不做业务动作。** 停止条件：无工具调用收敛；`AGENT_MAX_STEPS=4` 或 `AGENT_TOKEN_BUDGET=16000` 触发强制收尾；`GRAPH_RECURSION_LIMIT=25` 兜底。
+- **`ensure_order` 在 `interrupt()` 之前不发事件、不写库、不调上游**（恢复时节点从头重新执行）；订单卡片由 API 从 `stream_mode=["custom","updates"]` 的 `__interrupt__` 中取出发 `order_picker`。
+- **`/chat/resume` 必须预检待处理的 `order_picker`**：没有待处理 interrupt 时 `Command(resume=)` 静默不执行（设计阶段实测）→ 409 `no_pending_selection`；订单不在卡片列表 → 422 `invalid_order`。有待处理 interrupt 时新消息直接从 START 开始，原 interrupt 作废（实测）。
+- **指代消解丢弃不在原文和历史中的订单号**（整词匹配，前后不能是字母或数字）；`order_id` 有值时 `order_scoped` 为真；历史为空时 `resolved_input` 等于原话。
+- **aftersales 出口的置信度闸只看分数，不调自评**（spec 6.12，用户裁定）：子流程中缺的信息由 Agent 追问。knowledge 出口仍是分数 + 自评。
+- **多查询检索只对 `standard_query` 重排一次**；扩写只在检索侧，库里知识只存一份。生产链路不再调 `understand()`，ch04 评估仍用它。
+- **`offer_refund_form` 只在 aftersales 出口且有订单号时绑定**；`order_id` 与 State 不符时按工具失败 `invalid_order` 处理。
 - **`reset_db.sh` 必须同时删除 `data/checkpoints.sqlite`**（MySQL 重建后会话 ID 复用，旧 State 会串到新会话）。
 - **ch04 评估脚本用 `CH04_CHAT_TOOLS` 和 `chat_prompt` 作基线，不跟随 Agent 变化。**
+- **测试 autouse 默认透传指代消解器**（等价 ch05 行为）；需要时用 `use_resolver`、`use_expander`、`use_small_intent`；`use_intent` 的值可为 `(意图, 置信度)`。
 - **图测试用 fixture `memory_graph`（`InMemorySaver`）、`use_intent`（替换意图识别器）、`emitted`（直接调节点时收集事件）和 `tests/fakes.rt()`**；`client` fixture 自动使用 `memory_graph`。
 - **测试中的聊天模型用 `tests/fakes.py` 的 `ScriptedChatModel`**（支持 `bind_tools`、tool_call chunk、注入异常和等待）；数据库测试用 fixture `db`。
 

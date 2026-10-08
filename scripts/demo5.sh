@@ -40,8 +40,8 @@ fail() { echo "❌ $1"; exit 1; }
 echo '=== 验收 1：政策问题走强制检索 ==='
 sse=$(ask '退货运费谁出？')
 cid=$(sse_get "$sse" 'events[0][1]["session_id"]')
-grep -q "node=retrieve conversation=$cid" "$LOG" || fail "日志中没有 node=retrieve conversation=$cid"
-echo "日志：$(grep "node=retrieve conversation=$cid" "$LOG" | tail -1)"
+grep -q -E "node=retrieve(_multi)? conversation=$cid" "$LOG" || fail "日志中没有 node=retrieve conversation=$cid"
+echo "日志：$(grep -E "node=retrieve(_multi)? conversation=$cid" "$LOG" | tail -1)"
 echo "回复：$(sse_get "$sse" '"".join(d["text"] for n, d in events if n == "token")')"
 echo '✅ 验收 1 通过'
 
