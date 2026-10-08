@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 _ERROR_MESSAGES = {
     "invalid_arguments": "参数不合法",
+    "invalid_order": "退款单订单号与本轮订单不符",
     "unknown_tool": "工具不存在",
     "timeout": "查询超时",
     "tool_error": "查询失败",
