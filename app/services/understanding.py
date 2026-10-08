@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 import app.config as config
 from app.knowledge.query import Lexicon, get_lexicon, model_category, normalize_models
-from app.llm import get_intent_classifier, get_reference_resolver, get_small_intent_classifier
+from app.llm import get_intent_classifier, get_query_expander, get_reference_resolver, get_small_intent_classifier
 from app.schemas import IntentResult
 
 logger = logging.getLogger(__name__)
@@ -109,3 +109,25 @@ async def classify(text: str) -> IntentDecision:
     except Exception:
         logger.warning("意图识别失败，走兜底出口", exc_info=True)
         return IntentDecision(None, None, "-")
+
+
+async def expand(standard_query: str, product_names: Sequence[str], *, expander=None,
+                 lexicon: Lexicon | None = None) -> list[str]:
+    lex = lexicon or get_lexicon()
+    expander = expander or get_query_expander()
+    extra: list[str] = []
+    try:
+        result = await asyncio.wait_for(
+            expander.ainvoke({"question": standard_query, "products": "、".join(product_names) or "（无）"}),
+            config.EXPAND_TIMEOUT_SECONDS)
+        parsed = result["parsed"]
+        if parsed is None:
+            raise ValueError(f"扩写结果无效：raw={result.get('raw')!r}")
+        extra = [normalize_models(q.strip(), lex) for q in parsed.queries[:config.EXPAND_MAX_QUERIES]]
+    except Exception:
+        logger.warning("扩写失败，只用标准问法检索", exc_info=True)
+    queries: list[str] = []
+    for q in (standard_query, *extra):
+        if q and q not in queries:
+            queries.append(q)
+    return queries

@@ -206,3 +206,41 @@ async def test_search_by_vector_skips_ids_missing_in_mysql(db, milvus):
     await m.upsert_entities([Entity(999999, unit(0), "运费", GENERAL_CATEGORY, "policy")])
     hits = await r.search_by_vector(unit(0), limit=3, min_score=0.5)
     assert [row.id for row, _ in hits] == ids
+
+
+async def test_retrieve_multi_merges_queries_and_reranks_once(db, milvus, monkeypatch):
+    ids = await seed(db, [
+        spec("退货政策 > 条件 > 拆封", "拆封后不影响二次销售可退", "policy"),
+        spec("退货政策 > 运费 > 谁出", "质量问题商家承担运费", "policy"),
+        spec("退货政策 > 时限 > 天数", "签收后 7 天内可退", "policy"),
+    ])
+    seen = []
+
+    async def fake_rerank(query, documents, top_n, **kw):
+        seen.append((query, len(documents)))
+        return [(i, 0.9 - 0.1 * i) for i in range(len(documents))][:top_n]
+
+    monkeypatch.setattr(rr, "rerank", fake_rerank)
+    res = await r.retrieve_multi(["退货条件", "退货运费", "退货时限"], plan("耳机退货条件"))
+    assert len(seen) == 1 and seen[0][0] == "耳机退货条件"
+    assert seen[0][1] == len({e.chunk_id for e in res.ranked}) == 3
+    assert sorted(e.chunk_id for e in res.ranked) == sorted(ids)
+    assert res.plan.standard_query == "耳机退货条件"
+
+
+async def test_retrieve_multi_respects_threshold_and_limit(db, milvus, monkeypatch):
+    await seed(db, [spec(f"退货政策 > 条件 > 第{i}条", f"条件 {i}", "policy") for i in range(4)])
+    monkeypatch.setattr(r, "MULTI_FUSED_LIMIT", 2)
+
+    async def fake_rerank(query, documents, top_n, **kw):
+        assert len(documents) == 2
+        return [(0, 0.9), (1, 0.05)]
+
+    monkeypatch.setattr(rr, "rerank", fake_rerank)
+    res = await r.retrieve_multi(["条件", "退货条件"], plan("退货条件"))
+    assert len(res.ranked) == 2 and len(res.evidence) == 1
+
+
+async def test_retrieve_multi_rejects_empty_queries():
+    with pytest.raises(ValueError):
+        await r.retrieve_multi([], plan("q"))

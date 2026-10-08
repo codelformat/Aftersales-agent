@@ -124,3 +124,23 @@ async def test_resolve_drops_partial_order_id(use_resolver):
                   "order_scoped": True, "order_id": "1001"})
     r = await understanding.resolve("这个能退吗", "用户：订单1001到哪了", lexicon=LEX)
     assert r.order_id == "1001"
+
+
+async def test_expand_prepends_standard_and_dedups(use_expander):
+    calls = use_expander(["x3pro 退货条件", "退货运费谁出", "蓝牙耳机退货条件", "退货时限", "多余一条"])
+    out = await understanding.expand("蓝牙耳机退货条件", ["蓝牙耳机"], lexicon=LEX)
+    assert out == ["蓝牙耳机退货条件", "X3 Pro 退货条件", "退货运费谁出"]
+    assert calls == [{"question": "蓝牙耳机退货条件", "products": "蓝牙耳机"}]
+
+
+async def test_expand_without_products(use_expander):
+    calls = use_expander(["a"])
+    await understanding.expand("q", [], lexicon=LEX)
+    assert calls[0]["products"] == "（无）"
+
+
+@pytest.mark.parametrize("value", [None, ValueError("boom")])
+async def test_expand_failure_returns_standard_only(use_expander, value, caplog):
+    use_expander(value)
+    assert await understanding.expand("退货条件", [], lexicon=LEX) == ["退货条件"]
+    assert "扩写失败" in caplog.text

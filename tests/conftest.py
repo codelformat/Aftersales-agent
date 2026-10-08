@@ -216,6 +216,9 @@ def _block_llm_runnables(monkeypatch):
     from app.services import grounding
     monkeypatch.setattr(grounding, "get_self_checker", _blocked_factory("get_self_checker"))
 
+    from app.services import understanding
+    monkeypatch.setattr(understanding, "get_query_expander", _blocked_factory("get_query_expander"))
+
     from evals import run_faith_judge_eval, run_rag_eval
     monkeypatch.setattr(run_rag_eval, "get_chat_model", _blocked_factory("get_chat_model"))
     for module in (run_rag_eval, run_faith_judge_eval):
@@ -297,6 +300,30 @@ def use_resolver(monkeypatch):
     def _use(*values):
         queue, calls = list(values), []
         monkeypatch.setattr(understanding, "get_reference_resolver", lambda: _resolver_runnable(queue, calls))
+        return calls
+
+    return _use
+
+
+@pytest.fixture
+def use_expander(monkeypatch):
+    """用法：use_expander(["查询1", "查询2"], None, ValueError())。"""
+    from langchain_core.runnables import RunnableLambda
+    from app.schemas import QueryExpansion
+    from app.services import understanding
+
+    def _use(*values):
+        queue, calls = list(values), []
+
+        async def expand(inputs):
+            calls.append(inputs)
+            value = queue.pop(0)
+            if isinstance(value, BaseException):
+                raise value
+            # 绕过条数校验，测试代码侧的截断。
+            return {"parsed": None if value is None else QueryExpansion.model_construct(queries=value), "raw": None}
+
+        monkeypatch.setattr(understanding, "get_query_expander", lambda: RunnableLambda(expand))
         return calls
 
     return _use

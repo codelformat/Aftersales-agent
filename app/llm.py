@@ -13,6 +13,7 @@ from app.config import (
 )
 from app.prompts import (
     dedup_judge_prompt,
+    expand_prompt,
     extract_prompt,
     faith_judge_prompt,
     intent_prompt,
@@ -21,7 +22,7 @@ from app.prompts import (
     resolve_prompt,
     self_check_prompt,
 )
-from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, QaPairs, QueryPlan, ResolvedQuery, SelfCheck
+from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, QaPairs, QueryExpansion, QueryPlan, ResolvedQuery, SelfCheck
 
 
 def _build(settings: Settings, thinking: str | None, model: str | None = None) -> ChatOpenAI:
@@ -94,6 +95,14 @@ def get_reference_resolver() -> Runnable:
     model = build_extract_model(get_settings())
     return resolve_prompt | model.with_structured_output(
         ResolvedQuery, method="json_mode", include_raw=True
+    )
+
+
+@lru_cache
+def get_query_expander() -> Runnable:
+    model = build_extract_model(get_settings())
+    return expand_prompt | model.with_structured_output(
+        QueryExpansion, method="json_mode", include_raw=True
     )
 
 

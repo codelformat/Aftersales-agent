@@ -108,3 +108,9 @@ def test_resolve_prompt_rules_and_json():
         assert key in RESOLVE_SYSTEM_PROMPT
     assert "一字不差" in RESOLVE_SYSTEM_PROMPT and "JSON" in RESOLVE_SYSTEM_PROMPT
     assert set(resolve_prompt.input_variables) == {"history", "question"}
+
+
+def test_expand_prompt_json():
+    from app.prompts import EXPAND_SYSTEM_PROMPT, expand_prompt
+    assert '"queries"' in EXPAND_SYSTEM_PROMPT and "JSON" in EXPAND_SYSTEM_PROMPT
+    assert set(expand_prompt.input_variables) == {"question", "products"}
