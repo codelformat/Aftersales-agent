@@ -7,9 +7,10 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.db.models import Ticket
+from app.graph.control import OfferHumanOptionsArgs, actions_from_args
 from app.repositories import conversations
 from app.tools import mock_data
-from app.tools.registry import get_registry
+from app.tools.registry import CH04_CHAT_TOOLS, get_registry
 
 TODAY = date(2026, 10, 6)
 
@@ -49,9 +50,9 @@ def test_catalog_product():
     assert (p["name"], p["price"]) == ("蓝牙耳机", 299)
 
 
-def test_registry_lists_five_tools_and_flags():
+def test_registry_lists_six_tools_and_flags():
     reg = get_registry()
-    assert sorted(reg.names()) == ["create_ticket", "query_faq", "query_logistics", "query_order", "query_product"]
+    assert sorted(reg.names()) == ["create_ticket", "offer_human_options", "query_faq", "query_logistics", "query_order", "query_product"]
     assert reg.get("create_ticket").retryable is False
     assert reg.get("create_ticket").inject_conversation_id is True
     faq = reg.get("query_faq")
@@ -159,3 +160,42 @@ async def test_query_product_model_name_is_invalid_arguments():
     )
     assert out[0].ok is False
     assert json.loads(out[0].message.content)["error"] == "invalid_arguments"
+
+
+def test_tools_for_model_filters_by_name_in_given_order():
+    reg = get_registry()
+    names = [t.name for t in reg.tools_for_model(("query_logistics", "offer_human_options"))]
+    assert names == ["query_logistics", "offer_human_options"]
+    assert "offer_human_options" in [t.name for t in reg.tools_for_model()]
+    with pytest.raises(KeyError):
+        reg.tools_for_model(("nope",))
+
+
+def test_ch04_tool_set_is_unchanged():
+    assert CH04_CHAT_TOOLS == ("query_order", "query_product", "query_logistics", "query_faq", "create_ticket")
+
+
+@pytest.mark.parametrize("args", [
+    {"options": []},
+    {"options": ["handoff", "handoff"]},
+    {"options": ["ticket"]},
+    {"options": ["ticket"], "ticket_description": "坏了"},
+    {"options": ["call"]},
+])
+def test_offer_args_rejects_invalid(args):
+    with pytest.raises(ValidationError):
+        OfferHumanOptionsArgs.model_validate(args)
+
+
+def test_actions_from_args():
+    assert actions_from_args({"options": ["handoff"]}) == [{"type": "handoff"}]
+    assert actions_from_args({"options": ["ticket", "handoff"], "ticket_description": "耳机坏了",
+                              "ticket_type": "售后"}) == [
+        {"type": "ticket", "description": "耳机坏了", "ticket_type": "售后"}, {"type": "handoff"}]
+
+
+@pytest.mark.anyio
+async def test_offer_tool_has_no_side_effect():
+    spec = get_registry().get("offer_human_options")
+    assert spec.retryable is False and spec.inject_conversation_id is False
+    assert await spec.tool.ainvoke({"options": ["handoff"]}) == {"shown": ["handoff"]}

@@ -60,6 +60,11 @@ def _failure(call_id: str, name: str, code: str) -> ToolOutcome:
     return _make_outcome(call_id, name, ok=False, content=content)
 
 
+def failure_outcome(call_id: str, name: str, code: str) -> ToolOutcome:
+    """构造统一的工具失败结果。"""
+    return _failure(call_id, name, code)
+
+
 async def execute_tool_calls(
     tool_calls: list[dict],
     *,

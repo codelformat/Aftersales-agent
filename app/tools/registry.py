@@ -1,14 +1,20 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 
 from langchain_core.tools import BaseTool
 
 from app.config import QUERY_FAQ_TIMEOUT_SECONDS, TOOL_TIMEOUT_SECONDS
+from app.graph.control import offer_human_options
 from app.tools.faq import query_faq
 from app.tools.logistics import query_logistics
 from app.tools.order import query_order
 from app.tools.product import query_product
 from app.tools.ticket import create_ticket
+
+
+# ch04 聊天服务绑定的工具集。ch04 的评估脚本把它当基线。
+CH04_CHAT_TOOLS = ("query_order", "query_product", "query_logistics", "query_faq", "create_ticket")
 
 
 @dataclass(frozen=True)
@@ -31,8 +37,10 @@ class ToolRegistry:
     def get(self, name: str) -> ToolSpec | None:
         return self._specs.get(name)
 
-    def tools_for_model(self) -> list[BaseTool]:
-        return [spec.tool for spec in self._specs.values()]
+    def tools_for_model(self, names: Sequence[str] | None = None) -> list[BaseTool]:
+        if names is None:
+            return [spec.tool for spec in self._specs.values()]
+        return [self._specs[name].tool for name in names]
 
     def names(self) -> list[str]:
         return list(self._specs)
@@ -50,6 +58,7 @@ def build_default_registry() -> ToolRegistry:
         timeout=TOOL_TIMEOUT_SECONDS,
         inject_conversation_id=True,
     ))
+    registry.register(ToolSpec(offer_human_options, retryable=False, timeout=TOOL_TIMEOUT_SECONDS))
     return registry
 
 

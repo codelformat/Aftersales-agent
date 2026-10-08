@@ -40,7 +40,7 @@ def use_script(locks):
 
 
 @pytest.fixture
-async def client():
+async def client(memory_graph):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
@@ -220,3 +220,52 @@ def _block_llm_runnables(monkeypatch):
     monkeypatch.setattr(run_rag_eval, "get_chat_model", _blocked_factory("get_chat_model"))
     for module in (run_rag_eval, run_faith_judge_eval):
         monkeypatch.setattr(module, "get_faith_judge", _blocked_factory("get_faith_judge"))
+
+
+@pytest.fixture(autouse=True)
+def _block_intent_classifier(monkeypatch):
+    from app.graph.nodes import intent
+    monkeypatch.setattr(intent, "get_intent_classifier", _blocked_factory("get_intent_classifier"))
+
+
+@pytest.fixture
+def use_intent(monkeypatch):
+    """用法：use_intent("物流", "闲聊")。每次识别消费一个值；None 表示解析失败；异常实例表示抛出。"""
+    from langchain_core.runnables import RunnableLambda
+    from app.graph.nodes import intent
+    from app.schemas import IntentResult
+
+    def _use(*values):
+        queue = list(values)
+        calls = []
+
+        async def classify(inputs):
+            calls.append(inputs)
+            value = queue.pop(0)
+            if isinstance(value, BaseException):
+                raise value
+            return {"parsed": None if value is None else IntentResult(intent=value), "raw": None}
+
+        monkeypatch.setattr(intent, "get_intent_classifier", lambda: RunnableLambda(classify))
+        return calls
+
+    return _use
+
+
+@pytest.fixture
+def emitted(monkeypatch):
+    """直接调用节点时，收集节点发出的事件。"""
+    from app.graph import events
+    out = []
+    monkeypatch.setattr(events, "get_stream_writer", lambda: out.append)
+    return out
+
+
+@pytest.fixture
+def memory_graph():
+    from langgraph.checkpoint.memory import InMemorySaver
+    from app.graph.builder import build_graph, set_graph
+    graph = build_graph(InMemorySaver())
+    set_graph(graph)
+    yield graph
+    set_graph(None)

@@ -105,13 +105,15 @@ async def self_check(
         return SelfCheck(useful=True, reason=SELF_CHECK_FAILED_REASON)
 
 
-async def record_low_confidence(conversation_id: int, raw_question: str, reason: str) -> None:
+async def record_low_confidence(
+    conversation_id: int, raw_question: str, reason: str, source: str = "self_check"
+) -> None:
     """独立事务。失败只记日志，不中断本轮。"""
     try:
         async with get_sessionmaker()() as s:
             await low_confidence.add(
                 s, conversation_id=conversation_id, raw_question=raw_question,
-                source="self_check", reason=reason,
+                source=source, reason=reason,
             )
             await s.commit()
     except Exception:
