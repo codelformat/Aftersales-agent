@@ -75,8 +75,6 @@ def test_faith_judge_prompt_conservative_wording():
 
 def test_intent_prompt_lists_all_intents():
     assert INTENTS == ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊", "其他")
-    for intent in INTENTS[:7]:
-        assert f"- {intent}：" in INTENT_SYSTEM_PROMPT
     msgs = intent_prompt.invoke({"text": "订单 1001 到哪了"}).to_messages()
     assert msgs[-1].content == "订单 1001 到哪了"
 
@@ -91,3 +89,14 @@ def test_agent_system_prompt():
     with_evidence = render_agent_system(date(2026, 10, 6), "[1] 退换货 > 运费\n问：q\n答：a {x}")
     assert "## 知识库证据\n[1] 退换货 > 运费" in with_evidence and "{x}" in with_evidence
     assert "要不要查取决于前一个的结果时" in plain
+
+
+def test_intent_prompt_four_parts():
+    from app.prompts import INTENT_SYSTEM_PROMPT
+    from app.schemas import INTENTS
+    for label in INTENTS:
+        assert label in INTENT_SYSTEM_PROMPT
+    for letter in "ABCDEFGH":
+        assert f"{letter}. " in INTENT_SYSTEM_PROMPT
+    assert '"intent"' in INTENT_SYSTEM_PROMPT and '"confidence"' in INTENT_SYSTEM_PROMPT
+    assert "JSON" in INTENT_SYSTEM_PROMPT and "## 示例" in INTENT_SYSTEM_PROMPT

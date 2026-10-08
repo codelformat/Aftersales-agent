@@ -39,3 +39,13 @@ def test_common_parameters():
     assert m.openai_api_base == "https://example.test/v1"
     assert m.request_timeout == 60
     assert m.max_retries == 1
+
+
+def test_small_intent_classifier_requires_model(monkeypatch):
+    import pytest
+    from app import config, llm
+    llm.get_small_intent_classifier.cache_clear()
+    monkeypatch.setattr(config, "INTENT_SMALL_MODEL", None)
+    monkeypatch.setattr(llm, "INTENT_SMALL_MODEL", None, raising=False)
+    with pytest.raises(RuntimeError):
+        llm.get_small_intent_classifier()

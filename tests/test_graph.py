@@ -70,7 +70,8 @@ async def test_chitchat_route_uses_no_chat_model(db, memory_graph, use_intent):
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "你好")
     assert turn.trace == ["start_turn", "resolve_reference", "classify_intent", "chitchat_reply", "finalize"]
-    assert turn.events == [("token", {"text": CHITCHAT_REPLY})] and rec == []
+    assert turn.events == [("understood", {"resolved_input": "你好", "intent": "闲聊"}),
+                           ("token", {"text": CHITCHAT_REPLY})] and rec == []
     assert await saved(db, cid) == [("user", "你好"), ("assistant", CHITCHAT_REPLY)]
     assert [m.content for m in turn.state.values["messages"]] == ["你好", CHITCHAT_REPLY]
 
@@ -81,8 +82,8 @@ async def test_complaint_route_offers_actions_and_writes_no_ticket(db, memory_gr
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "我要投诉")
     assert turn.trace[-2:] == ["complaint_reply", "finalize"] and rec == []
-    assert turn.events[0] == ("token", {"text": COMPLAINT_REPLY})
-    assert [o["type"] for o in turn.events[1][1]["options"]] == ["handoff", "ticket"]
+    assert turn.events[1] == ("token", {"text": COMPLAINT_REPLY})
+    assert [o["type"] for o in turn.events[2][1]["options"]] == ["handoff", "ticket"]
     async with db() as s:
         assert (await s.execute(select(Ticket))).scalars().all() == []
 
@@ -96,7 +97,7 @@ async def test_knowledge_route_passes_gate_into_agent(db, memory_graph, use_inte
     assert turn.trace == ["start_turn", "resolve_reference", "classify_intent", "retrieve",
                           "confidence_gate", "agent_model", "finalize"]
     assert "node=retrieve" in caplog.text
-    assert [e[0] for e in turn.events][0] == "citations"
+    assert [e[0] for e in turn.events][1] == "citations"
     assert "## 知识库证据" in rec[0]["messages"][0].content
 
 
@@ -106,7 +107,8 @@ async def test_knowledge_route_weak_evidence_falls_back(db, memory_graph, use_in
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "X9 防水吗")
     assert turn.trace[-3:] == ["confidence_gate", "fallback_reply", "finalize"] and rec == []
-    assert turn.events == [("token", {"text": GATE_FALLBACK_REPLY})]
+    assert turn.events == [("understood", {"resolved_input": "X9 防水吗", "intent": "商品咨询"}),
+                           ("token", {"text": GATE_FALLBACK_REPLY})]
     async with db() as s:
         assert (await s.execute(select(LowConfidenceQuestion))).scalar_one().source == "retrieval_low_conf"
 

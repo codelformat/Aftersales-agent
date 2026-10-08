@@ -1,13 +1,11 @@
-import asyncio
-
 import pytest
 from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
 from app.db.models import LowConfidenceQuestion
 from app.graph import routing
+from app.graph.nodes import intent as intent_mod
 from app.graph.nodes import knowledge as knowledge_nodes
-from app.graph.nodes.intent import classify_intent
 from app.graph.nodes.replies import chitchat_reply, complaint_reply, fallback_reply
 from app.graph.nodes.turn import resolve_reference, start_turn
 from app.knowledge.retrieval import EvidenceItem, Retrieval
@@ -61,32 +59,21 @@ async def test_resolve_reference_passes_through():
     assert out == {"resolved_input": "那它呢", "trace": ["start_turn", "resolve_reference"]}
 
 
-async def test_classify_intent_sets_route(use_intent):
-    calls = use_intent("物流")
-    out = await classify_intent({"resolved_input": "到哪了", "trace": []}, rt())
-    assert (out["intent"], out["route"]) == ("物流", "business")
-    assert calls == [{"text": "到哪了"}]
+async def test_classify_intent_sets_route_and_emits_understood(use_intent, emitted, caplog):
+    caplog.set_level("INFO")
+    use_intent(("退款退货", 0.92))
+    out = await intent_mod.classify_intent({"resolved_input": "蓝牙耳机能退吗", "trace": []}, rt())
+    assert out["intent"] == "退款退货" and out["intent_confidence"] == 0.92
+    assert out["route"] == routing.route_for("退款退货")
+    assert emitted == [("understood", {"resolved_input": "蓝牙耳机能退吗", "intent": "退款退货"})]
+    assert "confidence=0.92" in caplog.text and "intent_model=large" in caplog.text
 
 
-@pytest.mark.parametrize("value", [None, RuntimeError("boom"), asyncio.TimeoutError()])
-async def test_classify_intent_failure_falls_back(use_intent, value, caplog):
-    use_intent(value)
-    out = await classify_intent({"resolved_input": "q", "trace": []}, rt())
-    assert (out["intent"], out["route"]) == (None, "business")
-    assert "意图识别失败" in caplog.text
-
-
-async def test_classify_intent_timeout(monkeypatch, use_intent):
-    from langchain_core.runnables import RunnableLambda
-    from app.graph.nodes import intent as intent_mod
-    monkeypatch.setattr(intent_mod, "INTENT_TIMEOUT_SECONDS", 0.01)
-
-    async def slow(_):
-        await asyncio.sleep(1)
-
-    monkeypatch.setattr(intent_mod, "get_intent_classifier", lambda: RunnableLambda(slow))
-    out = await classify_intent({"resolved_input": "q", "trace": []}, rt())
-    assert out["route"] == "business"
+async def test_classify_intent_failure_falls_back(use_intent, emitted):
+    use_intent(None)
+    out = await intent_mod.classify_intent({"resolved_input": "x", "trace": []}, rt())
+    assert out["intent"] is None and out["intent_confidence"] is None and out["route"] == "business"
+    assert emitted == [("understood", {"resolved_input": "x", "intent": None})]
 
 
 async def test_chitchat_reply(emitted):

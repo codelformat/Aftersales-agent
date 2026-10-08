@@ -224,15 +224,14 @@ def _block_llm_runnables(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _block_intent_classifier(monkeypatch):
-    from app.graph.nodes import intent
-    monkeypatch.setattr(intent, "get_intent_classifier", _blocked_factory("get_intent_classifier"))
+    from app.services import understanding
+    monkeypatch.setattr(understanding, "get_intent_classifier", _blocked_factory("get_intent_classifier"))
+    monkeypatch.setattr(understanding, "get_small_intent_classifier", _blocked_factory("get_small_intent_classifier"))
 
 
-@pytest.fixture
-def use_intent(monkeypatch):
-    """用法：use_intent("物流", "闲聊")。每次识别消费一个值；None 表示解析失败；异常实例表示抛出。"""
+def _intent_fixture(monkeypatch, attr):
     from langchain_core.runnables import RunnableLambda
-    from app.graph.nodes import intent
+    from app.services import understanding
     from app.schemas import IntentResult
 
     def _use(*values):
@@ -244,12 +243,26 @@ def use_intent(monkeypatch):
             value = queue.pop(0)
             if isinstance(value, BaseException):
                 raise value
-            return {"parsed": None if value is None else IntentResult(intent=value, confidence=0.9), "raw": None}
+            if value is None:
+                return {"parsed": None, "raw": None}
+            intent, confidence = value if isinstance(value, tuple) else (value, 0.9)
+            return {"parsed": IntentResult(intent=intent, confidence=confidence), "raw": None}
 
-        monkeypatch.setattr(intent, "get_intent_classifier", lambda: RunnableLambda(classify))
+        monkeypatch.setattr(understanding, attr, lambda: RunnableLambda(classify))
         return calls
 
     return _use
+
+
+@pytest.fixture
+def use_intent(monkeypatch):
+    """用法：use_intent("物流", ("其他", 0.4))。每次识别消费一个值；None 表示解析失败；异常实例表示抛出。"""
+    return _intent_fixture(monkeypatch, "get_intent_classifier")
+
+
+@pytest.fixture
+def use_small_intent(monkeypatch):
+    return _intent_fixture(monkeypatch, "get_small_intent_classifier")
 
 
 @pytest.fixture

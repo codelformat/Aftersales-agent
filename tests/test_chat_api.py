@@ -57,7 +57,8 @@ async def test_chitchat_events(client, db, use_script, use_intent):
     rec = use_script()
     r, ev = await chat(client, "你好")
     assert ev[0][0] == "session" and ev[0][1]["session_id"].isdigit()
-    assert ev[1:] == [("token", {"text": CHITCHAT_REPLY}), ("done", {"finish_reason": "stop"})]
+    assert ev[1:] == [("understood", {"resolved_input": "你好", "intent": "闲聊"}),
+                      ("token", {"text": CHITCHAT_REPLY}), ("done", {"finish_reason": "stop"})]
     assert rec == [] and "\\u" not in r.text
 
 
@@ -65,8 +66,8 @@ async def test_business_tool_round_events(client, db, use_script, use_intent):
     use_intent("物流")
     rec = use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
     _, ev = await chat(client, "订单 1001 的物流到哪了")
-    assert [e for e, _ in ev] == ["session", "tool_start", "tool_end", "token", "token", "token", "done"]
-    assert ev[1][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
+    assert [e for e, _ in ev] == ["session", "understood", "tool_start", "tool_end", "token", "token", "token", "done"]
+    assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
     assert rec[1]["tools"] == ["query_order", "query_logistics", "query_product", "offer_human_options"]
     assert [m.role for m in await rows(db)] == ["user", "assistant", "tool", "assistant"]
 
@@ -85,7 +86,7 @@ async def test_knowledge_events(client, db, use_script, use_intent, monkeypatch)
     monkeypatch.setattr(grounding, "get_self_checker", lambda: RunnableLambda(check))
     use_script(text("商家承担[1]"))
     _, ev = await chat(client, "退货运费谁出")
-    assert ev[1] == ("citations", {"items": [{"n": 1, "chunk_id": 7, "section_path": "退换货 > 运费",
+    assert ev[2] == ("citations", {"items": [{"n": 1, "chunk_id": 7, "section_path": "退换货 > 运费",
                                               "question": "退货运费谁出", "answer": "商家承担"}],
                                    "refused": False})
     assert ev[-1] == ("done", {"finish_reason": "stop"})
@@ -95,8 +96,8 @@ async def test_complaint_actions_event(client, db, use_script, use_intent):
     use_intent("投诉")
     use_script()
     _, ev = await chat(client, "我要投诉")
-    assert [e for e, _ in ev] == ["session", "token", "actions", "done"]
-    assert [o["type"] for o in ev[2][1]["options"]] == ["handoff", "ticket"]
+    assert [e for e, _ in ev] == ["session", "understood", "token", "actions", "done"]
+    assert [o["type"] for o in ev[3][1]["options"]] == ["handoff", "ticket"]
 
 
 async def test_second_turn_uses_checkpoint_history(client, db, use_script, use_intent):
