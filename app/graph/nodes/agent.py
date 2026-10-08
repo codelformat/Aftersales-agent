@@ -7,8 +7,10 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from app.config import AGENT_MAX_STEPS, AGENT_TOKEN_BUDGET, TOKEN_BUDGET
 from app.context import build_history, count_tokens
 from app.graph import events
-from app.graph.control import actions_from_args
-from app.prompts import TOOL_ROUND_CLOSING, render_agent_system
+from app.graph.control import actions_from_args, refund_action
+from app.prompts import (
+    AFTERSALES_TASK_POLICY, AFTERSALES_TASK_WITH_ORDER, TOOL_ROUND_CLOSING, format_order, render_agent_system,
+)
 from app.services.grounding import Citation, format_evidence, parse_citations
 from app.tools.executor import failure_outcome
 from app.tools.registry import get_registry
@@ -16,12 +18,27 @@ from app.tools.registry import get_registry
 logger = logging.getLogger(__name__)
 
 AGENT_TOOLS = ("query_order", "query_logistics", "query_product", "offer_human_options")
+REFUND_FORM_TOOL = "offer_refund_form"
 TOOL_MARKUP_PREFIX = "<｜"
 TOOL_MARKUP_MARKERS = ("<｜", "｜DSML｜", "invoke name=")
 
 
 class AgentOutputError(RuntimeError):
     """模型输出为空，或含工具调用标记。"""
+
+
+def agent_tool_names(state) -> tuple[str, ...]:
+    if state.get("route") == "aftersales" and state.get("order_id"):
+        return (*AGENT_TOOLS, REFUND_FORM_TOOL)
+    return AGENT_TOOLS
+
+
+def _aftersales_sections(state) -> tuple[str, str]:
+    if state.get("route") != "aftersales":
+        return "", ""
+    if state.get("order_scoped"):
+        return format_order(state.get("order")), AFTERSALES_TASK_WITH_ORDER
+    return "", AFTERSALES_TASK_POLICY
 
 
 def _count_turn_tokens(gathered, prompt) -> int:
@@ -36,8 +53,10 @@ async def agent_model(state, runtime):
     trace = events.enter("agent_model", state, runtime)
     ctx = runtime.context
     citations = [Citation(**c) for c in state.get("evidence", [])]
-    system = render_agent_system(ctx.today, format_evidence(citations) if citations else "")
-    # 历史预算不计证据段，与 ch04 不计工具结果一致。
+    order_section, task_section = _aftersales_sections(state)
+    system = render_agent_system(ctx.today, format_evidence(citations) if citations else "",
+                                 order_section=order_section, task_section=task_section)
+    # 历史预算不计证据段、订单段和任务段，与 ch04 不计工具结果一致。
     history = build_history(
         state.get("messages", []), render_agent_system(ctx.today), state["resolved_input"], TOKEN_BUDGET)
     prompt = [SystemMessage(system), *history, HumanMessage(state["resolved_input"]),
@@ -47,7 +66,7 @@ async def agent_model(state, runtime):
         runnable = ctx.model
         prompt = [*prompt, SystemMessage(TOOL_ROUND_CLOSING)]
     else:
-        runnable = ctx.model.bind_tools(get_registry().tools_for_model(AGENT_TOOLS), tool_choice="auto")
+        runnable = ctx.model.bind_tools(get_registry().tools_for_model(agent_tool_names(state)), tool_choice="auto")
 
     text = ""
     gathered = None
@@ -105,16 +124,22 @@ async def agent_tools(state, runtime):
     ctx = runtime.context
     calls = state["agent_messages"][-1].tool_calls
     events.emit("tool_start", {"tools": [{"id": c["id"], "name": c["name"], "args": c["args"]} for c in calls]})
-    allowed_calls = [c for c in calls if c["name"] in AGENT_TOOLS]
-    executed = iter(
-        await ctx.execute(allowed_calls, conversation_id=ctx.conversation_id) if allowed_calls else [])
-    outcomes = []
+    allowed = agent_tool_names(state)
+    outcomes_by_id = {}
+    runnable_calls = []
     for call in calls:
-        if call["name"] in AGENT_TOOLS:
-            outcomes.append(next(executed))
-        else:
+        if call["name"] not in allowed:
             logger.warning("工具不在允许列表：%s 会话=%s", call["name"], ctx.conversation_id)
-            outcomes.append(failure_outcome(call["id"], call["name"], "unknown_tool"))
+            outcomes_by_id[call["id"]] = failure_outcome(call["id"], call["name"], "unknown_tool")
+        elif call["name"] == REFUND_FORM_TOOL and call["args"].get("order_id") != state.get("order_id"):
+            logger.warning("退款单订单号不符：%s 会话=%s", call["args"].get("order_id"), ctx.conversation_id)
+            outcomes_by_id[call["id"]] = failure_outcome(call["id"], call["name"], "invalid_order")
+        else:
+            runnable_calls.append(call)
+    if runnable_calls:
+        for outcome in await ctx.execute(runnable_calls, conversation_id=ctx.conversation_id):
+            outcomes_by_id[outcome.call_id] = outcome
+    outcomes = [outcomes_by_id[c["id"]] for c in calls]
     events.emit("tool_end", {"tools": [{"id": o.call_id, "name": o.name, "ok": o.ok} for o in outcomes]})
     steps = state.get("steps", 0) + 1
     update = {
@@ -122,11 +147,15 @@ async def agent_tools(state, runtime):
         "steps": steps,
         "trace": trace,
     }
-    actions = None
+    actions = []
     for outcome, call in zip(outcomes, calls):
-        if outcome.name == "offer_human_options" and outcome.ok:
-            actions = actions_from_args(call["args"])
-    if actions is not None:
+        if not outcome.ok:
+            continue
+        if outcome.name == "offer_human_options":
+            actions += actions_from_args(call["args"])
+        elif outcome.name == REFUND_FORM_TOOL:
+            actions.append(refund_action(call["args"]["order_id"]))
+    if actions:
         update["actions"] = actions
         events.emit("actions", {"options": actions})
     reason = None

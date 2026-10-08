@@ -123,7 +123,7 @@ AGENT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{to
 2. options 可以只给一个：用户只要人工客服时给 handoff；需要留单跟进时给 ticket，并填写 ticket_description 和 ticket_type。
 3. 调用后，在回复中告诉用户可以点击下方按钮。不说已经转接，不说已经创建工单。
 
-{evidence_section}## 引用
+{task_section}{order_section}{evidence_section}## 引用
 1. 使用知识库证据的句子，在句末标注证据编号 n，例如"签收后 7 天内可以无理由退货[2]。"
 2. 只标注实际用到的编号。一句用到多条证据时，写成[1][3]。
 3. 不编造编号。没有使用知识库证据的句子不标注。只引用本轮"知识库证据"一节中的编号，不引用历史消息中的编号。
@@ -154,10 +154,38 @@ AGENT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{to
 """
 
 
-def render_agent_system(today: date, evidence_text: str = "") -> str:
-    section = f"## 知识库证据\n{evidence_text}\n\n" if evidence_text else ""
+AFTERSALES_TASK_WITH_ORDER = """## 本轮任务
+用户在问下面这个订单能否办理退货、退款或其他售后。
+1. 只依据"订单数据"和"知识库证据"判断这一单能不能办，给出结论和依据，引用证据编号。
+2. 条件不全时（例如不知道是否拆封、是否有质量问题），说明还缺什么信息，请用户补充。不猜。
+3. 能退货或退款时，调用 offer_refund_form（order_id 用订单数据中的订单号），告诉用户点击下方按钮选择退款原因并提交。不说已经提交退款。
+4. 需要维修、补发等其他处理时，调用 offer_human_options 给出工单选项。
+
+"""
+
+AFTERSALES_TASK_POLICY = """## 本轮任务
+用户在问退款退货或售后的政策，没有指向具体订单。只依据"知识库证据"回答，引用证据编号。用户想办理时，请用户提供订单号。
+
+"""
+
+
+def format_order(order: dict | None) -> str:
+    if order is None:
+        return "订单数据暂不可用。"
+    lines = [f"订单号：{order['order_id']}", f"状态：{order['status']}", f"下单时间：{order['created_at']}",
+             f"金额：{order['total']} 元", "商品："]
+    lines += [f"- {i['name']}（{i['product_id']}）× {i['quantity']}，单价 {i['price']} 元" for i in order["items"]]
+    return "\n".join(lines)
+
+
+def render_agent_system(
+    today: date, evidence_text: str = "", order_section: str = "", task_section: str = ""
+) -> str:
+    evidence = f"## 知识库证据\n{evidence_text}\n\n" if evidence_text else ""
+    order = f"## 订单数据\n{order_section}\n\n" if order_section else ""
     return AGENT_SYSTEM_TEMPLATE.format(
-        shop_name=SHOP_NAME, today=today.isoformat(), evidence_section=section)
+        shop_name=SHOP_NAME, today=today.isoformat(),
+        task_section=task_section, order_section=order, evidence_section=evidence)
 
 
 EXTRACT_SYSTEM_PROMPT = """你是售后信息提取器。从用户的售后描述中提取订单号、诉求类型和期望方案。

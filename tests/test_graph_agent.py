@@ -194,3 +194,78 @@ async def test_token_limit_sets_force_final(monkeypatch, caplog):
     monkeypatch.setattr(agent_mod, "AGENT_TOKEN_BUDGET", 500)
     out = await agent_tools(call_state(("c1", "query_order", {"order_id": "1"}), tokens_used=600), rt())
     assert out["force_final"] is True and "agent_limit reason=tokens" in caplog.text
+
+
+def aftersales_state(**kw):
+    state = {"user_input": "这个能退吗", "resolved_input": "订单 1001 的蓝牙耳机能退吗", "route": "aftersales",
+             "order_scoped": True, "order_id": "1001",
+             "order": {"order_id": "1001", "status": "已签收", "created_at": "2026-10-01 10:00", "total": 299,
+                       "items": [{"product_id": "P001", "name": "蓝牙耳机", "price": 299, "quantity": 1}]},
+             "evidence": [], "messages": [], "agent_messages": [], "trace": []}
+    state.update(kw)
+    return state
+
+
+def test_agent_tool_names():
+    from app.graph.nodes.agent import agent_tool_names
+
+    assert agent_tool_names(aftersales_state()) == (*AGENT_TOOLS, "offer_refund_form")
+    assert agent_tool_names(aftersales_state(order_id=None)) == AGENT_TOOLS
+    assert agent_tool_names({"route": "business", "order_id": "1001"}) == AGENT_TOOLS
+
+
+async def test_aftersales_prompt_has_order_and_refund_tool(emitted):
+    rec = Recorder()
+    model = ScriptedChatModel(scripts=[text("可以退[1]")], recorder=rec)
+    await agent_mod.agent_model(aftersales_state(), rt(model=model))
+    system = rec[0]["messages"][0].content
+    assert "## 订单数据" in system and "订单号：1001" in system and "## 本轮任务" in system
+    assert rec[0]["tools"][-1] == "offer_refund_form"
+
+
+async def test_policy_only_aftersales_prompt(emitted):
+    rec = Recorder()
+    model = ScriptedChatModel(scripts=[text("一般 7 天")], recorder=rec)
+    await agent_mod.agent_model(aftersales_state(order_scoped=False, order_id=None, order=None), rt(model=model))
+    system = rec[0]["messages"][0].content
+    assert "## 订单数据" not in system and "## 本轮任务" in system
+    assert "offer_refund_form" not in rec[0]["tools"]
+
+
+async def test_order_unavailable_prompt(emitted):
+    rec = Recorder()
+    model = ScriptedChatModel(scripts=[text("暂时查不到")], recorder=rec)
+    await agent_mod.agent_model(aftersales_state(order=None), rt(model=model))
+    assert "订单数据暂不可用。" in rec[0]["messages"][0].content
+
+
+async def test_refund_form_emits_refund_action(emitted):
+    msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}}])
+    out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
+    assert out["actions"] == [{"type": "refund", "order_id": "1001"}]
+    assert ("actions", {"options": [{"type": "refund", "order_id": "1001"}]}) in emitted
+
+
+async def test_refund_form_with_other_order_fails(emitted):
+    msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "2002"}}])
+    out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
+    assert "actions" not in out
+    assert not any(name == "actions" for name, _ in emitted)
+    assert json.loads(out["agent_messages"][-1].content)["error"] == "invalid_order"
+
+
+async def test_refund_form_not_allowed_outside_aftersales(emitted):
+    msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}}])
+    out = await agent_mod.agent_tools(aftersales_state(route="business", agent_messages=[msg]), rt())
+    assert "actions" not in out
+    assert json.loads(out["agent_messages"][-1].content)["error"] == "unknown_tool"
+
+
+async def test_refund_and_human_actions_merge(emitted):
+    msg = AIMessage(content="", tool_calls=[
+        {"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}},
+        {"id": "c2", "name": "offer_human_options", "args": {"options": ["handoff"]}},
+    ])
+    out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
+    assert out["actions"] == [{"type": "refund", "order_id": "1001"}, {"type": "handoff"}]
+    assert [name for name, _ in emitted].count("actions") == 1
