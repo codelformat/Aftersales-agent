@@ -75,7 +75,7 @@ async def test_business_tool_round_events(client, db, use_script, use_intent):
 async def test_knowledge_events(client, db, use_script, use_intent, monkeypatch):
     use_intent("退款退货")
 
-    async def fake(q):
+    async def fake(q, plan=None):
         item = EvidenceItem(7, "退换货 > 运费", "退货运费谁出", "商家承担", 0.9)
         return Retrieval(QueryPlan(standard_query=q), [item], [item])
 

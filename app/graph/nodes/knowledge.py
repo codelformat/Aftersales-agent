@@ -4,7 +4,8 @@ from dataclasses import asdict
 
 from app.config import GATE_MIN_SCORE
 from app.graph import events
-from app.knowledge.retrieval import retrieve
+from app.knowledge.retrieval import Retrieval, retrieve
+from app.schemas import QueryPlan
 from app.services.grounding import (
     EMPTY_EVIDENCE_REASON,
     Citation,
@@ -14,10 +15,7 @@ from app.services.grounding import (
 )
 
 
-async def retrieve_evidence(state, runtime):
-    trace = events.enter("retrieve", state, runtime)
-    question = state["resolved_input"]
-    result = await retrieve(question)
+def evidence_update(question: str, result: Retrieval, trace: list[str]) -> dict:
     evidence = collect_evidence([("retrieve", question, {"evidence": [asdict(e) for e in result.evidence]})])
     top = result.ranked[0].score if result.ranked else None
     return {
@@ -25,6 +23,13 @@ async def retrieve_evidence(state, runtime):
         "gate": {"passed": False, "top_score": top, "reason": "", "source": None},
         "trace": trace,
     }
+
+
+async def retrieve_evidence(state, runtime):
+    trace = events.enter("retrieve", state, runtime)
+    plan = QueryPlan(standard_query=state["standard_query"], product_category=state.get("product_category"))
+    result = await retrieve(state["resolved_input"], plan=plan)
+    return evidence_update(state["resolved_input"], result, trace)
 
 
 async def confidence_gate(state, runtime):

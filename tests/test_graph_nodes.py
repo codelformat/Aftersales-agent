@@ -144,13 +144,14 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
     caplog.set_level("INFO")
     seen = []
 
-    async def fake(question):
-        seen.append(question)
+    async def fake(question, plan=None):
+        seen.append((question, plan))
         return fake_retrieval([0.9, 0.5, 0.1])
 
     monkeypatch.setattr(knowledge_nodes, "retrieve", fake)
-    out = await knowledge_nodes.retrieve_evidence({"resolved_input": "退货运费谁出", "trace": []}, rt())
-    assert seen == ["退货运费谁出"]
+    out = await knowledge_nodes.retrieve_evidence(
+        {"resolved_input": "退货运费谁出", "standard_query": "退货运费", "product_category": None, "trace": []}, rt())
+    assert seen == [("退货运费谁出", QueryPlan(standard_query="退货运费", product_category=None))]
     assert [(e["n"], e["chunk_id"]) for e in out["evidence"]] == [(1, 100), (2, 101)]
     assert set(out["evidence"][0]) == {"n", "chunk_id", "section_path", "question", "answer"}
     assert out["gate"]["top_score"] == 0.9 and out["trace"] == ["retrieve"]
@@ -158,11 +159,16 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
 
 
 async def test_retrieve_with_no_hits(monkeypatch):
-    async def fake(question):
+    seen = []
+
+    async def fake(question, plan=None):
+        seen.append((question, plan))
         return Retrieval(QueryPlan(standard_query="q"), [], [])
 
     monkeypatch.setattr(knowledge_nodes, "retrieve", fake)
-    out = await knowledge_nodes.retrieve_evidence({"resolved_input": "q", "trace": []}, rt())
+    out = await knowledge_nodes.retrieve_evidence(
+        {"resolved_input": "q", "standard_query": "q", "product_category": None, "trace": []}, rt())
+    assert seen == [("q", QueryPlan(standard_query="q", product_category=None))]
     assert out["evidence"] == [] and out["gate"]["top_score"] is None
 
 

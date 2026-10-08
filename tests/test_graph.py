@@ -53,7 +53,7 @@ async def saved(db, cid):
 
 
 def kb(monkeypatch, scores=(0.9,), useful=True):
-    async def fake(question):
+    async def fake(question, plan=None):
         items = [EvidenceItem(100 + i, "退换货 > 运费", "退货运费谁出", "质量问题商家承担", s)
                  for i, s in enumerate(scores)]
         return Retrieval(QueryPlan(standard_query=question), items, [e for e in items if e.score >= 0.2])
