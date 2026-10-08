@@ -383,3 +383,5 @@ intent_prompt = ChatPromptTemplate.from_messages([
 
 
 TICKET_CREATED_NOTE = "已为您创建工单 {ticket_no}，类型：{ticket_type}，我们会尽快处理。"
+
+REFUND_CREATED_NOTE = "已为您提交退款申请 {refund_no}。订单：{order_id}，原因：{reason}，状态：待审核。审核结果以平台通知为准。"
