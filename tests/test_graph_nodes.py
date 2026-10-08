@@ -18,13 +18,19 @@ from tests.fakes import rt
 pytestmark = pytest.mark.anyio
 
 
-@pytest.mark.parametrize("intent,route", [
-    ("商品咨询", "knowledge"), ("退款退货", "knowledge"),
-    ("物流", "business"), ("订单", "business"), ("售后", "business"),
-    ("投诉", "complaint"), ("闲聊", "chitchat"), (None, "business"),
+@pytest.mark.parametrize("intent, route", [
+    ("商品咨询", "knowledge"), ("退款退货", "aftersales"), ("售后", "aftersales"),
+    ("物流", "business"), ("订单", "business"), ("其他", "business"),
+    ("投诉", "complaint"), ("闲聊", "chitchat"), (None, "business"), ("未知", "business"),
 ])
 def test_route_for(intent, route):
     assert routing.route_for(intent) == route
+
+
+def test_after_intent_splits_aftersales():
+    assert routing.after_intent({"route": "aftersales", "order_scoped": True}) == "ensure_order"
+    assert routing.after_intent({"route": "aftersales", "order_scoped": False}) == "expand_query"
+    assert routing.after_intent({"route": "knowledge"}) == "knowledge"
 
 
 def test_every_intent_has_a_route():

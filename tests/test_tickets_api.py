@@ -90,7 +90,7 @@ async def test_state_update_failure_still_returns_ticket(client, db, locks, memo
 
 async def test_next_turn_sees_ticket_note(client, db, locks, memory_graph, use_script, use_intent):
     # 真实流程：先有一轮投诉，再点建工单。build_history 要求历史从用户消息开始。
-    use_intent("投诉", "售后")
+    use_intent("投诉", "订单")
     rec = use_script(text("您的工单已创建"))
     r = await client.post("/chat/stream", json={"user_id": "u1", "message": "我要投诉"})
     cid = int(r.text.split('"session_id": "')[1].split('"')[0])
