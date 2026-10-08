@@ -144,3 +144,10 @@ def test_obsolete_faq_constants_are_removed():
 def test_rewrite_and_self_check_timeout_constants():
     assert config.QUERY_REWRITE_TIMEOUT_SECONDS == 8
     assert config.SELF_CHECK_TIMEOUT_SECONDS == 10
+
+
+def test_ch06_constants():
+    assert (config.RESOLVE_TIMEOUT_SECONDS, config.RESOLVE_HISTORY_MESSAGES, config.RESOLVE_MESSAGE_MAX_CHARS) == (8, 6, 200)
+    assert (config.EXPAND_TIMEOUT_SECONDS, config.EXPAND_MAX_QUERIES, config.MULTI_FUSED_LIMIT) == (8, 3, 50)
+    assert config.INTENT_SMALL_MODEL is None and config.INTENT_ESCALATE_BELOW == 0.7
+    assert config.USER_ORDER_COUNT == 3

@@ -7,10 +7,12 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.db.models import Ticket
-from app.graph.control import OfferHumanOptionsArgs, actions_from_args
+from app.graph.control import (
+    OfferHumanOptionsArgs, OfferRefundFormArgs, actions_from_args, offer_refund_form, refund_action,
+)
 from app.repositories import conversations
 from app.tools import mock_data
-from app.tools.registry import CH04_CHAT_TOOLS, get_registry
+from app.tools.registry import CH04_CHAT_TOOLS, build_default_registry, get_registry
 
 TODAY = date(2026, 10, 6)
 
@@ -50,11 +52,14 @@ def test_catalog_product():
     assert (p["name"], p["price"]) == ("蓝牙耳机", 299)
 
 
-def test_registry_lists_six_tools_and_flags():
+def test_registry_lists_seven_tools_and_flags():
     reg = get_registry()
-    assert sorted(reg.names()) == ["create_ticket", "offer_human_options", "query_faq", "query_logistics", "query_order", "query_product"]
+    assert sorted(reg.names()) == ["create_ticket", "offer_human_options", "offer_refund_form", "query_faq", "query_logistics", "query_order", "query_product"]
     assert reg.get("create_ticket").retryable is False
     assert reg.get("create_ticket").inject_conversation_id is True
+    refund = reg.get("offer_refund_form")
+    assert refund.retryable is False and refund.timeout == 5
+    assert refund.inject_conversation_id is False
     faq = reg.get("query_faq")
     assert faq.retryable is False and faq.timeout == 20
     assert reg.get("query_order").retryable is True and reg.get("query_order").timeout == 5
@@ -199,3 +204,42 @@ async def test_offer_tool_has_no_side_effect():
     spec = get_registry().get("offer_human_options")
     assert spec.retryable is False and spec.inject_conversation_id is False
     assert await spec.tool.ainvoke({"options": ["handoff"]}) == {"shown": ["handoff"]}
+
+
+def test_user_orders_deterministic_and_consistent():
+    today = date(2026, 10, 6)
+    cards = mock_data.user_orders("u1", today)
+    assert len(cards) == 3 and cards == mock_data.user_orders("u1", today)
+    assert len({c["order_id"] for c in cards}) == 3
+    assert mock_data.user_orders("u2", today) != cards
+    for card in cards:
+        assert set(card) == {"order_id", "title", "total", "created_at", "status"}
+        order = mock_data.order(card["order_id"], today)
+        assert card["total"] == order["total"] and card["status"] == order["status"]
+        assert card["status"] not in ("待付款", "已取消")
+        assert card["title"].startswith(order["items"][0]["name"])
+
+
+def test_order_card_title_counts_items():
+    today = date(2026, 10, 6)
+    for oid in ("1001", "1002", "1003", "1004", "1005"):
+        order = mock_data.order(oid, today)
+        title = mock_data.order_card(oid, today)["title"]
+        if len(order["items"]) > 1:
+            assert title == f"{order['items'][0]['name']} 等 {len(order['items'])} 件"
+        else:
+            assert title == order["items"][0]["name"]
+
+
+@pytest.mark.anyio
+async def test_offer_refund_form_only_shows_button():
+    assert await offer_refund_form.ainvoke({"order_id": "1001"}) == {"shown": "refund"}
+    assert refund_action("1001") == {"type": "refund", "order_id": "1001"}
+    assert "offer_refund_form" in build_default_registry().names()
+    spec = build_default_registry().get("offer_refund_form")
+    assert spec.retryable is False
+
+
+def test_offer_refund_form_rejects_bad_order_id():
+    with pytest.raises(ValidationError):
+        OfferRefundFormArgs(order_id="10 01")

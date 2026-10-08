@@ -244,7 +244,7 @@ def use_intent(monkeypatch):
             value = queue.pop(0)
             if isinstance(value, BaseException):
                 raise value
-            return {"parsed": None if value is None else IntentResult(intent=value), "raw": None}
+            return {"parsed": None if value is None else IntentResult(intent=value, confidence=0.9), "raw": None}
 
         monkeypatch.setattr(intent, "get_intent_classifier", lambda: RunnableLambda(classify))
         return calls

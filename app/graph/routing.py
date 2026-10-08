@@ -8,6 +8,7 @@ INTENT_ROUTES = {
     "售后": "business",
     "投诉": "complaint",
     "闲聊": "chitchat",
+    "其他": "business",
 }
 # 意图识别失败时走 business：Agent 有工具，能处理大多数问题。
 FALLBACK_ROUTE = "business"

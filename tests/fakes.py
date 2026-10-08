@@ -125,12 +125,12 @@ def entity(id: int, vector: list[float], text: str = "t", category: str = "通�
     return Entity(id=id, vector=vector, text=text, product_category=category, content_type=content_type)
 
 
-def rt(conversation_id=1, model=None, execute=None, today=None):
+def rt(conversation_id=1, model=None, execute=None, today=None, user_id="u1"):
     """直接调用节点时使用的假 runtime。"""
     from datetime import date
     from types import SimpleNamespace
     from app.graph.state import GraphContext
     from app.tools.executor import execute_tool_calls
     ctx = GraphContext(conversation_id=conversation_id, today=today or date(2026, 10, 6),
-                       model=model, execute=execute or execute_tool_calls)
+                       model=model, execute=execute or execute_tool_calls, user_id=user_id)
     return SimpleNamespace(context=ctx)

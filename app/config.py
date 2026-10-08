@@ -58,6 +58,18 @@ KNOWLEDGE_TEXT_MAX_BYTES = 16384
 CHECKPOINT_DB_PATH = str(Path(__file__).resolve().parent.parent / "data" / "checkpoints.sqlite")
 # 限制意图识别等待时间，超时后走 business 出口。
 INTENT_TIMEOUT_SECONDS = 8
+RESOLVE_TIMEOUT_SECONDS = 8
+RESOLVE_HISTORY_MESSAGES = 6
+RESOLVE_MESSAGE_MAX_CHARS = 200
+EXPAND_TIMEOUT_SECONDS = 8
+# 扩写查询条数上限，不含原查询。
+EXPAND_MAX_QUERIES = 3
+# 多查询合并后送重排的候选上限。
+MULTI_FUSED_LIMIT = 50
+# 小模型置信度低于门槛时，由大模型重判。
+INTENT_SMALL_MODEL: str | None = None
+INTENT_ESCALATE_BELOW = 0.7
+USER_ORDER_COUNT = 3
 AGENT_MAX_STEPS = 4
 # 一轮中 Agent 累计 token（输入 + 输出，含思考）。
 AGENT_TOKEN_BUDGET = 16000

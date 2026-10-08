@@ -2,7 +2,10 @@ from datetime import date
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from app.prompts import REFUSAL_PREFIX, chat_prompt, extract_prompt, render_chat_system
+from app.prompts import (
+    INTENT_SYSTEM_PROMPT, REFUSAL_PREFIX, chat_prompt, extract_prompt, intent_prompt, render_chat_system,
+)
+from app.schemas import INTENTS
 
 
 def test_system_prompt_contains_shop_and_date():
@@ -71,10 +74,8 @@ def test_faith_judge_prompt_conservative_wording():
 
 
 def test_intent_prompt_lists_all_intents():
-    from app.prompts import INTENT_SYSTEM_PROMPT, intent_prompt
-    from app.schemas import INTENTS
-    assert INTENTS == ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊")
-    for intent in INTENTS:
+    assert INTENTS == ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊", "其他")
+    for intent in INTENTS[:7]:
         assert f"- {intent}：" in INTENT_SYSTEM_PROMPT
     msgs = intent_prompt.invoke({"text": "订单 1001 到哪了"}).to_messages()
     assert msgs[-1].content == "订单 1001 到哪了"
