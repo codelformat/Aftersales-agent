@@ -111,6 +111,8 @@ agent_model ⇄ agent_tools；所有出口 → finalize → END
 - 代码后处理：
   1. `standard_query` 做 `normalize_models`；问题中出现型号时，型号决定 `product_category`（与 `understand()` 相同）。
   2. `order_id` 不是 `user_input` 或所读历史文本的子串时，置为 `None`，日志记 `order_id_dropped`。
+  3. `order_id` 有值时，`order_scoped` 强制为 `True`。
+  4. 历史为空时，`resolved_input` 强制等于 `user_input`（没有可补全的指代）。
 - 失败（超时、`parsed is None`、异常）：`resolved_input = standard_query = user_input`（`standard_query` 做型号归一），`product_category` 由型号决定，`order_scoped=False`，`order_id=None`，日志记 warning。
 
 ### 6.2 `classify_intent`
