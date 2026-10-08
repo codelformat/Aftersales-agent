@@ -80,3 +80,8 @@ class SelfCheck(BaseModel):
 1. 上表 2 条问题：回复先回答有证据的部分（带引用），再对缺失要点说明查不到；问题池各新增 1 行，`reason` 写明缺失要点。
 2. `evals/run_rag_eval.py --stage generation`：Faithfulness 不低于修改前（ch04 最终报告 `hybrid_rerank` 0.906）；误拒率下降；D 正确拒答率不低于 0.95。
 3. 在 `evals/rag_eval.jsonl` 中增加"部分可答"样例（例如 E 桶中一问可答、一问不可答的题），统计部分回答率。
+
+
+## 补记：ch05（2026-10-08）
+
+ch05 把自评移到置信度闸（`confidence_gate`，在 Agent 之前）。`useful=false` 时回 `GATE_FALLBACK_REPLY`，不进 Agent。上表两条在 ch05 回归中同样整句兜底（`evals/run_chat_samples.py` 第 1、3 条）。另外，混合问题（例如订单查询 + 政策）被判为知识类时，订单部分也不再回答。正式的置信度检查放在可观测那章，届时一并处理。

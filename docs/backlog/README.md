@@ -14,3 +14,7 @@
 | 文件 | 问题 | 发现章节 | 状态 |
 |---|---|---|---|
 | [2026-10-07-self-check-partial-answer.md](2026-10-07-self-check-partial-answer.md) | 自评"全有或全无"，部分可答的问题整条被拒答 | ch04 | 搁置 |
+| [2026-10-08-invalid-tool-calls-dropped.md](2026-10-08-invalid-tool-calls-dropped.md) | Agent 丢弃格式错误的工具调用 | ch05 | 搁置 |
+| [2026-10-08-token-budget-usage-source.md](2026-10-08-token-budget-usage-source.md) | token 预算依赖上游主动返回 usage | ch05 | 搁置 |
+| [2026-10-08-stale-checkpoint-guard.md](2026-10-08-stale-checkpoint-guard.md) | 新会话没有防御残留的 checkpoint | ch05 | 搁置 |
+| [2026-10-08-actions-after-error.md](2026-10-08-actions-after-error.md) | 本轮出错后人工选项按钮仍可点击 | ch05 | 搁置 |
