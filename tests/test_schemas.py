@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from app.config import MAX_INPUT_CHARS
 from app.schemas import (
     INTENTS, REFUND_REASONS, AfterSalesRequest, ChatRequest, ExtractRequest, IntentResult,
     QueryExpansion, RefundRequest, RequestType, ResolvedQuery, ResumeRequest,
@@ -84,3 +85,15 @@ def test_refund_request():
         RefundRequest(session_id="1", user_id="u1", order_id="1001", reason="其他", note="长" * 201)
     with pytest.raises(ValidationError):
         ResumeRequest(session_id="1", user_id="u1", order_id="10 01")
+
+
+def test_resolved_query_accepts_long_input():
+    ResolvedQuery(
+        resolved_input="订单 1001 的耳机" + "很" * 1500,
+        standard_query="耳机退货条件" + "很" * 1500,
+    )
+    with pytest.raises(ValidationError):
+        ResolvedQuery(
+            resolved_input="很" * (MAX_INPUT_CHARS + 201),
+            standard_query="耳机退货条件",
+        )

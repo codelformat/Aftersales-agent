@@ -103,8 +103,8 @@ class IntentResult(BaseModel):
 class ResolvedQuery(BaseModel):
     """指代消解和改写的结果。"""
 
-    resolved_input: str = Field(min_length=1, max_length=300)
-    standard_query: str = Field(min_length=1, max_length=300)
+    resolved_input: str = Field(min_length=1, max_length=MAX_INPUT_CHARS + 200)
+    standard_query: str = Field(min_length=1, max_length=MAX_INPUT_CHARS)
     product_category: Literal[PRODUCT_CATEGORIES] | None = None
     order_scoped: bool = False
     order_id: OrderId | None = None
