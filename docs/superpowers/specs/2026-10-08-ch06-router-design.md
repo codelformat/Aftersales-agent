@@ -192,6 +192,13 @@ agent_model ⇄ agent_tools；所有出口 → finalize → END
 - `agent_tools` 校验：`order_id` 不等于 State `order_id` 时，按工具失败处理（`failure_outcome(..., "invalid_order")`），不写 `actions`。
 - `Action.type` 增加 `"refund"`，新增字段 `order_id`。
 
+### 6.12 `confidence_gate` 在 aftersales 出口（2026-10-08 用户裁定，方案 A）
+
+- aftersales 出口只看分数：证据为空或 Top-1 重排分 < `GATE_MIN_SCORE` → 入池 `retrieval_low_conf`，回 `GATE_FALLBACK_REPLY`；否则直接通过，不调自评，发 `citations` 事件。
+- knowledge 出口不变：分数 + 自评。
+- 理由：浏览器验收中"我要退货"选订单后，Top-1 = 0.86，但自评以"未说明型号和退货原因"判为不足，整轮兜底。自评要求证据覆盖问题的全部要点，而子流程中缺的信息由 Agent 追问（需求 6：需求澄清留在主力 Agent 里做；6.9：条件不全时说明还缺什么）。自评挡在 Agent 之前，与这条需求矛盾。
+- 代价：Agent 可能拿部分相关的证据作答。Agent Prompt 的拒答规则和引用要求仍然生效。
+
 ### 6.11 `finalize`
 
 `turn` 日志行新增：`resolved=<resolved_input>`、`confidence=<intent_confidence>`、`order=<order_id 或 ->`、`queries=<条数>`。
@@ -275,7 +282,7 @@ agent_model ⇄ agent_tools；所有出口 → finalize → END
 | `fetch_order` | 工具失败 | `order=None`，Agent 提示"暂不可用" |
 | `expand_query` | 失败 | `queries=[standard_query]` |
 | `retrieve_multi` | Milvus 或重排异常 | 与 `retrieve` 相同：抛出 → `error` 事件，不写库 |
-| `confidence_gate` | 不通过 | `GATE_FALLBACK_REPLY`（复用） |
+| `confidence_gate` | 不通过 | `GATE_FALLBACK_REPLY`（复用）；aftersales 出口只看分数，见 6.12 |
 | `offer_refund_form` | `order_id` 不符 | 工具失败 `invalid_order`，不写 `actions` |
 | `/chat/resume` | 无待处理选择、订单不在列表 | 409 / 422，不执行图 |
 

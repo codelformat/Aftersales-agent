@@ -39,6 +39,9 @@ async def confidence_gate(state, runtime):
     if not citations or top is None or top < GATE_MIN_SCORE:
         gate = {"passed": False, "top_score": top, "reason": EMPTY_EVIDENCE_REASON,
                 "source": "retrieval_low_conf"}
+    elif state.get("route") == "aftersales":
+        # 子流程中缺的信息由 Agent 追问，自评会挡在 Agent 之前。
+        gate = {"passed": True, "top_score": top, "reason": "", "source": None}
     else:
         check = await self_check([state["resolved_input"]], citations)
         gate = {"passed": check.useful, "top_score": top, "reason": check.reason,

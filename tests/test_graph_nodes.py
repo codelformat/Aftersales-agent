@@ -225,3 +225,22 @@ async def test_gate_self_check_failure_fails_open(db, monkeypatch, emitted):
     monkeypatch.setattr(grounding, "get_self_checker", lambda: RunnableLambda(boom))
     out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, 0.8), rt(await new_conversation(db)))
     assert out["gate"]["passed"] is True
+
+
+async def test_gate_aftersales_passes_on_score_without_self_check(db, emitted):
+    state = gate_state(EVIDENCE, 0.8)
+    state["route"] = "aftersales"
+    out = await knowledge_nodes.confidence_gate(state, rt(await new_conversation(db)))
+    assert out["gate"] == {"passed": True, "top_score": 0.8, "reason": "", "source": None}
+    assert ("citations", {"items": EVIDENCE, "refused": False}) in emitted
+
+
+async def test_gate_aftersales_low_score_still_falls_back(db, emitted):
+    cid = await new_conversation(db)
+    state = gate_state(EVIDENCE, 0.05)
+    state["route"] = "aftersales"
+    out = await knowledge_nodes.confidence_gate(state, rt(cid))
+    assert out["gate"]["passed"] is False and out["gate"]["source"] == "retrieval_low_conf"
+    async with db() as s:
+        row = (await s.execute(select(LowConfidenceQuestion))).scalar_one()
+    assert (row.conversation_id, row.raw_question, row.source) == (cid, "原话", "retrieval_low_conf")
