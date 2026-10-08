@@ -9,7 +9,8 @@ from app.context import build_history, count_tokens
 from app.graph import events
 from app.graph.control import actions_from_args
 from app.prompts import TOOL_ROUND_CLOSING, render_agent_system
-from app.services.grounding import Citation, format_evidence
+from app.services.grounding import Citation, format_evidence, parse_citations
+from app.tools.executor import failure_outcome
 from app.tools.registry import get_registry
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,9 @@ async def agent_model(state, runtime):
     if not tool_calls:
         if not text:
             raise AgentOutputError("模型返回空回复")
+        invalid_citations = [n for n in parse_citations(text) if not 1 <= n <= len(citations)]
+        if invalid_citations:
+            logger.warning("回复含越界引用编号：%s", invalid_citations)
         update["reply"] = text
     return update
 
@@ -101,7 +105,16 @@ async def agent_tools(state, runtime):
     ctx = runtime.context
     calls = state["agent_messages"][-1].tool_calls
     events.emit("tool_start", {"tools": [{"id": c["id"], "name": c["name"], "args": c["args"]} for c in calls]})
-    outcomes = await ctx.execute(calls, conversation_id=ctx.conversation_id)
+    allowed_calls = [c for c in calls if c["name"] in AGENT_TOOLS]
+    executed = iter(
+        await ctx.execute(allowed_calls, conversation_id=ctx.conversation_id) if allowed_calls else [])
+    outcomes = []
+    for call in calls:
+        if call["name"] in AGENT_TOOLS:
+            outcomes.append(next(executed))
+        else:
+            logger.warning("工具不在允许列表：%s 会话=%s", call["name"], ctx.conversation_id)
+            outcomes.append(failure_outcome(call["id"], call["name"], "unknown_tool"))
     events.emit("tool_end", {"tools": [{"id": o.call_id, "name": o.name, "ok": o.ok} for o in outcomes]})
     steps = state.get("steps", 0) + 1
     update = {

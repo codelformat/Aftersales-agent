@@ -128,6 +128,21 @@ async def test_business_route_multi_step_react(db, memory_graph, use_intent, cap
     assert "steps=2" in caplog.text and "route=business" in caplog.text
 
 
+async def test_agent_create_ticket_call_writes_no_ticket(db, memory_graph, use_intent):
+    from app.db.models import Ticket
+
+    use_intent("售后")
+    cid = await new_cid(db)
+    turn, rec = await run(
+        memory_graph, cid, "耳机坏了",
+        tools(("c1", "create_ticket", {"description": "x", "ticket_type": "投诉"})),
+        text("请点击按钮建工单"),
+    )
+    assert len(rec) == 2 and turn.state.values["reply"] == "请点击按钮建工单"
+    async with db() as s:
+        assert (await s.execute(select(Ticket))).scalars().all() == []
+
+
 async def test_step_limit_forces_text_answer(db, memory_graph, use_intent, monkeypatch):
     monkeypatch.setattr(agent_mod, "AGENT_MAX_STEPS", 1)
     use_intent("物流")

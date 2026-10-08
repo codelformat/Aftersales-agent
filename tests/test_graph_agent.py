@@ -61,6 +61,21 @@ async def test_evidence_goes_into_system_prompt():
     assert "## 知识库证据\n[1] 退换货 > 运费\n问：运费谁出\n答：商家" in system
 
 
+@pytest.mark.parametrize("reply, warning", [
+    ("答[1][3]", "回复含越界引用编号：[3]"),
+    ("答[1]", None),
+])
+async def test_final_reply_logs_out_of_range_citations(reply, warning, caplog, emitted):
+    evidence = [{"n": 1, "chunk_id": 9, "section_path": "退换货 > 运费", "question": "运费谁出", "answer": "商家"}]
+    m, _ = model(text(reply))
+    out = await agent_model(state(evidence=evidence), rt(model=m))
+    assert out["reply"] == reply and out["agent_messages"][-1].content == reply
+    assert "".join(data["text"] for name, data in emitted if name == "token") == reply
+    warnings = [r.getMessage() for r in caplog.records
+                if r.levelname == "WARNING" and r.getMessage().startswith("回复含越界引用编号：")]
+    assert warnings == ([warning] if warning else [])
+
+
 async def test_force_final_unbinds_tools_and_appends_closing():
     m, rec = model(text("只能查到这些"))
     out = await agent_model(state(force_final=True), rt(model=m))
@@ -118,6 +133,36 @@ async def test_agent_tools_executes_and_counts_step(emitted):
         ("tool_start", {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}),
         ("tool_end", {"tools": [{"id": "c1", "name": "query_logistics", "ok": True}]}),
     ]
+
+
+async def test_agent_tools_rejects_unbound_tool(emitted, caplog):
+    seen = []
+
+    async def execute(calls, *, conversation_id):
+        seen.append((list(calls), conversation_id))
+        return [ToolOutcome(c["id"], c["name"], True,
+                            ToolMessage(content='{"ok": true}', tool_call_id=c["id"], name=c["name"]))
+                for c in calls]
+
+    out = await agent_tools(
+        call_state(("c1", "query_order", {"order_id": "1001"}),
+                   ("c2", "create_ticket", {"description": "x", "ticket_type": "投诉"})),
+        rt(conversation_id=5, execute=execute),
+    )
+    assert len(seen) == 1 and seen[0][1] == 5
+    assert seen[0][0] == [{"id": "c1", "name": "query_order", "args": {"order_id": "1001"},
+                          "type": "tool_call"}]
+    messages = out["agent_messages"][1:]
+    assert [m.tool_call_id for m in messages] == ["c1", "c2"]
+    assert json.loads(messages[1].content) == {
+        "ok": False, "error": "unknown_tool", "message": "工具不存在"}
+    assert emitted[-1] == ("tool_end", {"tools": [
+        {"id": "c1", "name": "query_order", "ok": True},
+        {"id": "c2", "name": "create_ticket", "ok": False},
+    ]})
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "create_ticket" in warnings[0].getMessage() and "5" in warnings[0].getMessage()
 
 
 async def test_offer_human_options_emits_actions(emitted):
