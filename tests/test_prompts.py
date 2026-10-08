@@ -89,3 +89,4 @@ def test_agent_system_prompt():
     assert "## 知识库证据" not in plain and "{" not in plain
     with_evidence = render_agent_system(date(2026, 10, 6), "[1] 退换货 > 运费\n问：q\n答：a {x}")
     assert "## 知识库证据\n[1] 退换货 > 运费" in with_evidence and "{x}" in with_evidence
+    assert "要不要查取决于前一个的结果时" in plain

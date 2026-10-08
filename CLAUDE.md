@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch02：Function Calling 工具链（5 个工具，单轮调用），会话和消息落 MySQL。不做 Agent Loop。
 - ch03：知识库。Markdown 文档结构感知切分 + 历史对话挖掘问答对，MySQL `knowledge_chunks` 与 Milvus 集合 `knowledge` 双写；`query_faq` 内部改为 dense 向量检索。
 - ch04：混合检索与评估。Query 理解（LLM 改写、型号归一、同义词）→ Milvus dense + BM25 各 Top-50 → RRF → `bge-reranker-v2-m3` Top-10 → 门槛 → 首尾排列；回答带引用编号，自评不足时拒答并写入 `low_confidence_questions`；300 题评估集对比 4 种检索策略并评 Faithfulness，编造个案写入 `faith_cases`；聊天页引用卡片和 👍/👎，台账页 `/admin/faith-cases`。不做指代消解、多轮改写。
+- ch05：LangGraph Workflow 骨架 + 主力 ReAct Agent。`start_turn → resolve_reference`（透传）`→ classify_intent`（7 类）`→` 写死分流 4 出口：knowledge（强制检索 → 置信度闸 → Agent 或兜底话术）、business（直接进 Agent）、complaint（安抚话术 + 按钮）、chitchat（固定话术）`→ finalize`（日志记录、写库）。State + `AsyncSqliteSaver`（`data/checkpoints.sqlite`）。「转人工」「建工单」由用户在前端自选，`POST /tickets` 才建单。热身裸循环 `app/agent/bare_loop.py`。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
@@ -24,11 +25,13 @@ uv run python scripts/build_kb.py                    # 离线建库：文档和 
 uv run python scripts/build_kb.py --rebuild          # 删除并重建 Milvus 集合和全部文档来源，mined 块保留并重新向量化；--status 只看状态；--check 不一致时退出码 1
 uv run python scripts/seed_history.py --date 2026-10-05   # 导入 30 通样例历史对话（默认昨天）
 uv run python scripts/mine_qa.py --date 2026-10-05   # 挖掘任务：抽取 → 暂存 → 去重 → 入库 → 向量化（默认昨天；crontab 示例见脚本头）
-uv run uvicorn app.main:app --reload --port 8000     # 启动服务；聊天页 http://127.0.0.1:8000/
+uv run uvicorn app.main:app --reload --port 8000     # 启动服务；聊天页 http://127.0.0.1:8000/（验收时重定向日志：> /tmp/ch05-server.log 2>&1）
 uv run pytest -q                                     # 全量测试（需要 MySQL；连不上时数据库测试直接失败，不跳过）
-uv run pytest tests/test_chat_api.py::test_tool_round_events_and_persistence -q   # 单个测试
+uv run pytest tests/test_chat_api.py::test_business_tool_round_events -q   # 单个测试
 uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（真实上游，只执行第 1 次调用；未达标退出码 1）
 uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集（真实上游）
+uv run python evals/run_intent_eval.py               # 意图识别样例集（42 条，真实上游；准确率 < 90% 退出码 1）
+uv run python scripts/bare_agent.py "订单 1001 到哪了"   # 热身裸 Agent 循环（只用 openai SDK，真实上游）
 uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
 uv run python evals/run_rag_eval.py --check          # 检查 300 题评估集（来源键、题号、桶和难度计数）；--list-keys 列出来源键
 uv run python evals/run_rag_eval.py --stage retrieval # 四策略检索对比 + 门槛扫描（真实上游 + 生产集合）；--stage generation 评 Faithfulness 并写 faith_cases
@@ -36,6 +39,7 @@ uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurren
 uv run python evals/run_faith_judge_eval.py          # 忠实度裁判自检（30 条，准确率 < 90% 退出码 1）
 uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
 uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
+bash scripts/demo5.sh /tmp/ch05-server.log           # ch05 五项验收（参数为服务日志路径；需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo4.sh                                # ch04 四项验收（需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo3.sh                                # ch03 验收（需先启动服务、MySQL 和 Milvus）
 bash scripts/demo2.sh                                # ch02 三项验收（需先启动服务和 MySQL）
@@ -47,12 +51,14 @@ bash scripts/demo.sh                                 # ch01 三项验收
 ## 架构
 
 ```
-api → services → repositories → db
-         ↘ tools (registry, executor) → repositories
-                  ↘ knowledge.retrieval → knowledge.query, knowledge.embeddings, knowledge.milvus, knowledge.rerank
-         ↘ services.grounding → repositories.low_confidence
-         ↘ llm, prompts, history, context
+api.chat → graph (builder, nodes) → repositories → db
+               ↘ tools (registry, executor) → repositories
+               ↘ knowledge.retrieval → knowledge.query, knowledge.embeddings, knowledge.milvus, knowledge.rerank
+               ↘ services.grounding → repositories.low_confidence
+               ↘ llm, prompts, services.history, context
+api.tickets → tools.executor (create_ticket), graph.aupdate_state, repositories.messages
 api.knowledge, api.faith_cases → repositories
+main.lifespan → graph.builder.open_graph (AsyncSqliteSaver)
 evals/run_rag_eval.py → knowledge.retrieval, services.grounding, repositories.faith_cases
 scripts/build_kb.py → knowledge.ingest, knowledge.vectorize
 scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
@@ -64,8 +70,11 @@ scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 | `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker` / `dispose_engine`）与 8 张表的 ORM 映射 |
 | `app/repositories/` | 只负责 SQL：会话、消息、工单（指数回退重试主键冲突）、知识块 `knowledge`、挖掘暂存 `staging`、问题池 `low_confidence`、编造台账 `faith_cases` |
 | `app/knowledge/` | `milvus`（客户端 get/set、集合定义、经 `retry_async` 重试）、`embeddings`（`OpenAIEmbeddings` 工厂）、`chunking`（Markdown 切分、`knowledge_text`）、`ingest`（文档和 faq 表入库）、`vectorize`（`vectorize_pending`、状态）、`query`（改写、型号归一、同义词，词表 `knowledge/lexicon.json`）、`rerank`（硅基流动 `/rerank`）、`retrieval`（4 种策略、门槛、首尾排列、`source_key`）、`mining`（抽取、去重）、`history_seed` |
-| `app/tools/` | 5 个 `@tool`、`mock_data`（确定性 mock）、注册表、执行器（校验、超时、重试、错误转换、截断、并行） |
-| `app/services/chat.py` | 一轮对话：第 1 次调用绑定工具并流式输出 → 并行执行工具 → 第 2 次调用（不绑定工具）流式输出 → 一个事务写库 |
+| `app/tools/` | 5 个业务 `@tool` + 控制工具 `offer_human_options`（`app/graph/control.py`）、`CH04_CHAT_TOOLS`、`mock_data`（确定性 mock）、注册表、执行器（校验、超时、重试、错误转换、截断、并行） |
+| `app/agent/bare_loop.py` | 热身裸循环（openai SDK + 手写 schema，不用框架） |
+| `app/graph/` | `state`（`ChatState`、`GraphContext`）、`events`（`emit`、`enter`）、`routing`（分流表、条件边）、`nodes/`（turn、intent、knowledge、agent、replies、finalize）、`builder`（`build_graph`、`get_graph`/`set_graph`、`thread_config`、`open_graph`） |
+| `app/api/chat.py` | 预检、会话锁；`graph.astream(stream_mode="custom")` 转 SSE |
+| `app/api/tickets.py` | `POST /tickets`：用户点击才建单，写 `messages` 表并 `aupdate_state` |
 | `app/services/grounding.py` | 证据合并与全局编号、渲染、自评、入池 |
 | `app/services/history.py` | 数据库消息 ↔ LangChain 消息 |
 | `app/locks.py` | 按会话 ID 的进程内锁 |
@@ -76,13 +85,13 @@ scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 - **`db/schema.sql`、`db/schema_ch03.sql`、`db/schema_ch04.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
 - **容器初始化 SQL 必须用 utf8mb4 读取**（`db/mysql-client.cnf` 挂到 `/etc/mysql/conf.d/`），否则中文双重编码。校验存储字节要用 `HEX()`，字符串比较会被 latin1 客户端"还原"而漏检。
 - **执行 `.sql` 文件用 `exec_driver_sql`，不用 `text()`。** 异步 ORM 提交后读数据库默认值列前先 `await session.refresh()`。测试引擎用 `NullPool`（pytest 每个异步测试一个事件循环）。
-- **第 2 次调用不绑定工具，并在工具结果后追加 `SystemMessage(TOOL_ROUND_CLOSING)`**（不写库）。去掉它，模型会把工具调用标记 `<｜｜DSML｜｜ ...>` 写进正文。服务端另有标记防线：命中时发 `error`、不写库。
+- **不绑定工具的调用（Agent 强制收尾、ch04 评估的第 2 次调用）在末尾追加 `SystemMessage(TOOL_ROUND_CLOSING)`**（不写库）。去掉它，模型会把工具调用标记 `<｜｜DSML｜｜ ...>` 写进正文。`agent_model` 另有标记防线（缓冲前 2 个字符）：命中时抛 `AgentOutputError` → `error` 事件、不写库。
 - **`create_ticket` 不重试**（非幂等）；`conversation_id` 由执行器用 `InjectedToolArg` 注入，模型看不到。
-- **`query_faq` 入参为 `question`（用户原话，≤ 200 字），返回 `{"evidence": [...]}`，不重试，超时 20 秒。** 聊天服务从 `ToolOutcome.data` 合并证据、全局编号后再渲染给模型（模型看不到 `chunk_id` 和分数）。
+- **ch05 起 Agent 不绑定 `query_faq`；知识检索只走 `retrieve` 节点**，证据全局编号后渲染进 Agent System Prompt 的"知识库证据"段（模型看不到 `chunk_id` 和分数），不伪造 `query_faq` 调用（DeepSeek 思考模式下当前轮自造 tool_call id 返回 400）。`query_faq` 契约保留给 ch04 评估：入参 `question`（≤ 200 字），返回 `{"evidence": [...]}`，不重试，超时 20 秒。
 - **Milvus 集合 6 个字段：`id`（= MySQL 主键）、`vector`、`text`（BM25 源文本，`chinese` analyzer）、`sparse`（BM25 Function 输出）、`product_category`、`content_type`，集合级 `Strong` 一致性。** 正文和元数据的权威来源是 MySQL；结构变化后用 `build_kb.py --rebuild` 整体重建集合。
 - **`chinese` analyzer 区分大小写、不拆连写型号**：文档只用规范型号写法（`X3 Pro`），查询侧用词表归一（`x3pro` → `X3 Pro`）；问题中出现型号时，品类由型号决定。
 - **重排 query 用 `dense_query(standard_query)`**（俗称替换为标准词、不追加同义词）；门槛 `RERANK_MIN_SCORE=0.20` 只挡明显无关的证据，能否回答由自评判断。
-- **自评失败按通过处理；证据为空不调 LLM 直接判不够。`useful=false` 时把工具消息替换为 `answerable=false` 并写问题池（独立事务）。** 引用编号 `[n]` 为首尾排列后的全局序号；越界编号只记日志。
+- **置信度闸（`confidence_gate`）：证据为空或 Top-1 重排分 < `GATE_MIN_SCORE` → 入池 `retrieval_low_conf`、不调自评；否则调自评，`useful=false` → 入池 `self_check`。不通过时回 `GATE_FALLBACK_REPLY`，不进 Agent。自评失败按通过处理。** 自评要求证据覆盖问题的全部要点，部分可答的问题整句兜底（见 `docs/backlog/`）。 引用编号 `[n]` 为首尾排列后的全局序号；越界编号只记日志。
 - **`query_product` 只接受 `^P\d{3,8}$` 商品号**（模型曾把型号当商品号，mock 返回随机品类）。
 - **评估生成段必须做真实的第 1 次调用**，沿用模型给出的 tool_call id（DeepSeek 思考模式下自造 id 返回 400）；评估集 `relevant` 为分组格式，Recall 按组计算。
 - **入库只写 MySQL `pending`，统一由 `vectorize_pending()` 写 Milvus 并回填 `done`。** 按主键 `upsert`，中断后重跑不产生重复。
@@ -94,6 +103,12 @@ scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 - **SSE 预检放在 yield 依赖 `prepare_chat_turn` 中，会话锁在其 `finally` 释放**（默认 `scope="request"`）。
 - **SSE 事件用 `ServerSentEvent(raw_data=json.dumps(..., ensure_ascii=False))`。**
 - **一轮成功（回复非空、无工具标记）才写消息**；工单副作用独立提交，不回滚。
+- **State `messages` 只由 `finalize` 和 `POST /tickets` 追加；本轮字段由 `start_turn` 重置。** 一轮失败时历史不变，checkpoint 的 `next` 停在失败节点，下一轮新输入从 START 重新开始。
+- **节点用 `events.emit(name, data)` 发 SSE 事件，API 用 `stream_mode="custom"`；每轮依赖（会话 ID、日期、聊天模型、执行函数）走 `context=GraphContext(...)`，不进 State。** 每个节点进入时打 `node=<名> conversation=<id>`，`finalize` 打一行 `turn ...` 汇总日志。
+- **Agent 只绑定 `AGENT_TOOLS`（查订单、查物流、查商品、`offer_human_options`）。`create_ticket` 只由 `POST /tickets` 调用；`offer_human_options` 只写 `actions`，不做业务动作。** 停止条件：无工具调用收敛；`AGENT_MAX_STEPS=4` 或 `AGENT_TOKEN_BUDGET=16000` 触发强制收尾；`GRAPH_RECURSION_LIMIT=25` 兜底。
+- **`reset_db.sh` 必须同时删除 `data/checkpoints.sqlite`**（MySQL 重建后会话 ID 复用，旧 State 会串到新会话）。
+- **ch04 评估脚本用 `CH04_CHAT_TOOLS` 和 `chat_prompt` 作基线，不跟随 Agent 变化。**
+- **图测试用 fixture `memory_graph`（`InMemorySaver`）、`use_intent`（替换意图识别器）、`emitted`（直接调节点时收集事件）和 `tests/fakes.rt()`**；`client` fixture 自动使用 `memory_graph`。
 - **测试中的聊天模型用 `tests/fakes.py` 的 `ScriptedChatModel`**（支持 `bind_tools`、tool_call chunk、注入异常和等待）；数据库测试用 fixture `db`。
 
 ## 模型与环境变量（`.env`，已 gitignore）
