@@ -11,6 +11,7 @@ from app.graph.builder import open_graph
 from app.graph.nodes.agent import measure_system_tokens
 from app.knowledge.milvus import close_milvus
 from app.knowledge.rerank import close_rerank
+from app.observability import shutdown_langfuse
 
 LOG_PATH = Path(__file__).resolve().parent.parent / "log" / "app.log"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
         async with open_graph():
             yield
     finally:
+        shutdown_langfuse()
         await get_runner().cancel_all()
         try:
             await close_milvus()

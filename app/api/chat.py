@@ -50,7 +50,7 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
     interrupted = False
     try:
         async for mode, chunk in graph.astream(
-            graph_input, thread_config(turn.conversation_id),
+            graph_input, thread_config(turn.conversation_id, turn.user_id),
             context=ctx, stream_mode=["custom", "updates"],
         ):
             if mode == "custom":

@@ -120,6 +120,10 @@ class Settings(BaseSettings):
     tool_result_max_tokens: int = 750
     rerank_top_k: int = 10
 
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_base_url: str | None = None
+
 
 def test_database_url(url: str) -> str:
     """把库名替换为 aftersales_test，其余部分不变。"""

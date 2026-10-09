@@ -11,6 +11,16 @@ from app.locks import LockRegistry, get_lock_registry
 from tests.fakes import Recorder, ScriptedChatModel
 
 
+@pytest.fixture(autouse=True)
+def _no_langfuse(monkeypatch):
+    """测试不连 Langfuse。需要时在测试中直接构造 handler。"""
+    from app import observability
+    from app.graph import builder
+
+    monkeypatch.setattr(observability, "get_langfuse_handler", lambda settings=None: None)
+    monkeypatch.setattr(builder, "get_langfuse_handler", lambda settings=None: None)
+
+
 @pytest.fixture
 def anyio_backend():
     # 只在 asyncio 上运行异步测试。
