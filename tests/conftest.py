@@ -522,3 +522,56 @@ def mcp_servers(monkeypatch, tmp_path, _block_mcp):
     finally:
         for name in list(servers.processes):
             servers.stop(name)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_flywheel(monkeypatch):
+    """测试默认不启动飞轮 Runner，不调上游。"""
+    from app.flywheel import pipeline, runner
+    monkeypatch.setattr(pipeline, "get_question_normalizer", _blocked_factory("get_question_normalizer"))
+    monkeypatch.setattr(pipeline, "get_review_dedup_judge", _blocked_factory("get_review_dedup_judge"))
+    pipeline.clear_vector_cache()
+    runner.set_runner(runner.FlywheelRunner())
+
+
+@pytest.fixture
+def use_flywheel(monkeypatch):
+    """用法：use_flywheel(normalized=[(问题, 答案) 或 None 或异常], dedup=[序号 或 None 或异常])。"""
+    from langchain_core.runnables import RunnableLambda
+    from app.flywheel import pipeline
+    from app.schemas import NormalizedQuestion, ReviewDedup
+
+    def _use(normalized, dedup):
+        nq, dq = list(normalized), list(dedup)
+        calls = {"normalize": [], "dedup": []}
+
+        async def norm(inputs):
+            calls["normalize"].append(inputs)
+            v = nq.pop(0)
+            if isinstance(v, BaseException):
+                raise v
+            parsed = None if v is None else NormalizedQuestion(normalized_question=v[0], suggested_answer=v[1])
+            return {"parsed": parsed, "raw": None}
+
+        async def judge(inputs):
+            calls["dedup"].append(inputs)
+            v = dq.pop(0)
+            if isinstance(v, BaseException):
+                raise v
+            return {"parsed": ReviewDedup(duplicate_of=v), "raw": None}
+
+        monkeypatch.setattr(pipeline, "get_question_normalizer", lambda: RunnableLambda(norm))
+        monkeypatch.setattr(pipeline, "get_review_dedup_judge", lambda: RunnableLambda(judge))
+        return calls
+
+    return _use
+
+
+@pytest.fixture
+async def flywheel_runner():
+    from app.flywheel import runner
+    r = runner.FlywheelRunner()
+    r.start()
+    runner.set_runner(r)
+    yield r
+    await r.stop()

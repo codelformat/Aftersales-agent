@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.api import chat, conversations, extract, faith_cases, health, knowledge, refunds, tickets, web
 from app.context.budget import get_budget, startup_check
 from app.context.summarizer import get_runner
+from app.flywheel.runner import get_runner as get_flywheel_runner
 from app.graph.builder import open_graph
 from app.graph.nodes.agent import measure_system_tokens
 from app.knowledge.milvus import close_milvus
@@ -35,13 +36,15 @@ def setup_file_logging(path: Path | None = None) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_file_logging(LOG_PATH)
-    startup_check(get_budget(), measure_system_tokens())
+    get_flywheel_runner().start()
     try:
+        startup_check(get_budget(), measure_system_tokens())
         async with open_graph():
             yield
     finally:
         shutdown_langfuse()
         await get_runner().cancel_all()
+        await get_flywheel_runner().stop()
         try:
             await close_milvus()
         finally:

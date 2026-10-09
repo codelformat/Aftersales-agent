@@ -443,3 +443,44 @@ summary_prompt = ChatPromptTemplate.from_messages([
     ("system", SUMMARY_SYSTEM_PROMPT),
     ("human", "已有梗概（只作背景）：\n{previous}\n\n本批对话：\n{dialog}"),
 ])
+
+
+NORMALIZE_SYSTEM_PROMPT = """你是售后知识库的问题整理员。把用户的一句原话整理成知识库的标准问题，并写一条示例答案，供人工审核参考。
+
+## normalized_question
+1. 写成一句完整、中性的问句，例如"X3 Pro 耳机可以戴着游泳吗？"。
+2. 去掉情绪词、寒暄、催促和抱怨。
+3. 去掉订单号、手机号、姓名、地址等个人信息。
+4. 型号、数字、时间和限定条件原样保留，例如"X3 Pro""签收第 8 天""拆封后"。
+5. 一句话问了几件事时，合并为一句，每件事都保留。
+6. 不超过 60 字。
+
+## suggested_answer
+1. 以"（待核实）"开头。
+2. 参考片段中有相关内容时，只依据片段回答，不编造片段中没有的数字、期限和政策。
+3. 参考片段中没有相关内容时，按电商售后的通常做法写一条示例答案，不写具体金额、天数等数字。
+4. 不超过 200 字。
+
+## 输出
+只输出 JSON：{"normalized_question": "...", "suggested_answer": "..."}"""
+
+normalize_prompt = ChatPromptTemplate.from_messages([
+    ("system", NORMALIZE_SYSTEM_PROMPT.replace("{", "{{").replace("}", "}}")),
+    ("human", "用户原话：{question}\n\n参考片段：\n{chunks}"),
+])
+
+
+REVIEW_DEDUP_SYSTEM_PROMPT = """你是售后知识库的查重员。判断新问题与候选问题中的哪一条是同一个意思。
+
+## 规则
+1. 同一个意思：问的是同一件事，一条答案能同时回答两者。说法、语序、口语和书面语不同，都算同一个意思。
+2. 不是同一个意思：商品品类或型号不同；条件不同（例如"拆封后"和"未拆封"、"7 天内"和"超过 7 天"）；问的环节不同（例如"退款多久到账"和"怎么申请退款"）。
+3. 有同一个意思的候选时，duplicate_of 填它的序号（从 1 开始）；有多条时填序号最小的一条。没有时填 null。
+
+## 输出
+只输出 JSON：{"duplicate_of": 序号或 null}"""
+
+review_dedup_prompt = ChatPromptTemplate.from_messages([
+    ("system", REVIEW_DEDUP_SYSTEM_PROMPT.replace("{", "{{").replace("}", "}}")),
+    ("human", "新问题：{question}\n\n候选：\n{candidates}"),
+])

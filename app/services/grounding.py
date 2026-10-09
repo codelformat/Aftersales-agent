@@ -10,6 +10,7 @@ from langchain_core.runnables import Runnable
 
 import app.config as config
 from app.db.engine import get_sessionmaker
+from app.flywheel.runner import get_runner as get_flywheel_runner
 from app.llm import get_self_checker
 from app.repositories import low_confidence
 from app.schemas import SelfCheck
@@ -117,6 +118,7 @@ async def record_low_confidence(
                 source=source, reason=reason, retrieved_chunks=retrieved_chunks,
             )
             await s.commit()
+            get_flywheel_runner().submit(row.id)
             return row.id
     except Exception:
         logger.exception("低置信度问题入池失败")

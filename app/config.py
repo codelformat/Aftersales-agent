@@ -142,3 +142,10 @@ def test_database_url(url: str) -> str:
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+# 飞轮的标准化和查重调用等待时间。超时后该行留给补跑脚本。
+FLYWHEEL_LLM_TIMEOUT_SECONDS = 20
+# 待审问题查重的余弦相似度门槛和候选上限。初值同 DEDUP_STAGING_MIN_SCORE，用查重样例集检查。
+REVIEW_DEDUP_MIN_SCORE = 0.75
+REVIEW_DEDUP_TOP_K = 5
