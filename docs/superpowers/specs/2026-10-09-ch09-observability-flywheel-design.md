@@ -1,7 +1,7 @@
 # ch09 可观测性与数据飞轮：设计规格
 
 - 日期：2026-10-09
-- 状态：设计 4 段已经用户逐段确认（2026-10-09），待审阅书面 spec
+- 状态：用户已审阅通过（2026-10-09）；计划阶段补充已同步（Langfuse 端口、意图写法、标准化不出品类、评估排除飞轮块、`failures` 字段）
 - 分支：`ch09`（从 `main` 拉出，`main` 含 ch08）
 - 前置：ch08（`docs/superpowers/specs/2026-10-09-ch08-tool-system-design.md`）。本文只写新增和变化的部分。没有提到的 ch08 行为保持不变。
 
@@ -39,7 +39,7 @@
 | 新依赖 | `langfuse`（Python SDK） |
 | 新配置 | `Settings` 增加 3 个可选字段：`langfuse_public_key`、`langfuse_secret_key`、`langfuse_base_url`；`.env` 增加同名 3 个变量（用户授权） |
 
-端口：Langfuse Web 用 3000。ClickHouse、Redis、Postgres、MinIO 只绑定 `127.0.0.1`，端口避开现有的 3307、19530、9091、8000、8101、8102。具体端口在计划中给出。
+端口（计划阶段补充）：本机已有 mewhelp 项目的 Langfuse v3（3000、3030、5432、8123、9000、9090、9191、6380）。用户裁定本项目单独部署 v4，端口为 Web `3100`、worker `127.0.0.1:3130`、Postgres `127.0.0.1:5433`、ClickHouse `127.0.0.1:8124`/`127.0.0.1:9002`、MinIO `9092`/`127.0.0.1:9192`、Redis `127.0.0.1:6381`。`LANGFUSE_BASE_URL=http://127.0.0.1:3100`。compose 文件不引用 `.env` 中的 `DATABASE_URL` 等变量，只读 3 个 `LANGFUSE_*` 作为初始化密钥。
 
 ## 3. 数据
 
@@ -64,7 +64,7 @@
 ```json
 {"strategy": "hybrid_rerank", "recall_at_1": 0.0, "recall_at_3": 0.0, "recall_at_5": 0.0, "recall_at_10": 0.0,
  "mrr": 0.0, "faithfulness": 0.0, "false_refusal": 0.0, "d_refusal": 0.0, "judge_failed": 0,
- "gate_conf_threshold": 0.0}
+ "failures": 0, "gate_conf_threshold": 0.0}
 ```
 
 ## 4. 可观测性
@@ -93,12 +93,14 @@
 - 目标：每条 trace 带元数据 `intent`（8 类意图之一，或 `-` 表示未识别），可在 Langfuse 界面筛选，可通过公开 API 按 `intent` 汇总 token。
 - 难点：SDK v4 的 `propagate_attributes` 只作用于作用域内新建的 observation，而意图在 `classify_intent` 之后才确定。
 - 计划第 1 个任务做 spike：在本机部署的 Langfuse 上实测写法，确认能在意图确定后把 `intent` 写成 trace 级元数据，并能按它汇总。
+- 候选写法（计划阶段补充）：`IntentCallbackHandler` 继承 `CallbackHandler`，在 `classify_intent` 节点的 `on_chain_end` 中找到根 observation，执行 `update(metadata={"intent": ...})`，并在其 OTel span 上设置 `langfuse.trace.metadata.intent`。统计按根 observation 的 metadata 归类。
+- 本机 shell 有 `HTTP_PROXY` 没有 `NO_PROXY`：`LANGFUSE_BASE_URL` 为本机地址时，进程把 `127.0.0.1`、`localhost` 加入 `NO_PROXY`。
 - spike 走不通时，停下来问用户，不自行换方案。
 
 ### 4.4 按意图统计 token（`scripts/intent_cost.py`）
 
 - 参数：`--days N`（默认 7）。
-- 调用 Langfuse 公开 API（具体接口由 spike 确定），按 `intent` 汇总：轮数、输入 token、输出 token、总 token、每轮平均 token、总 token 占比。按总 token 降序排列，第 1 行标"最费 token"。
+- 调用 `GET /api/public/v2/observations`（按 `traceName=chat_turn` 过滤，字段组 `core,basic,usage,metadata`，游标分页；字段名由 spike 确认），按 `intent` 汇总：轮数、输入 token、输出 token、总 token、每轮平均 token、总 token 占比。按总 token 降序排列，第 1 行标"最费 token"。
 - 只统计 token，不统计金额（用户裁定）。
 - Langfuse 未配置时，打印说明并以退出码 1 退出。
 
@@ -158,7 +160,7 @@
 
 ### 6.3 👎（`POST /api/feedback`，新建 `app/api/feedback.py`）
 
-- 请求体：`{conversation_id: int, message_id: int, rating: "up" | "down"}`。
+- 请求体：`{conversation_id: int, message_id: int, rating: "up" | "down", user_id: str}`。会话不属于该用户时返回 404。
 - `up`：返回 204，不写库。
 - `down`：
   1. 读取 `messages` 中的 `message_id`。如果不存在或不属于该会话，返回 404；如果不是助手回复，返回 422。
@@ -187,10 +189,9 @@
 ### 7.2 `process(lcq_id)`（`app/flywheel/pipeline.py`）
 
 1. 读取该行。`matched_review_id` 已有值时跳过。
-2. 标准化：调用标准化器（json_mode，关闭思考，超时 `FLYWHEEL_LLM_TIMEOUT_SECONDS`）。输入原话和快照片段（有时），输出 `NormalizedQuestion{normalized_question, suggested_answer, product_category}`。
+2. 标准化：调用标准化器（json_mode，关闭思考，超时 `FLYWHEEL_LLM_TIMEOUT_SECONDS`）。输入原话和快照片段（有时），输出 `NormalizedQuestion{normalized_question, suggested_answer}`。`review_queue` 没有品类列，品类由审核人员在通过时选择（计划阶段补充）。
    - `normalized_question`：FAQ 式问法，去掉情绪词、订单号、个人信息，≤ 100 字。
    - `suggested_answer`：只依据快照片段和通用售后常识，开头写"（待核实）"。
-   - `product_category`：8 个品类或"通用"之一。不合法时按"通用"处理。
 3. 召回候选：嵌入 `normalized_question`，与所有 `待审` 行的 `normalized_question` 计算余弦相似度，取 ≥ `REVIEW_DEDUP_MIN_SCORE` 的前 `REVIEW_DEDUP_TOP_K=5` 条。待审行向量按 `(id, normalized_question)` 缓存在进程内。
 4. 查重判定：有候选时调用判定器（json_mode，关闭思考），输出 `ReviewDedup{duplicate_of: int | None}`（候选序号）。序号越界视为失败。没有候选时不调用，判为新缺口。
 5. 一个事务内：命中时 `occurrence_count + 1`；否则插入 `review_queue`（`待审`，次数 1）。回填 `matched_review_id`。
@@ -222,7 +223,7 @@
 |---|---|
 | `GET /api/review-queue?status=待审` | 按 `occurrence_count` 降序、`updated_at` 降序；`status` 省略时返回全部 |
 | `GET /api/review-queue/{id}` | 该行 + 归并进来的原话列表（`raw_question`、`source`、`reason`、`created_at`、`retrieved_chunks`），按 `created_at` 升序；不存在时 404 |
-| `POST /api/review-queue/{id}/approve` | 请求体 `{approved_answer, product_category}`；见 8.2 |
+| `POST /api/review-queue/{id}/approve` | 请求体 `{approved_answer, product_category}`（品类默认"通用"）；见 8.2 |
 | `POST /api/review-queue/{id}/reject` | 只允许 `待审` → `驳回`，否则 409 |
 
 ### 8.2 通过 → 入库
@@ -237,11 +238,12 @@
 ### 8.3 与现有约束的衔接
 
 - `build_kb.py --rebuild`：`flywheel` 块与 `mined` 块一样保留，并重新向量化。
+- 评估（`exclude_mined=True`）同时排除 `flywheel` 块：`content_type not in ["mined", "flywheel"]`。评估集只标注文档来源（计划阶段补充）。
 - 编造台账、挖掘流程不变。
 
 ### 8.4 前端（Vibe Coding，由 Codex 实现）
 
-- `/admin/review-queue`：列表（标准化问题、出现次数、示例答案、状态）；通过（可编辑答案和品类，答案默认填示例答案并去掉"（待核实）"）、驳回；每行可展开详情，显示原话和召回片段（片段带分数）。
+- `/admin/review-queue`：列表（标准化问题、出现次数、示例答案、状态）；通过（可编辑答案和品类，答案默认填示例答案并去掉"（待核实）"，品类默认"通用"）、驳回；每行可展开详情，显示原话和召回片段（片段带分数）。
 - `/admin/eval-runs`：各指标折线，标出下滑点。
 - 聊天页：👎 调 `POST /api/feedback`，保留 localStorage 记录；只在 `done` 带 `message_id` 时显示反馈按钮。
 
@@ -250,7 +252,7 @@
 - 复用 `run_rag_eval.py` 的检索段和生成段函数，只跑 `hybrid_rerank`，全量 300 题，默认并发 3。
 - 跑完写一行 `eval_runs`：`triggered_by` 由 `--trigger 定时|手动` 指定（默认 `手动`）；`dataset_size` 为实际题数；`metrics` 见 3.3。
 - 生成段继续写 `faith_cases`（ch04 行为）。
-- 任一段整体失败：不写 `eval_runs`，退出码 1。
+- 任一段整体失败（检索段没有得分或生成段没有结果）：不写 `eval_runs`，退出码 1。部分题目失败时照常写入，`failures` 记失败条数，退出码 1。
 - `--limit N` 只用于调试。
 - `--trend [--last N]`：打印最近 N 轮（默认 10），只比较与最新一轮 `dataset_size` 相同的轮次。每个指标显示数值和与上一轮的差值。下降超过 `EVAL_DROP_TOLERANCE=0.02` 标 `↓`；`false_refusal` 上升超过容差标 `↓`。末行列出下滑指标。
 - `GET /api/eval-runs?limit=N`（新建 `app/api/eval_runs.py`）：按 `created_at` 升序返回，给趋势页用。
