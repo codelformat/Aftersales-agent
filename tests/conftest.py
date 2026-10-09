@@ -92,12 +92,12 @@ async def _reset_schema(url: str) -> None:
             for table in (
                 "tool_audit_logs",
                 "conversation_summaries",
-                "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
+                "faith_cases", "low_confidence_questions", "review_queue", "eval_runs", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations", "faq",
             ):
                 await conn.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
             for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql", "schema_ch07.sql",
-                         "schema_ch08.sql"):
+                         "schema_ch08.sql", "schema_ch09.sql"):
                 for stmt in split_sql((ROOT / "db" / name).read_text(encoding="utf-8")):
                     await conn.exec_driver_sql(stmt)
     finally:
@@ -114,7 +114,7 @@ async def _clear_runtime_tables(url: str) -> None:
             for table in (
                 "tool_audit_logs",
                 "conversation_summaries",
-                "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
+                "faith_cases", "low_confidence_questions", "review_queue", "eval_runs", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations",
             ):
                 await conn.exec_driver_sql(f"DELETE FROM {table}")
