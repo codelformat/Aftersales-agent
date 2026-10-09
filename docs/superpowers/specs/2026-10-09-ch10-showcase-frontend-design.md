@@ -1,7 +1,7 @@
 # ch10 作品展示前端：设计规格
 
 - 日期：2026-10-09
-- 状态：设计 6 段已经用户逐段确认，待审阅书面 spec
+- 状态：用户已审阅通过（2026-10-09）
 - 分支：`ch10`（从 `main` 拉出，`main` 含 ch09）
 - 前置：ch09（`docs/superpowers/specs/2026-10-09-ch09-observability-flywheel-design.md`）。后端行为除本文列出的增量外保持不变。
 - 后续：README 与作品集接入另起一份 spec（依赖本章的截图和 Pages 地址）。
@@ -220,7 +220,7 @@ interface DataSource {
   1. `backend.yml`：docker compose 起 MySQL + Milvus，`uv run pytest -q`。
   2. `web.yml`：`npm ci`、`tsc --noEmit`、`vitest run`、`vite build`（两种模式）、Playwright。
   3. `pages.yml`：推送 `main` 时构建 replay 版并部署 Pages。
-- **待用户确认：** CLAUDE.md 规定聊天页面用 Vibe Coding（不套 TDD 和 code review）。本章前端是主要交付物，含协议、reducer、回放时钟等可单测逻辑，建议按完整流程（TDD、code review）开发；视觉细节仍可由用户描述效果后调整。
+- **用户确认：** 本章前端不按 CLAUDE.md 的 Vibe Coding 例外处理，按完整流程（TDD、code review）开发；视觉细节仍可由用户描述效果后调整。
 
 ## 15. 已知限制
 
