@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
 from app.config import MAX_INPUT_CHARS, MINED_CATEGORIES, PRODUCT_CATEGORIES
 
@@ -130,7 +130,14 @@ REFUND_REASONS = ("七天无理由", "质量问题", "商品与描述不符", "�
 class ResumeRequest(BaseModel):
     session_id: SessionId
     user_id: UserId
-    order_id: OrderId
+    order_id: OrderId | None = None
+    ticket_confirm: bool | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_choice(self):
+        if (self.order_id is None) == (self.ticket_confirm is None):
+            raise ValueError("order_id 和 ticket_confirm 必须恰好提供一个")
+        return self
 
 
 class RefundRequest(BaseModel):

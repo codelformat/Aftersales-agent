@@ -3,10 +3,12 @@ from langchain_core.runnables import RunnableLambda
 
 from app.graph.nodes import aftersales as aftersales_nodes
 from app.knowledge.retrieval import EvidenceItem, Retrieval
+from app.prompts import TICKET_CANCELLED_REPLY, TICKET_CREATED_NOTE
 from app.schemas import SelfCheck
 from app.services import grounding
-from tests.fakes import text
+from tests.fakes import text, tools
 from tests.test_chat_api import chat, parse_sse, rows
+from tests.test_graph_confirm import TICKET_CALL, USER_INPUT, audit_rows, ticket_rows
 
 pytestmark = pytest.mark.anyio
 
@@ -33,6 +35,22 @@ async def start_picker(client, use_resolver, use_intent):
     use_intent("退款退货")
     r, ev = await chat(client, "我要退货")
     return ev[0][1]["session_id"], ev
+
+
+async def start_ticket(client, use_script, use_resolver, use_intent):
+    use_resolver({"ticket_request": True})
+    use_intent("售后")
+    use_script(tools(TICKET_CALL))
+    r, ev = await chat(client, USER_INPUT)
+    assert r.status_code == 200
+    return ev[0][1]["session_id"], ev
+
+
+async def resume_ticket(client, session_id, confirmed):
+    r = await client.post("/chat/resume", json={
+        "session_id": session_id, "user_id": "u1", "ticket_confirm": confirmed,
+    })
+    return r, (parse_sse(r.text) if r.status_code == 200 else None)
 
 
 async def test_stream_emits_order_picker_and_interrupted(client, db, use_script, use_intent, use_resolver):
@@ -128,3 +146,112 @@ async def test_resume_failure_writes_nothing(client, db, use_script, use_intent,
     assert await rows(db) == []
     r, _ = await resume(client, sid, oid)
     assert r.status_code == 409
+
+
+async def test_stream_emits_ticket_preview_and_interrupted(client, db, db_audit, use_script,
+                                                         use_resolver, use_intent):
+    sid, ev = await start_ticket(client, use_script, use_resolver, use_intent)
+    assert [e for e, _ in ev] == ["session", "understood", "ticket_preview", "done"]
+    assert ev[2][1] == {"call_id": "t1", "ticket_type": "售后", "description": "蓝牙耳机左耳没声音"}
+    assert ev[-1] == ("done", {"finish_reason": "interrupted"})
+    assert await ticket_rows(db, int(sid)) == []
+    assert await audit_rows(db, int(sid)) == []
+    assert await rows(db) == []
+
+
+async def test_resume_confirm_creates_ticket(client, db, use_script, use_resolver, use_intent):
+    sid, _ = await start_ticket(client, use_script, use_resolver, use_intent)
+    r, ev = await resume_ticket(client, sid, True)
+    assert r.status_code == 200
+    [ticket] = await ticket_rows(db, int(sid))
+    reply = TICKET_CREATED_NOTE.format(ticket_no=ticket.ticket_no, ticket_type="售后")
+    assert (ticket.description, ticket.ticket_type) == ("蓝牙耳机左耳没声音", "售后")
+    assert "token" in [e for e, _ in ev]
+    assert "".join(d["text"] for e, d in ev if e == "token") == reply
+    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert [(m.role, m.content) for m in await rows(db)] == [("user", USER_INPUT), ("assistant", reply)]
+
+
+async def test_resume_cancel_does_not_create_ticket(client, db, use_script, use_resolver, use_intent):
+    sid, _ = await start_ticket(client, use_script, use_resolver, use_intent)
+    r, ev = await resume_ticket(client, sid, False)
+    assert r.status_code == 200
+    assert "".join(d["text"] for e, d in ev if e == "token") == TICKET_CANCELLED_REPLY
+    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert await ticket_rows(db, int(sid)) == []
+
+
+@pytest.mark.parametrize("fields", [
+    {}, {"order_id": None, "ticket_confirm": None},
+    {"order_id": "1001", "ticket_confirm": True},
+    {"order_id": "1001", "ticket_confirm": False},
+])
+async def test_resume_requires_exactly_one_choice(client, db, use_script, use_resolver, use_intent, fields):
+    use_script()
+    sid, _ = await start_picker(client, use_resolver, use_intent)
+    r = await client.post("/chat/resume", json={"session_id": sid, "user_id": "u1", **fields})
+    assert r.status_code == 422
+    assert "order_id 和 ticket_confirm 必须恰好提供一个" in r.json()["detail"][0]["msg"]
+
+
+async def test_order_resume_rejects_pending_ticket(client, db, use_script, use_resolver, use_intent):
+    sid, _ = await start_ticket(client, use_script, use_resolver, use_intent)
+    r, _ = await resume(client, sid, "1001")
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "no_pending_selection"
+    assert await ticket_rows(db, int(sid)) == []
+
+
+async def test_ticket_resume_rejects_pending_picker(client, db, use_script, use_resolver, use_intent):
+    use_script()
+    sid, _ = await start_picker(client, use_resolver, use_intent)
+    r, _ = await resume_ticket(client, sid, True)
+    assert r.status_code == 409
+    assert r.json()["detail"] == {
+        "code": "no_pending_confirmation", "message": "没有待确认的工单，请重新提问",
+    }
+
+
+async def test_ticket_resume_twice_is_409(client, db, use_script, use_resolver, use_intent):
+    sid, _ = await start_ticket(client, use_script, use_resolver, use_intent)
+    r, _ = await resume_ticket(client, sid, True)
+    assert r.status_code == 200
+    r, _ = await resume_ticket(client, sid, True)
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "no_pending_confirmation"
+    assert len(await ticket_rows(db, int(sid))) == 1
+
+
+async def test_new_message_audits_discarded_ticket(client, db, db_audit, use_script,
+                                                use_resolver, use_intent):
+    sid, _ = await start_ticket(client, use_script, use_resolver, use_intent)
+    use_resolver({})
+    use_intent("闲聊")
+    r, ev = await chat(client, "算了，你好", session_id=sid)
+    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop"})
+    [audit] = await audit_rows(db, int(sid))
+    assert audit.tool_call_id == "t1" and audit.tool_source == "builtin" and audit.mcp_server is None
+    assert audit.arguments == {"description": "蓝牙耳机左耳没声音", "ticket_type": "售后"}
+    assert audit.status == "权限拒绝" and audit.error_message == "用户未确认，已被新消息取代"
+    assert audit.result_summary is None and audit.retry_count == 0 and audit.duration_ms is None
+    r, _ = await resume_ticket(client, sid, True)
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "no_pending_confirmation"
+    assert await ticket_rows(db, int(sid)) == []
+
+
+async def test_discard_audit_failure_does_not_block_new_message(client, db, use_script,
+                                                             use_resolver, use_intent, caplog):
+    from app.tools import audit
+
+    sid, _ = await start_ticket(client, use_script, use_resolver, use_intent)
+
+    async def broken(rec):
+        raise RuntimeError("审计不可用")
+
+    audit.set_audit_writer(broken)
+    use_resolver({})
+    use_intent("闲聊")
+    r, ev = await chat(client, "算了，你好", session_id=sid)
+    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop"})
+    assert "audit_write_failed" in caplog.text
+    r, _ = await resume_ticket(client, sid, True)
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "no_pending_confirmation"
+    assert await ticket_rows(db, int(sid)) == []

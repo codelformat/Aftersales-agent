@@ -293,19 +293,24 @@ async def test_message_within_input_limit_is_accepted(client, db, use_script, us
     assert r.status_code == 200 and ev[-1][0] == "done"
 
 
-async def test_existing_session_precheck_does_not_read_history(client, db, use_script, use_intent,
-                                                              locks, memory_graph, monkeypatch):
+async def test_existing_session_reads_pending_after_lock(client, db, use_script, use_intent,
+                                                        locks, memory_graph, monkeypatch):
     use_intent("闲聊", "闲聊")
     use_script()
     _, ev = await chat(client, "你好")
     sid = ev[0][1]["session_id"]
 
-    async def blocked_read(*args, **kwargs):
-        raise AssertionError("输入预检不能读取 checkpoint")
+    observed = []
+    original = memory_graph.aget_state
 
-    monkeypatch.setattr(memory_graph, "aget_state", blocked_read)
+    async def record_read(config):
+        observed.append(locks.get(int(sid)).locked())
+        return await original(config)
+
+    monkeypatch.setattr(memory_graph, "aget_state", record_read)
     r, ev = await chat(client, "你好", session_id=sid)
     assert r.status_code == 200 and ev[-1][0] == "done"
+    assert observed == [True]
     assert not locks.get(int(sid)).locked()
 
 

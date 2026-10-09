@@ -3,7 +3,7 @@ import logging
 from collections.abc import AsyncIterable, AsyncIterator
 from dataclasses import dataclass
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.sse import EventSourceResponse, ServerSentEvent
@@ -20,11 +20,14 @@ from app.llm import get_chat_model
 from app.locks import LockRegistry, get_lock_registry
 from app.repositories import conversations
 from app.schemas import ChatRequest, ResumeRequest
+from app.tools import audit
+from app.tools.audit import AuditRecord
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 UPSTREAM_ERROR = {"code": "upstream_error", "message": "服务暂时不可用，请稍后重试"}
 NO_PENDING = {"code": "no_pending_selection", "message": "没有待选择的订单，请重新提问"}
+NO_PENDING_CONFIRMATION = {"code": "no_pending_confirmation", "message": "没有待确认的工单，请重新提问"}
 INVALID_ORDER = {"code": "invalid_order", "message": "订单不在可选列表中"}
 
 
@@ -34,7 +37,7 @@ class ChatTurn:
     user_input: str
     today: date
     user_id: str
-    resume_order_id: str | None = None
+    resume_value: Any = None
 
 
 def sse(name: str, data: dict) -> ServerSentEvent:
@@ -56,7 +59,10 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
             elif mode == "updates" and "__interrupt__" in chunk:
                 # 节点恢复时会重新执行，卡片由这里发出。
                 value = chunk["__interrupt__"][0].value
-                yield sse("order_picker", {"orders": value["orders"]})
+                if value.get("type") == "ticket_confirm":
+                    yield sse("ticket_preview", {k: value[k] for k in ("call_id", "ticket_type", "description")})
+                else:
+                    yield sse("order_picker", {"orders": value["orders"]})
                 interrupted = True
     except Exception:
         logger.exception("对话图执行失败")
@@ -100,6 +106,16 @@ async def prepare_chat_turn(
     await lock.acquire()
     # 使用 yield 依赖在响应结束或后续依赖出错时释放锁。
     try:
+        if req.session_id is not None:
+            pending = _pending(await graph.aget_state(thread_config(conversation_id)), "ticket_confirm")
+            if pending is not None:
+                await audit.record(AuditRecord(
+                    conversation_id=conversation_id, tool_call_id=pending["call_id"], tool_name="create_ticket",
+                    tool_source="builtin", mcp_server=None,
+                    arguments={"description": pending["description"], "ticket_type": pending["ticket_type"]},
+                    result_summary=None, status="权限拒绝", error_message="用户未确认，已被新消息取代",
+                    retry_count=0, duration_ms=None,
+                ))
         yield ChatTurn(conversation_id=conversation_id, user_input=req.message, today=today, user_id=req.user_id)
     finally:
         lock.release()
@@ -115,9 +131,9 @@ async def chat_stream(
         yield event
 
 
-def _pending_picker(state) -> dict | None:
+def _pending(state, kind) -> dict | None:
     for item in getattr(state, "interrupts", ()) or ():
-        if isinstance(item.value, dict) and item.value.get("type") == "order_picker":
+        if isinstance(item.value, dict) and item.value.get("type") == kind:
             return item.value
     return None
 
@@ -137,13 +153,20 @@ async def prepare_resume(
         raise HTTPException(409, detail={"code": "session_busy", "message": "该会话正在处理上一条消息，请稍后重试"})
     await lock.acquire()
     try:
-        picker = _pending_picker(await graph.aget_state(thread_config(cid)))
-        if picker is None:
-            raise HTTPException(409, detail=NO_PENDING)
-        if req.order_id not in {o["order_id"] for o in picker["orders"]}:
-            raise HTTPException(422, detail=INVALID_ORDER)
+        state = await graph.aget_state(thread_config(cid))
+        if req.order_id is not None:
+            picker = _pending(state, "order_picker")
+            if picker is None:
+                raise HTTPException(409, detail=NO_PENDING)
+            if req.order_id not in {o["order_id"] for o in picker["orders"]}:
+                raise HTTPException(422, detail=INVALID_ORDER)
+            resume_value = req.order_id
+        else:
+            if _pending(state, "ticket_confirm") is None:
+                raise HTTPException(409, detail=NO_PENDING_CONFIRMATION)
+            resume_value = {"confirmed": req.ticket_confirm}
         yield ChatTurn(conversation_id=cid, user_input="", today=today, user_id=req.user_id,
-                       resume_order_id=req.order_id)
+                       resume_value=resume_value)
     finally:
         lock.release()
 
@@ -154,5 +177,5 @@ async def chat_resume(
     model: Annotated[BaseChatModel, Depends(get_chat_model)],
     graph: Annotated[object, Depends(get_graph)],
 ) -> AsyncIterable[ServerSentEvent]:
-    async for event in stream_graph(graph, Command(resume=turn.resume_order_id), turn, model):
+    async for event in stream_graph(graph, Command(resume=turn.resume_value), turn, model):
         yield event
