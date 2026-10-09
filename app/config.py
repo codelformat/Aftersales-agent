@@ -80,10 +80,14 @@ GRAPH_RECURSION_LIMIT = 25
 # 召回快照条数。不小于 GATE_EFFECTIVE_N 的搜索上限 5。
 SNAPSHOT_TOP_N = 5
 # evidence_confidence = w1·Top-1 + w2·有效证据占比 + w3·Top-1 与 Top-2 的分差。
-# 校准前的初值等价于旧规则（Top-1 ≥ 0.20）。校准报告：evals/reports/gate_calibration_*.md。
-GATE_WEIGHTS: tuple[float, float, float] = (1.0, 0.0, 0.0)
-GATE_EFFECTIVE_N = 3
-GATE_CONF_THRESHOLD = 0.20
+# 有效证据占比 = min(分数 ≥ RERANK_MIN_SCORE 的条数 / N, 1)。
+# 数值来自 evals/reports/gate_calibration_20261009-125757.md。
+# 全量最优为 N=4、t=0.33。第 3 折验证 D 拒答率下降 0.31，判为过拟合。
+# 取 5 折中出现最多的 (0.2, 0.3, 0.5)/N=2。全量重搜门槛得 0.39。
+# 全量保留率 0.954，D 拒答率 0.583。旧规则为 0.963/0.450。
+GATE_WEIGHTS: tuple[float, float, float] = (0.2, 0.3, 0.5)
+GATE_EFFECTIVE_N = 2
+GATE_CONF_THRESHOLD = 0.39
 # ch08 接入 MCP 后，System + 工具定义实测 2047–2360 token（全部内置 Agent 工具 + 3 个 MCP 工具时最大）。
 SYSTEM_RESERVE_TOKENS = 2400
 EVIDENCE_ITEM_TOKENS = 250

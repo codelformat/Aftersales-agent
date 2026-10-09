@@ -223,7 +223,7 @@ async def test_gate_passes_and_emits_citations(db, monkeypatch, emitted):
     calls = use_checker(monkeypatch)
     out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, [0.8]), rt(await new_conversation(db)))
     assert gate_view(out["gate"]) == {"passed": True, "reason": "依据[1]", "source": None}
-    assert out["gate"]["confidence"] == 0.8 and out["gate"]["signals"]["top1"] == 0.8
+    assert out["gate"]["confidence"] == 0.71 and out["gate"]["signals"]["top1"] == 0.8
     assert out["gate"]["top_score"] == 0.8
     assert "[1] 退换货 > 运费" in calls[0]["evidence"]
     assert emitted == [("citations", {"items": EVIDENCE, "refused": False})]

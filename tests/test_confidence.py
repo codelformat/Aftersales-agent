@@ -39,9 +39,17 @@ def test_gate_passes_needs_evidence_above_min_score():
     assert ok is True and c.score == 0.5
 
 
-def test_default_params_match_old_rule():
-    assert gate_passes([0.2])[0] is True
-    assert gate_passes([0.19])[0] is False
+def test_old_rule_params():
+    assert gate_passes([0.2], weights=(1, 0, 0), effective_n=3, threshold=0.20)[0] is True
+    assert gate_passes([0.19], weights=(1, 0, 0), effective_n=3, threshold=0.20)[0] is False
+
+
+def test_calibrated_defaults():
+    ok, c = gate_passes([0.8, 0.3])
+    assert ok is True and c.score == pytest.approx(0.71)
+    # [0.45, 0.44] 得分 0.395，会通过；用 0.388 的同分证据验证拒答。
+    ok, c = gate_passes([0.44, 0.44])
+    assert ok is False and c.score == pytest.approx(0.388)
 
 
 def test_to_dict_rounds():
