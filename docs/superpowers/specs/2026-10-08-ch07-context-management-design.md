@@ -76,7 +76,7 @@ Context7 核对结果（langchain-core 1.6.6、langgraph 1.2.14）：
 |---|---|---|
 | `MODEL_CONTEXT_WINDOW` | 128000 | 窗口 W |
 | `MAX_OUTPUT_TOKENS` | 8192 | 输出预留 O。只进预算，不作为 `max_tokens` 发给上游（思考 token 计入，太小会返回空 content） |
-| `MAX_USER_INPUT_TOKENS` | 1000 | 用户输入上限 U。`/chat/stream` 预检，超出返回 422 `budget_exceeded`。`MAX_INPUT_CHARS=2000` 的 schema 校验保留 |
+| `MAX_USER_INPUT_TOKENS` | 1400 | 用户输入上限 U（覆盖 `MAX_INPUT_CHARS=2000` 字，按 1.5 字符/token 约 1339 token；code review 由 1000 改为 1400）。`/chat/stream` 预检，超出返回 422 `budget_exceeded`。`MAX_INPUT_CHARS=2000` 的 schema 校验保留 |
 | `MAX_AGENT_STEPS` | 4 | 取代 `AGENT_MAX_STEPS` |
 | `TOOL_RESULT_MAX_TOKENS` | 750 | 执行器截断长度 = `int(T × CHARS_PER_TOKEN)` 字符，取代 `TOOL_RESULT_MAX_CHARS` |
 | `RERANK_TOP_K` | 10 | 生产链路证据条数 K。`retrieve`、`retrieve_multi` 增加 `top_n` 参数，生产节点传 K；ch04 评估仍用 `EVIDENCE_TOP_N=10` |
@@ -115,7 +115,7 @@ L2 = int(history × 0.3)
 
 演示配置：`18000 − 2000 − 900 − 1800 − 5×250 − 500 − (2000 + 3×(1200+100)) = 5650`，L1 = 3954，L2 = 1695（Python `int(5650*0.7)` 为 3954）。
 
-只改窗口为 18000：`18000 − 8192 − 900 − 1800 − 2500 − 500 − (1000 + 4×850) = −292` → history = 0。
+只改窗口为 18000：`18000 − 8192 − 900 − 1900 − 2500 − 400 − (1400 + 4×850) = −692` → history = 0（校准和 code review 后的值；最初设计为 −292）。
 
 `ContextBudget` 是 frozen dataclass，带全部输入项和结果，由 `get_budget()` 按 `Settings` 计算并缓存。
 
@@ -148,7 +148,7 @@ L2 = int(history × 0.3)
 | 一步工具调用消息开销 | 真实约 50 | `STEP_OVERHEAD_TOKENS` 100 不变 |
 | 梗概预留 | — | `SUMMARY_RESERVE_TOKENS` 500 → 400（约 600 字，3 段），与 SYS 的增量抵消 |
 
-调整后演示配置仍为 5650/3954/1695，只改窗口仍为 avail = −292。工具结果截断长度随口径变为 750 × 1.5 = 1125 字（原 1500 字），mock 工具结果最长约 470 字，不受影响。
+调整后演示配置仍为 5650/3954/1695，只改窗口仍为负值（当时 −292；code review 把 U 默认值改为 1400 后为 −692）。工具结果截断长度随口径变为 750 × 1.5 = 1125 字（原 1500 字），mock 工具结果最长约 470 字，不受影响。
 
 `TURN_TOKENS` 由 `scripts/demo7.sh` 的 22 轮脚本在默认配置下实测：取每轮层 1 增量的稳态值。要求默认配置下 20 轮全部留在层 1（验收 3）。
 

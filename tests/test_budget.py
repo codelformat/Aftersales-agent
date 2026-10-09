@@ -1,14 +1,22 @@
 import logging
 
 import pytest
+from langchain_core.messages import HumanMessage
 
-from app.config import SYSTEM_RESERVE_TOKENS, Settings
+from app.config import MAX_INPUT_CHARS, SYSTEM_RESERVE_TOKENS, Settings
+from app.context import count_tokens
 from app.context.budget import budget_from_settings, compute_budget, startup_check
 
 DEMO = dict(window=18000, max_output=2000, max_user_input=2000, max_agent_steps=3,
             tool_result_max=1200, top_k=5)
-DEFAULTS = dict(max_output=8192, max_user_input=1000, max_agent_steps=4,
+DEFAULTS = dict(max_output=8192, max_user_input=1400, max_agent_steps=4,
                 tool_result_max=750, top_k=10)
+
+
+def test_default_input_token_limit_covers_max_input_chars():
+    assert count_tokens([HumanMessage("字" * MAX_INPUT_CHARS)]) <= (
+        Settings.model_fields["max_user_input_tokens"].default
+    )
 
 
 def test_demo_config_gives_5650():
@@ -21,7 +29,7 @@ def test_demo_config_gives_5650():
 def test_window_only_change_gives_zero():
     b = compute_budget(window=18000, **DEFAULTS)
     assert (b.system, b.summary) == (1900, 400)
-    assert b.avail == -292
+    assert b.avail == -692
     assert (b.history, b.layer1, b.layer2) == (0, 0, 0)
 
 
@@ -31,7 +39,7 @@ def test_default_window_is_capped_by_keep_turns(monkeypatch):
     monkeypatch.setattr(config, "TURN_TOKENS", 800)
     b = compute_budget(window=128000, **DEFAULTS)
     assert (b.system, b.summary) == (1900, 400)
-    assert b.avail == 104208
+    assert b.avail == 103808
     assert (b.history, b.layer1, b.layer2) == (24000, 16800, 7200)
 
 
@@ -69,7 +77,7 @@ def test_current_system_prompt_and_tools_fit_reserve(caplog):
     assert "system_reserve_exceeded" not in caplog.text
 
 
-@pytest.mark.parametrize("window, warns", [(18757, True), (18758, False)])
+@pytest.mark.parametrize("window, warns", [(19178, True), (19179, False)])
 def test_startup_check_layer1_must_fit_one_turn(window, warns, caplog):
     caplog.set_level(logging.INFO)
     budget = compute_budget(window=window, **DEFAULTS)

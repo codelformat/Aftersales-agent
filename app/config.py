@@ -108,7 +108,8 @@ class Settings(BaseSettings):
     rerank_base_url: str = "https://api.siliconflow.cn/v1"
     model_context_window: int = 128000
     max_output_tokens: int = 8192
-    max_user_input_tokens: int = 1000
+    # 覆盖 MAX_INPUT_CHARS=2000 字（按 1.5 字符/token 约 1339 token）。
+    max_user_input_tokens: int = 1400
     max_agent_steps: int = 4
     tool_result_max_tokens: int = 750
     rerank_top_k: int = 10

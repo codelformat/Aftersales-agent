@@ -6,6 +6,7 @@ from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
 from app.api import chat as chat_mod
+from app.config import MAX_INPUT_CHARS
 from app.db.models import Message
 from app.graph.nodes import knowledge as knowledge_nodes
 from app.knowledge.retrieval import EvidenceItem, Retrieval
@@ -172,6 +173,14 @@ async def test_recursion_limit_is_error(client, db, use_script, use_intent, monk
     use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("好"))
     _, ev = await chat(client, "到哪了")
     assert ev[-1] == UPSTREAM_ERROR
+
+
+async def test_default_limit_accepts_max_input_chars(client, db, use_script, use_intent):
+    use_intent("闲聊")
+    use_script()
+    r, ev = await chat(client, "字" * MAX_INPUT_CHARS)
+    assert r.status_code == 200
+    assert ev[-1] == ("done", {"finish_reason": "stop"})
 
 
 async def test_budget_exceeded(client, db, use_script):
