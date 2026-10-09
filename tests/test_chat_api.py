@@ -59,8 +59,34 @@ async def test_chitchat_events(client, db, use_script, use_intent):
     r, ev = await chat(client, "你好")
     assert ev[0][0] == "session" and ev[0][1]["session_id"].isdigit()
     assert ev[1:] == [("understood", {"resolved_input": "你好", "intent": "闲聊"}),
-                      ("token", {"text": CHITCHAT_REPLY}), ("done", {"finish_reason": "stop"})]
+                      ("token", {"text": CHITCHAT_REPLY}), ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})]
     assert rec == [] and "\\u" not in r.text
+
+
+async def test_done_message_id_matches_saved_assistant(client, db, use_script, use_intent):
+    use_intent("闲聊", "闲聊")
+    use_script()
+    _, first = await chat(client, "你好")
+    _, second = await chat(client, "在吗", session_id=first[0][1]["session_id"])
+    replies = [m for m in await rows(db) if m.role == "assistant"]
+    assert len(replies) == 2
+    for ev, reply in zip((first, second), replies):
+        done = ev[-1]
+        assert done[0] == "done"
+        assert type(done[1]["message_id"]) is int
+        assert done[1] == {"finish_reason": "stop", "message_id": reply.id}
+        assert "saved" not in [name for name, _ in ev]
+
+
+async def test_order_picker_done_has_no_message_id(client, db, use_script, use_intent, use_resolver):
+    use_script()
+    use_resolver({"order_scoped": True})
+    use_intent("退款退货")
+    _, ev = await chat(client, "我要退货")
+    assert "order_picker" in [name for name, _ in ev]
+    assert ev[-1] == ("done", {"finish_reason": "interrupted"})
+    assert "message_id" not in ev[-1][1]
+    assert await rows(db) == []
 
 
 async def test_business_tool_round_events(client, db, use_script, use_intent):
@@ -91,7 +117,7 @@ async def test_knowledge_events(client, db, use_script, use_intent, monkeypatch)
     assert ev[2] == ("citations", {"items": [{"n": 1, "chunk_id": 7, "section_path": "退换货 > 运费",
                                               "question": "退货运费谁出", "answer": "商家承担"}],
                                    "refused": False})
-    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
 
 
 async def test_complaint_actions_event(client, db, use_script, use_intent):
@@ -119,7 +145,7 @@ async def test_old_conversation_without_checkpoint_continues(client, db, use_scr
                                               NewMessage(role="assistant", content="旧答")])
         await s.commit()
     r, ev = await chat(client, "你好", session_id=str(cid))
-    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop"})
+    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
 
 
 async def test_other_users_conversation_is_404(client, db, use_script, use_intent):
@@ -180,7 +206,7 @@ async def test_default_limit_accepts_max_input_chars(client, db, use_script, use
     use_script()
     r, ev = await chat(client, "字" * MAX_INPUT_CHARS)
     assert r.status_code == 200
-    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
 
 
 async def test_budget_exceeded(client, db, use_script):

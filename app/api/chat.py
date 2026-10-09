@@ -48,6 +48,7 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
     yield sse("session", {"session_id": str(turn.conversation_id)})
     ctx = GraphContext(conversation_id=turn.conversation_id, today=turn.today, model=model, user_id=turn.user_id)
     interrupted = False
+    saved_id = None
     try:
         async for mode, chunk in graph.astream(
             graph_input, thread_config(turn.conversation_id, turn.user_id),
@@ -55,6 +56,9 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
         ):
             if mode == "custom":
                 name, data = chunk
+                if name == "saved":
+                    saved_id = data["message_id"]
+                    continue
                 yield sse(name, data)
             elif mode == "updates" and "__interrupt__" in chunk:
                 # 节点恢复时会重新执行，卡片由这里发出。
@@ -68,7 +72,10 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
         logger.exception("对话图执行失败")
         yield sse("error", UPSTREAM_ERROR)
         return
-    yield sse("done", {"finish_reason": "interrupted" if interrupted else "stop"})
+    done = {"finish_reason": "interrupted" if interrupted else "stop"}
+    if saved_id is not None and not interrupted:
+        done["message_id"] = saved_id
+    yield sse("done", done)
 
 
 def get_input_token_limit() -> int:

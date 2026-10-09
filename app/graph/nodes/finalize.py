@@ -21,6 +21,7 @@ async def finalize(state, runtime):
     async with get_sessionmaker()() as s:
         user_row, reply_row = await messages.add_turn(s, cid, final_rows(state["user_input"], final.content))
         await s.commit()
+    events.emit("saved", {"message_id": reply_row.id})
     new = [HumanMessage(state["user_input"], id=msg_id(user_row.id)), *turn[:-1],
            final.model_copy(update={"id": msg_id(reply_row.id)})]
     gate = state.get("gate") or {}

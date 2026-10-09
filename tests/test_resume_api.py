@@ -72,7 +72,7 @@ async def test_resume_finishes_subflow(client, db, use_script, use_intent, use_r
     assert r.status_code == 200
     names = [e for e, _ in ev2]
     assert names[0] == "session" and "citations" in names and names[-1] == "done"
-    assert ev2[-1][1] == {"finish_reason": "stop"}
+    assert ev2[-1][1] == {"finish_reason": "stop", "message_id": (await rows(db))[-1].id}
     assert [(m.role, m.content) for m in await rows(db)] == [("user", "我要退货"), ("assistant", "可以退[1]")]
 
 
@@ -129,7 +129,7 @@ async def test_new_message_discards_pending_picker(client, db, use_script, use_i
     use_resolver({})
     use_intent("闲聊")
     _, ev2 = await chat(client, "算了，你好", session_id=sid)
-    assert ev2[-1] == ("done", {"finish_reason": "stop"})
+    assert ev2[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
     r, _ = await resume(client, sid, ev[2][1]["orders"][0]["order_id"])
     assert r.status_code == 409
 
@@ -168,7 +168,7 @@ async def test_resume_confirm_creates_ticket(client, db, use_script, use_resolve
     assert (ticket.description, ticket.ticket_type) == ("蓝牙耳机左耳没声音", "售后")
     assert "token" in [e for e, _ in ev]
     assert "".join(d["text"] for e, d in ev if e == "token") == reply
-    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
     assert [(m.role, m.content) for m in await rows(db)] == [("user", USER_INPUT), ("assistant", reply)]
 
 
@@ -177,7 +177,7 @@ async def test_resume_cancel_does_not_create_ticket(client, db, use_script, use_
     r, ev = await resume_ticket(client, sid, False)
     assert r.status_code == 200
     assert "".join(d["text"] for e, d in ev if e == "token") == TICKET_CANCELLED_REPLY
-    assert ev[-1] == ("done", {"finish_reason": "stop"})
+    assert ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
     assert await ticket_rows(db, int(sid)) == []
 
 
@@ -226,7 +226,7 @@ async def test_new_message_audits_discarded_ticket(client, db, db_audit, use_scr
     use_resolver({})
     use_intent("闲聊")
     r, ev = await chat(client, "算了，你好", session_id=sid)
-    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop"})
+    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
     [audit] = await audit_rows(db, int(sid))
     assert audit.tool_call_id == "t1" and audit.tool_source == "builtin" and audit.mcp_server is None
     assert audit.arguments == {"description": "蓝牙耳机左耳没声音", "ticket_type": "售后"}
@@ -250,7 +250,7 @@ async def test_discard_audit_failure_does_not_block_new_message(client, db, use_
     use_resolver({})
     use_intent("闲聊")
     r, ev = await chat(client, "算了，你好", session_id=sid)
-    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop"})
+    assert r.status_code == 200 and ev[-1] == ("done", {"finish_reason": "stop", "message_id": (await rows(db))[-1].id})
     assert "audit_write_failed" in caplog.text
     r, _ = await resume_ticket(client, sid, True)
     assert r.status_code == 409 and r.json()["detail"]["code"] == "no_pending_confirmation"

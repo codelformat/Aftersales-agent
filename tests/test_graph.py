@@ -39,7 +39,7 @@ async def run(graph, cid, message, *scripts):
     graph_input = message if isinstance(message, Command) else {"user_input": message}
     events = [chunk async for mode, chunk in graph.astream(
         graph_input, thread_config(cid), context=ctx, stream_mode=["custom", "updates"],
-    ) if mode == "custom"]
+    ) if mode == "custom" and chunk[0] != "saved"]
     return Turn(events, await graph.aget_state(thread_config(cid))), rec
 
 
@@ -180,6 +180,53 @@ async def test_knowledge_route_weak_evidence_falls_back(db, memory_graph, use_in
                            ("token", {"text": GATE_FALLBACK_REPLY})]
     async with db() as s:
         assert (await s.execute(select(LowConfidenceQuestion))).scalar_one().source == "retrieval_low_conf"
+
+
+async def test_feedback_recovers_knowledge_snapshot_after_chitchat(
+    db, client, memory_graph, use_script, use_intent, monkeypatch,
+):
+    from tests.test_chat_api import chat
+
+    use_intent("商品咨询", "闲聊")
+    use_script()
+    # 两条有效证据，N=2；0.2*0.44 + 0.3*1 + 0.5*0 = 0.388 < 0.39。
+    kb(monkeypatch, scores=(0.44, 0.44))
+    cid = await new_cid(db)
+    question = "X3 Pro 能游泳吗"
+    _, first = await chat(client, question, session_id=str(cid))
+    state = await memory_graph.aget_state(thread_config(cid))
+    assert state.values["trace"][-3:] == ["confidence_gate", "fallback_reply", "finalize"]
+    assert state.values["gate"]["passed"] is False
+    assert state.values["gate"]["confidence"] == 0.388
+    snapshot = [
+        {"chunk_id": 100, "section_path": "退换货 > 运费", "question": "退货运费谁出",
+         "answer": "质量问题商家承担", "score": 0.44},
+        {"chunk_id": 101, "section_path": "退换货 > 运费", "question": "退货运费谁出",
+         "answer": "质量问题商家承担", "score": 0.44},
+    ]
+    assert state.values["retrieval"] == snapshot
+    first_id = first[-1][1]["message_id"]
+    _, second = await chat(client, "你好", session_id=str(cid))
+    second_id = second[-1][1]["message_id"]
+    state = await memory_graph.aget_state(thread_config(cid))
+    assert state.values["retrieval"] is None
+    assert await saved(db, cid) == [
+        ("user", question), ("assistant", GATE_FALLBACK_REPLY),
+        ("user", "你好"), ("assistant", CHITCHAT_REPLY),
+    ]
+    feedback_ids = []
+    for aid in (first_id, second_id):
+        r = await client.post("/api/feedback", json={
+            "conversation_id": cid, "message_id": aid, "rating": "down", "user_id": "u1"})
+        assert r.status_code == 201
+        feedback_ids.append(r.json()["id"])
+    async with db() as s:
+        first_row = await s.get(LowConfidenceQuestion, feedback_ids[0])
+        second_row = await s.get(LowConfidenceQuestion, feedback_ids[1])
+    assert (first_row.raw_question, first_row.source, first_row.retrieved_chunks) == (
+        question, "user_feedback", snapshot)
+    assert (second_row.raw_question, second_row.source, second_row.retrieved_chunks) == (
+        "你好", "user_feedback", None)
 
 
 async def test_business_route_multi_step_react(db, memory_graph, use_intent, caplog):
