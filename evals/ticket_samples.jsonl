@@ -1,0 +1,12 @@
+{"id": "t01", "history": [], "user": "帮我建个工单", "expect": "ask"}
+{"id": "t02", "history": [], "user": "帮我建个工单，蓝牙耳机左耳没声音，买了一周", "expect": "call", "ticket_type": "售后", "must_include": ["耳机", "左耳"]}
+{"id": "t03", "history": [], "user": "快递把箱子摔坏了，商品也裂了，我要投诉，给我建个工单", "expect": "call", "ticket_type": "投诉", "must_include": ["摔坏"]}
+{"id": "t04", "history": [["user", "帮我建个工单"], ["assistant", "好的，请描述一下您遇到的问题。"]], "user": "扫地机器人充不进电", "expect": "call", "ticket_type": "售后", "must_include": ["充"]}
+{"id": "t05", "history": [], "user": "提个工单", "expect": "ask"}
+{"id": "t06", "history": [], "user": "我要建工单，我的订单有问题", "expect": "ask"}
+{"id": "t07", "history": [], "user": "订单10012345的电饭煲内胆裂了，帮我建个售后工单", "expect": "call", "ticket_type": "售后", "must_include": ["10012345", "内胆", "裂"]}
+{"id": "t08", "history": [], "user": "想咨询发票怎么开，帮我建个工单跟进", "expect": "call", "ticket_type": "咨询", "must_include": ["发票"]}
+{"id": "t09", "history": [], "user": "气死我了，配送员把包裹丢在雨里，书都泡烂了！我要投诉，帮我建个工单", "expect": "call", "ticket_type": "投诉", "must_include": ["雨", "书"]}
+{"id": "t10", "history": [["user", "帮我建个工单"], ["assistant", "请描述一下遇到的问题。"], ["user", "是我买的打印机"], ["assistant", "打印机出现了什么故障？"], ["user", "打印机每次进纸都卡纸，还会把纸撕破"], ["assistant", "收到，是进纸卡纸并撕破纸张。"]], "user": "就按刚才说的问题帮我提交工单", "expect": "call", "ticket_type": "售后", "must_include": ["打印机", "卡纸", "撕破"]}
+{"id": "t11", "history": [], "user": "耳机实付1299元，退货后只退了1200元，还差99元，帮我建个售后工单跟进", "expect": "call", "ticket_type": "售后", "must_include": ["耳机", "1299", "1200", "99"]}
+{"id": "t12", "history": [], "user": "建工单，快点", "expect": "ask"}
