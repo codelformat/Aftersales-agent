@@ -197,6 +197,18 @@ model_ctx conversation=12 step=0 window=9 tokens≈4210 summary=第1段：…
 
 每轮在 `resolve_reference` 中打 `history_ctx conversation= lines= summary=` 加逐行内容。`resolve_reference` 在分流前执行，所以闲聊兜底轮也有。意图识别仍只用 `resolved_input`（ch06 设计），历史经指代消解进入意图识别。`evals/run_multiturn_eval.py` 改用同一渲染函数（锚点为空）。
 
+### 5.5 回顾本次对话的问题直达 Agent（2026-10-09 用户裁定）
+
+问题："最开始那个订单后来怎么说"经指代消解后为"订单 1001 的耳机换货问题后来怎么说？"，意图可能判为"售后"。售后出口的置信度闸只看知识库检索分（ch06 spec 6.12），这类问题没有知识库证据，回兜底话术，不进 Agent。验收实测：同一问题一次判为其他意图答对，一次判为"售后"被拦下。
+
+裁定（用户选择方案"Resolver flag → Agent"）：
+
+1. `ResolvedQuery` 和 `Resolution` 新增 `history_recall: bool`（默认 false）。用户问的是本次对话中之前说过、查过或定过的内容（例如"刚才说的那个后来怎么样""最开始那个订单后来怎么说""你之前说运费谁出"）时为 true。历史为空时强制 false。
+2. State 本轮字段新增 `history_recall`，`start_turn` 重置为 false，`resolve_reference` 写入，日志 `resolved=... history_recall=...`。
+3. `after_intent`：`history_recall` 为 true 时返回 `business`（直接进 Agent，不检索、不过闸）。意图照常识别，只用于日志。
+4. Agent 已能看到梗概（参考资料消息）和滑窗，System 行为约束第 3 条允许按对话记录回答。
+5. `evals/multiturn_samples.jsonl` 增加回顾类用例，样例可带 `history_recall` 期望值；带该字段的轮次另检查此值。
+
 ### 5.4 State 字段
 
 `ChatState` 新增本轮字段，由 `start_turn` 从 `conversations` 读取后写入：`summary: str | None`、`summary_upto: int | None`、`layer1_from: int | None`。恢复（`/chat/resume`）时沿用 interrupt 前的值。精简视图不写入 State。

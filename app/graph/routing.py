@@ -19,6 +19,8 @@ def route_for(intent: str | None) -> str:
 
 
 def after_intent(state: dict) -> str:
+    if state.get("history_recall"):
+        return "business"
     route = state["route"]
     if route == "aftersales":
         return "ensure_order" if state.get("order_scoped") else "expand_query"

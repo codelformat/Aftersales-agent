@@ -74,6 +74,26 @@ async def test_resolve_without_history_keeps_input(use_resolver):
     assert r.resolved_input == "拆封了还能退吗" and r.standard_query == "退货条件"
 
 
+@pytest.mark.parametrize("history_recall", [True, False])
+async def test_resolve_passes_history_recall(use_resolver, history_recall):
+    use_resolver({"history_recall": history_recall})
+    r = await understanding.resolve("你之前说运费谁出来着", "客服：质量问题运费由商家承担", lexicon=LEX)
+    assert r.history_recall is history_recall
+
+
+async def test_resolve_without_history_forces_history_recall_false(use_resolver):
+    use_resolver({"history_recall": True})
+    r = await understanding.resolve("最开始那个订单后来怎么说", "", lexicon=LEX)
+    assert r.history_recall is False
+
+
+@pytest.mark.parametrize("value", [None, ValueError("boom")])
+async def test_resolve_failure_clears_history_recall(use_resolver, value):
+    use_resolver(value)
+    r = await understanding.resolve("最开始那个订单后来怎么说", "用户：订单 1001 想换货", lexicon=LEX)
+    assert r.history_recall is False
+
+
 async def test_resolve_drops_invented_order_id(use_resolver, caplog):
     caplog.set_level("INFO")
     use_resolver({"resolved_input": "订单 2002 能退吗", "standard_query": "退货条件",

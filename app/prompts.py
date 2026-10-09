@@ -296,9 +296,13 @@ RESOLVE_SYSTEM_PROMPT = f"""你是售后客服的问题整理器。结合对话�
 ## order_id
 只有当前这句话或历史中原样出现了订单号，并且当前问题针对这个订单时，才填写这个订单号，保持原样。否则为 null。不许编造订单号。
 
+## history_recall
+用户要回看本次对话中之前说过、答过、查过或定过的内容时为 true。这类话通常带'之前''刚才''上次''后来''最开始''你说过'等回看用语，例如'最开始那个订单后来怎么说''你之前说运费谁出来着''刚才查的物流是什么状态'。
+用户提出新的问题时为 false，即使问题接着前面的话题、需要用历史补全指代，例如前面在聊换货，现在问'运费谁出''这个能退吗''多久能到'，都是 false。
+
 ## 输出格式
 只输出一个 JSON 对象，不输出其他内容：
-{{{{"resolved_input": "...", "standard_query": "...", "product_category": null, "order_scoped": false, "order_id": null}}}}"""
+{{{{"resolved_input": "...", "standard_query": "...", "product_category": null, "order_scoped": false, "order_id": null, "history_recall": false}}}}"""
 
 resolve_prompt = ChatPromptTemplate.from_messages([
     ("system", RESOLVE_SYSTEM_PROMPT),

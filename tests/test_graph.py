@@ -383,6 +383,26 @@ async def test_aftersales_policy_only_skips_order(db, memory_graph, use_intent, 
     assert turn.trace[3:5] == ["expand_query", "retrieve_multi"]
 
 
+async def test_history_recall_skips_gate(db, memory_graph, use_resolver, use_intent, use_expander, monkeypatch, caplog):
+    caplog.set_level("INFO")
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "你好")
+
+    use_resolver({"history_recall": True, "order_scoped": True, "order_id": "1001"})
+    use_intent("售后")
+    use_expander([])
+    kb_multi(monkeypatch, scores=(0.05,))
+    turn, _ = await run(memory_graph, cid, "订单 1001 的换货刚才怎么说", text("订单 1001 的换货需要核实商品状态"))
+    assert "ensure_order" not in turn.trace
+    assert "retrieve_multi" not in turn.trace
+    assert "confidence_gate" not in turn.trace
+    assert "agent_model" in turn.trace
+    assert turn.state.values["history_recall"] is True
+    assert turn.state.values["intent"] == "售后" and turn.state.values["route"] == "aftersales"
+    assert "history_recall=True" in caplog.text
+
+
 async def test_aftersales_weak_policy_falls_back(db, memory_graph, use_intent, use_resolver, use_expander, monkeypatch):
     use_resolver({"order_scoped": False})
     use_intent("售后")

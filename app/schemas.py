@@ -108,6 +108,7 @@ class ResolvedQuery(BaseModel):
     product_category: Literal[PRODUCT_CATEGORIES] | None = None
     order_scoped: bool = False
     order_id: OrderId | None = None
+    history_recall: bool = False
 
     @field_validator("product_category", "order_id", mode="before")
     @classmethod

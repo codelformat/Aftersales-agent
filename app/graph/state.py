@@ -31,6 +31,7 @@ class ChatState(TypedDict, total=False):
     product_category: str | None
     order_scoped: bool
     order_id: str | None
+    history_recall: bool
     order: dict | None
     queries: list[str]
     intent: str | None

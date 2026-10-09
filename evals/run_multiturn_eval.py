@@ -28,10 +28,12 @@ async def evaluate_group(
         for turn in sample["turns"]:
             resolved_input = None
             actual_intent = None
+            actual_history_recall = None
             try:
                 history = "\n".join(history_lines(None, split_layers(messages, None, None)))
                 resolution = await understanding.resolve(turn["user"], history)
                 resolved_input = resolution.resolved_input
+                actual_history_recall = resolution.history_recall
                 decision = await understanding.classify(resolved_input)
                 actual_intent = decision.intent
             except Exception:
@@ -44,8 +46,10 @@ async def evaluate_group(
                     word in resolved_input for word in turn["must_contain_any"]
                 )
             errors = []
-            if actual_intent != turn["intent"]:
+            if "intent" in turn and actual_intent != turn["intent"]:
                 errors.append("意图错")
+            if "history_recall" in turn and actual_history_recall != turn["history_recall"]:
+                errors.append("回顾错")
             if not reference_ok:
                 errors.append("指代错")
             results.append((resolved_input, actual_intent, errors))
@@ -72,7 +76,7 @@ async def run_eval() -> int:
             total += 1
             detail = f" | {'、'.join(errors)}" if errors else ""
             print(f"{sample['id']}-{i} {'✅' if ok else '❌'} {turn['user']} → {resolved_input if resolved_input is not None else '失败'}"
-                  f" | {turn['intent']} → {actual_intent or '失败'}{detail}")
+                  f" | {turn.get('intent', '不检查')} → {actual_intent or '失败'}{detail}")
     print(f"\n通过轮数：{correct}/{total}（全部通过才达标）")
     return 0 if correct == total else 1
 
