@@ -695,11 +695,25 @@
         button.textContent = icon;
         button.setAttribute('aria-label', label);
         button.setAttribute('aria-pressed', 'false');
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
+          buttons.forEach(item => { item.disabled = true; });
+          status.textContent = '提交中…';
+          try {
+            const response = await fetch('/api/feedback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ conversation_id: Number(answer.sessionId),
+                message_id: answer.messageId, rating, user_id: answer.userId }),
+            });
+            if (!response.ok) throw new Error('反馈失败');
+          } catch {
+            status.textContent = '反馈失败';
+            buttons.forEach(item => { item.disabled = false; });
+            return;
+          }
           button.classList.add('selected');
           button.setAttribute('aria-pressed', 'true');
-          buttons.forEach(item => { item.disabled = true; });
-          status.textContent = '已反馈';
+          status.textContent = rating === 'down' ? '已反馈，我们会改进' : '已反馈';
           try {
             const stored = JSON.parse(localStorage.getItem('aftersales_feedback') || '[]');
             const records = Array.isArray(stored) ? stored : [];
@@ -1030,7 +1044,8 @@
       const { bubble, reply } = addMessage('assistant');
       const actions = { row: null, options: [], completed: new Set(), sessionId: payload.session_id ?? sessionId };
       // Count submitted assistant turns from zero; the welcome message is excluded.
-      const answer = { index: answerIndex++, sessionId: actions.sessionId, text: '', citations: { items: [], refused: false } };
+      const answer = { index: answerIndex++, sessionId: actions.sessionId, userId: payload.user_id,
+        text: '', citations: { items: [], refused: false } };
       const typing = document.createElement('div');
       typing.className = 'typing';
       typing.setAttribute('role', 'status');
@@ -1193,7 +1208,8 @@
           if (data.finish_reason === 'interrupted') {
             flushQueue();
             typing.hidden = true;
-          } else {
+          } else if (data.message_id != null) {
+            answer.messageId = data.message_id;
             addFeedback(bubble, answer);
           }
           loadConversations();

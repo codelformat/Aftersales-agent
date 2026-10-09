@@ -31,7 +31,7 @@ def drive(memory_graph, use_script):
         graph_input = value if isinstance(value, Command) else {"user_input": value}
         events = [chunk async for mode, chunk in memory_graph.astream(
             graph_input, thread_config(cid), context=ctx, stream_mode=["custom", "updates"],
-        ) if mode == "custom"]
+        ) if mode == "custom" and chunk[0] != "saved"]
         return await memory_graph.aget_state(thread_config(cid)), events
 
     return run

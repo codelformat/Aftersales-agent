@@ -77,8 +77,19 @@ USER_ORDER_COUNT = 3
 # 一轮中 Agent 累计 token（输入 + 输出，含思考）。
 AGENT_TOKEN_BUDGET = 16000
 GRAPH_RECURSION_LIMIT = 25
-# 置信度闸的 Top-1 重排分门槛。与检索门槛分开设置。
-GATE_MIN_SCORE = 0.20
+# 召回快照条数。不小于 GATE_EFFECTIVE_N 的搜索上限 5。
+SNAPSHOT_TOP_N = 5
+# evidence_confidence = w1·Top-1 + w2·有效证据占比 + w3·Top-1 与 Top-2 的分差。
+# 有效证据占比 = min(分数 ≥ RERANK_MIN_SCORE 的条数 / N, 1)。
+# 数值来自 evals/reports/gate_calibration_20261009-125757.md。
+# 全量最优为 N=4、t=0.33。第 3 折验证 D 拒答率下降 0.31，判为过拟合。
+# 取 5 折中出现最多的 (0.2, 0.3, 0.5)/N=2。全量重搜门槛得 0.39。
+# 全量保留率 0.954，D 拒答率 0.583。旧规则为 0.963/0.450。
+GATE_WEIGHTS: tuple[float, float, float] = (0.2, 0.3, 0.5)
+GATE_EFFECTIVE_N = 2
+GATE_CONF_THRESHOLD = 0.39
+# 相对上一轮下降超过这个值时标为下滑。
+EVAL_DROP_TOLERANCE = 0.02
 # ch08 接入 MCP 后，System + 工具定义实测 2047–2360 token（全部内置 Agent 工具 + 3 个 MCP 工具时最大）。
 SYSTEM_RESERVE_TOKENS = 2400
 EVIDENCE_ITEM_TOKENS = 250
@@ -120,6 +131,10 @@ class Settings(BaseSettings):
     tool_result_max_tokens: int = 750
     rerank_top_k: int = 10
 
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_base_url: str | None = None
+
 
 def test_database_url(url: str) -> str:
     """把库名替换为 aftersales_test，其余部分不变。"""
@@ -129,3 +144,10 @@ def test_database_url(url: str) -> str:
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+# 飞轮的标准化和查重调用等待时间。超时后该行留给补跑脚本。
+FLYWHEEL_LLM_TIMEOUT_SECONDS = 20
+# 待审问题查重的余弦相似度门槛和候选上限。初值同 DEDUP_STAGING_MIN_SCORE，用查重样例集检查。
+REVIEW_DEDUP_MIN_SCORE = 0.75
+REVIEW_DEDUP_TOP_K = 5

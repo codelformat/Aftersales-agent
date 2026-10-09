@@ -60,7 +60,7 @@ class _BuildParser(argparse.ArgumentParser):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _BuildParser(description="离线建库")
-    parser.add_argument("--rebuild", action="store_true", help="重建 Milvus 集合和全部文档来源；mined 块保留并重新向量化")
+    parser.add_argument("--rebuild", action="store_true", help="重建 Milvus 集合和全部文档来源；mined 块和 flywheel 块保留并重新向量化")
     parser.add_argument("--crash-after-batches", type=int, default=None, help="故障注入，只用于演示")
     parser.add_argument("--status", action="store_true", help="只打印状态")
     parser.add_argument(

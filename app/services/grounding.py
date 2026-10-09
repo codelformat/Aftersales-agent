@@ -10,13 +10,14 @@ from langchain_core.runnables import Runnable
 
 import app.config as config
 from app.db.engine import get_sessionmaker
+from app.flywheel.runner import get_runner as get_flywheel_runner
 from app.llm import get_self_checker
 from app.repositories import low_confidence
 from app.schemas import SelfCheck
 
 logger = logging.getLogger(__name__)
 
-EMPTY_EVIDENCE_REASON = "检索证据低于置信度门槛"
+EMPTY_EVIDENCE_REASON = "检索证据置信度低于门槛"
 SELF_CHECK_FAILED_REASON = "自评调用失败，按通过处理"
 REFUSED_CONTENT = json.dumps(
     {"ok": True, "data": {"evidence": [], "answerable": False}}, ensure_ascii=False
@@ -106,15 +107,19 @@ async def self_check(
 
 
 async def record_low_confidence(
-    conversation_id: int, raw_question: str, reason: str, source: str = "self_check"
-) -> None:
-    """独立事务。失败只记日志，不中断本轮。"""
+    conversation_id: int, raw_question: str, reason: str, source: str = "self_check",
+    retrieved_chunks: list[dict] | None = None,
+) -> int | None:
+    """独立事务。失败只记日志，不中断本轮。返回新行 id。"""
     try:
         async with get_sessionmaker()() as s:
-            await low_confidence.add(
+            row = await low_confidence.add(
                 s, conversation_id=conversation_id, raw_question=raw_question,
-                source=source, reason=reason,
+                source=source, reason=reason, retrieved_chunks=retrieved_chunks,
             )
             await s.commit()
+            get_flywheel_runner().submit(row.id)
+            return row.id
     except Exception:
         logger.exception("低置信度问题入池失败")
+        return None

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>示例商城 · 待审队列</title>
+  <style>
+    :root { color-scheme: light; --primary: #2563eb; --page: #f4f6fa; --surface: #fff; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb; --error: #c62828; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--page); color: var(--text); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    button:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid #93b4ff; outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .ledger { width: min(1200px, calc(100% - 48px)); margin: 28px auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 0 40px #1f29370d; overflow: hidden; }
+    .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 22px 28px; }
+    h1 { margin: 0; font-size: 19px; font-weight: 650; }
+    h2 { margin: 0; font-size: 17px; }
+    h3 { margin: 0 0 10px; font-size: 14px; }
+    .subtext { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+    .admin-nav { display: flex; flex-wrap: wrap; gap: 12px; }
+    a { color: var(--primary); font-size: 14px; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .toolbar, .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .toolbar { padding: 0 28px 20px; gap: 12px; }
+    .button { padding: 8px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font-size: 14px; }
+    .button:hover:enabled { background: #f0f2f5; }
+    .filter[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: #e8edf8; }
+    .primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .primary:hover:enabled { background: #1d4ed8; }
+    .summary { margin-left: auto; color: var(--muted); font-size: 13px; }
+    .notice { padding: 20px 28px; border-top: 1px solid var(--border); color: var(--muted); }
+    .error { color: var(--error); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; vertical-align: top; padding: 16px 18px; border-top: 1px solid var(--border); }
+    th { color: var(--muted); background: var(--page); font-size: 12px; white-space: nowrap; }
+    .review-row { cursor: pointer; }
+    .review-row:hover, .review-row.expanded { background: #f8faff; }
+    .query-cell { width: 30%; }
+    .answer-cell { width: 36%; }
+    .expand { width: 100%; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .expand::before { content: '▸'; color: var(--muted); margin-right: 8px; }
+    .expand[aria-expanded="true"]::before { content: '▾'; }
+    .prose { margin: 0; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; white-space: nowrap; background: #f0f2f5; color: var(--muted); }
+    .status.pending { background: #e8edf8; color: #46618f; }
+    .status.approved { background: #e4f3e8; color: #28733e; }
+    .actions { display: flex; gap: 6px; }
+    .actions .button { padding: 5px 9px; font-size: 12px; white-space: nowrap; }
+    .detail-cell { padding: 20px 28px; background: #fafbfe; }
+    .source-list, .evidence-list { display: grid; gap: 12px; }
+    .source { padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    .source-meta { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+    .evidence-heading { margin-top: 20px; }
+    .evidence { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--page); }
+    .evidence-title { margin-bottom: 8px; overflow-wrap: anywhere; }
+    dialog { width: min(560px, calc(100% - 32px)); max-height: 85dvh; overflow-y: auto; padding: 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text); }
+    dialog::backdrop { background: #1f29374d; }
+    label { display: block; margin: 20px 0 9px; font-size: 14px; }
+    textarea, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); }
+    textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
+    .form-error { font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+    @media (max-width: 600px) { .ledger { width: 100%; margin: 0; min-height: 100vh; border: 0; border-radius: 0; } .header, .detail-cell, .notice { padding: 20px 16px; } .toolbar { padding: 0 16px 16px; } .summary { width: 100%; margin-left: 0; } }
+  </style>
+</head>
+<body>
+  <main class="ledger">
+    <header class="header">
+      <div><h1>待审队列</h1><p class="subtext">展开问题，查看用户原话及该轮检索快照。</p></div>
+      <nav class="admin-nav" aria-label="管理页面">
+        <a href="/admin/faith-cases">编造台账</a><a href="/admin/review-queue" aria-current="page">待审队列</a><a href="/admin/eval-runs">评估趋势</a><a href="/">返回聊天</a>
+      </nav>
+    </header>
+    <div class="toolbar">
+      <div id="filters" class="filters" role="group" aria-label="按状态筛选">
+        <button class="button filter" type="button" data-status="待审" aria-pressed="true">待审</button>
+        <button class="button filter" type="button" data-status="通过" aria-pressed="false">通过</button>
+        <button class="button filter" type="button" data-status="驳回" aria-pressed="false">驳回</button>
+        <button class="button filter" type="button" data-status="" aria-pressed="false">全部</button>
+      </div>
+      <button id="refresh" class="button" type="button">刷新</button><span id="summary" class="summary" role="status"></span>
+    </div>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <div id="table-wrap" class="table-wrap" aria-busy="true">
+      <table aria-label="待审问题列表">
+        <thead><tr><th scope="col">标准化问题</th><th scope="col">出现次数</th><th scope="col">示例答案</th><th scope="col">状态</th><th scope="col">处置</th></tr></thead>
+        <tbody id="reviews"></tbody>
+      </table>
+    </div>
+  </main>
+  <dialog id="approve-dialog" aria-labelledby="approve-title">
+    <form id="approve-form" novalidate>
+      <h2 id="approve-title">通过并入库</h2><p id="approve-question" class="subtext prose"></p>
+      <label for="approved-answer">核准答案</label><textarea id="approved-answer" required aria-describedby="approve-error"></textarea>
+      <label for="product-category">品类</label>
+      <select id="product-category">
+        <option>蓝牙耳机</option><option>羊毛衫</option><option>扫地机器人</option><option>电动牙刷</option><option>台灯</option><option>保温杯</option><option>运动鞋</option><option>手机壳</option><option selected>通用</option>
+      </select>
+      <p id="approve-error" class="form-error error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="approve-cancel" class="button" type="button">取消</button><button id="approve-submit" class="button primary" type="submit">确认通过</button></div>
+    </form>
+  </dialog>
+  <script>
+    const reviewsBody = document.getElementById('reviews');
+    const filters = document.getElementById('filters');
+    const summary = document.getElementById('summary');
+    const notice = document.getElementById('notice');
+    const tableWrap = document.getElementById('table-wrap');
+    const dialog = document.getElementById('approve-dialog');
+    const answerInput = document.getElementById('approved-answer');
+    const categoryInput = document.getElementById('product-category');
+    const formError = document.getElementById('approve-error');
+    const submitButton = document.getElementById('approve-submit');
+    const cancelButton = document.getElementById('approve-cancel');
+    const sourceNames = { retrieval_low_conf: '检索证据低', self_check: '自评不足', user_feedback: '用户反馈' };
+    let selectedStatus = '待审';
+    let listRequest = 0;
+    let listController = null;
+    let pendingItem = null;
+    let saving = false;
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? (value || '—') : date.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    async function readResponse(response) {
+      let body;
+      try { body = await response.json(); } catch { /* 无 JSON 时使用 HTTP 状态。 */ }
+      if (!response.ok) {
+        const detail = body?.detail;
+        const message = Array.isArray(detail) ? '输入不合法' : detail?.message || (typeof detail === 'string' ? detail : null);
+        const error = new Error(message || body?.message || `请求失败（HTTP ${response.status}）`);
+        error.status = response.status;
+        throw error;
+      }
+      if (body === undefined) throw new Error('无法读取接口数据，请重新加载');
+      return body;
+    }
+
+    function showNotice(text, isError = false) {
+      notice.textContent = text;
+      notice.hidden = !text;
+      notice.className = isError ? 'notice error' : 'notice';
+      notice.setAttribute('role', isError ? 'alert' : 'status');
+    }
+
+    function renderSources(detail, cell) {
+      const list = element('div', 'source-list');
+      for (const source of detail.sources || []) {
+        const card = element('article', 'source');
+        card.append(element('p', 'source-meta', `${formatDate(source.created_at)} · ${sourceNames[source.source] || source.source}`),
+          element('h3', '', '用户原话'), element('p', 'prose', source.raw_question));
+        if (source.reason) card.append(element('p', 'subtext prose', `原因：${source.reason}`));
+        card.append(element('h3', 'evidence-heading', '召回片段'));
+        const chunks = element('div', 'evidence-list');
+        for (const chunk of source.retrieved_chunks || []) {
+          const evidence = element('div', 'evidence');
+          const score = typeof chunk.score === 'number' && Number.isFinite(chunk.score) ? chunk.score.toFixed(2) : '—';
+          evidence.append(element('h3', 'evidence-title', `${chunk.section_path || '知识库原文'} · 分数 ${score}`),
+            element('p', 'prose', `问：${chunk.question ?? chunk.questions ?? ''}\n答：${chunk.answer ?? ''}`));
+          chunks.append(evidence);
+        }
+        if (!chunks.childElementCount) chunks.append(element('p', 'subtext', '该轮没有走检索'));
+        card.append(chunks);
+        list.append(card);
+      }
+      if (!list.childElementCount) list.append(element('p', 'subtext', '暂无用户原话'));
+      if (detail.approved_answer) list.prepend(element('h3', '', '核准答案'), element('p', 'prose', detail.approved_answer));
+      cell.replaceChildren(list);
+    }
+
+    function renderReviews(items) {
+      const fragment = document.createDocumentFragment();
+      for (const item of items) {
+        const row = element('tr', 'review-row');
+        const detailRow = element('tr');
+        detailRow.id = `review-detail-${item.id}`;
+        detailRow.hidden = true;
+        const detailCell = element('td', 'detail-cell');
+        detailCell.colSpan = 5;
+        detailRow.append(detailCell);
+        const queryCell = element('td', 'query-cell');
+        const expand = element('button', 'expand', item.normalized_question);
+        expand.type = 'button';
+        expand.setAttribute('aria-expanded', 'false');
+        expand.setAttribute('aria-controls', detailRow.id);
+        queryCell.append(expand);
+        let detailsLoaded = false;
+        let detailsLoading = false;
+        row.addEventListener('click', async () => {
+          const open = detailRow.hidden;
+          detailRow.hidden = !open;
+          row.classList.toggle('expanded', open);
+          expand.setAttribute('aria-expanded', String(open));
+          if (!open || detailsLoaded || detailsLoading) return;
+          detailsLoading = true;
+          detailCell.textContent = '正在加载详情…';
+          detailCell.setAttribute('aria-busy', 'true');
+          try {
+            const detail = await readResponse(await fetch(`/api/review-queue/${encodeURIComponent(item.id)}`));
+            renderSources(detail, detailCell);
+            detailsLoaded = true;
+          } catch (error) {
+            detailCell.replaceChildren(element('p', 'error', error.message + '（收起后展开可重试）'));
+          } finally {
+            detailsLoading = false;
+            detailCell.setAttribute('aria-busy', 'false');
+          }
+        });
+        const answerCell = element('td', 'answer-cell prose', item.ai_suggested_answer || '—');
+        const statusCell = element('td');
+        const statusClass = item.review_status === '待审' ? 'pending' : item.review_status === '通过' ? 'approved' : '';
+        statusCell.append(element('span', `status ${statusClass}`, item.review_status));
+        const actionCell = element('td');
+        if (item.review_status === '待审') {
+          const actions = element('div', 'actions');
+          const approve = element('button', 'button', '通过');
+          const reject = element('button', 'button', '驳回');
+          approve.type = reject.type = 'button';
+          approve.addEventListener('click', event => { event.stopPropagation(); openApprove(item); });
+          reject.addEventListener('click', async event => {
+            event.stopPropagation();
+            approve.disabled = reject.disabled = true;
+            reject.textContent = '提交中…';
+            try {
+              await readResponse(await fetch(`/api/review-queue/${encodeURIComponent(item.id)}/reject`, { method: 'POST' }));
+              await loadReviews();
+              summary.textContent = '已驳回 · ' + summary.textContent;
+            } catch (error) {
+              if (error.status === 409) await loadReviews();
+              showNotice(error.message, true);
+            } finally {
+              approve.disabled = reject.disabled = false;
+              reject.textContent = '驳回';
+            }
+          });
+          actions.append(approve, reject);
+          actionCell.append(actions);
+        } else actionCell.textContent = '—';
+        row.append(queryCell, element('td', '', item.occurrence_count), answerCell, statusCell, actionCell);
+        fragment.append(row, detailRow);
+      }
+      reviewsBody.replaceChildren(fragment);
+      summary.textContent = `共 ${items.length} 个问题`;
+      showNotice(items.length ? '' : '当前筛选下暂无问题');
+    }
+
+    async function loadReviews() {
+      const request = ++listRequest;
+      listController?.abort();
+      listController = new AbortController();
+      reviewsBody.replaceChildren();
+      summary.textContent = '正在加载…';
+      tableWrap.setAttribute('aria-busy', 'true');
+      showNotice('正在加载待审队列…');
+      try {
+        const query = selectedStatus ? '?' + new URLSearchParams({ status: selectedStatus }) : '';
+        const items = await readResponse(await fetch('/api/review-queue' + query, { signal: listController.signal }));
+        if (request !== listRequest) return;
+        if (!Array.isArray(items)) throw new Error('问题列表格式错误');
+        renderReviews(items);
+      } catch (error) {
+        if (request !== listRequest) return;
+        summary.textContent = '加载失败';
+        showNotice(error.message, true);
+      } finally {
+        if (request === listRequest) tableWrap.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    function openApprove(item) {
+      pendingItem = item;
+      document.getElementById('approve-question').textContent = item.normalized_question;
+      answerInput.value = (item.ai_suggested_answer || '').replace(/^\s*（待核实）\s*/, '');
+      categoryInput.value = '通用';
+      formError.hidden = true;
+      submitButton.disabled = false;
+      dialog.showModal();
+      answerInput.focus();
+    }
+
+    function setSaving(value) {
+      saving = value;
+      submitButton.disabled = cancelButton.disabled = answerInput.disabled = categoryInput.disabled = value;
+      submitButton.textContent = value ? '提交中…' : '确认通过';
+    }
+
+    filters.addEventListener('click', event => {
+      const button = event.target.closest('button[data-status]');
+      if (!button || button.dataset.status === selectedStatus) return;
+      selectedStatus = button.dataset.status;
+      for (const filter of filters.querySelectorAll('button')) filter.setAttribute('aria-pressed', String(filter === button));
+      loadReviews();
+    });
+    document.getElementById('refresh').addEventListener('click', loadReviews);
+    cancelButton.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
+    dialog.addEventListener('close', () => { pendingItem = null; });
+    document.getElementById('approve-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (saving || !pendingItem) return;
+      const approvedAnswer = answerInput.value.trim();
+      if (!approvedAnswer) {
+        formError.textContent = '请填写核准答案';
+        formError.hidden = false;
+        answerInput.focus();
+        return;
+      }
+      const id = pendingItem.id;
+      formError.hidden = true;
+      setSaving(true);
+      let alreadyReviewed = false;
+      try {
+        await readResponse(await fetch(`/api/review-queue/${encodeURIComponent(id)}/approve`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approved_answer: approvedAnswer, product_category: categoryInput.value }),
+        }));
+        dialog.close();
+        await loadReviews();
+        summary.textContent = '已通过并入库 · ' + summary.textContent;
+      } catch (error) {
+        formError.textContent = error.message;
+        formError.hidden = false;
+        // 502 时审核已提交；刷新状态，避免重复通过。
+        alreadyReviewed = error.status === 409 || error.status === 502;
+        if (alreadyReviewed) await loadReviews();
+      } finally {
+        setSaving(false);
+        if (alreadyReviewed) submitButton.disabled = true;
+      }
+    });
+    loadReviews();
+  </script>
+</body>
+</html>

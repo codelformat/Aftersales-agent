@@ -11,6 +11,16 @@ from app.locks import LockRegistry, get_lock_registry
 from tests.fakes import Recorder, ScriptedChatModel
 
 
+@pytest.fixture(autouse=True)
+def _no_langfuse(monkeypatch):
+    """测试不连 Langfuse。需要时在测试中直接构造 handler。"""
+    from app import observability
+    from app.graph import builder
+
+    monkeypatch.setattr(observability, "get_langfuse_handler", lambda settings=None: None)
+    monkeypatch.setattr(builder, "get_langfuse_handler", lambda settings=None: None)
+
+
 @pytest.fixture
 def anyio_backend():
     # 只在 asyncio 上运行异步测试。
@@ -92,12 +102,12 @@ async def _reset_schema(url: str) -> None:
             for table in (
                 "tool_audit_logs",
                 "conversation_summaries",
-                "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
+                "faith_cases", "low_confidence_questions", "review_queue", "eval_runs", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations", "faq",
             ):
                 await conn.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
             for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql", "schema_ch07.sql",
-                         "schema_ch08.sql"):
+                         "schema_ch08.sql", "schema_ch09.sql"):
                 for stmt in split_sql((ROOT / "db" / name).read_text(encoding="utf-8")):
                     await conn.exec_driver_sql(stmt)
     finally:
@@ -114,7 +124,7 @@ async def _clear_runtime_tables(url: str) -> None:
             for table in (
                 "tool_audit_logs",
                 "conversation_summaries",
-                "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
+                "faith_cases", "low_confidence_questions", "review_queue", "eval_runs", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations",
             ):
                 await conn.exec_driver_sql(f"DELETE FROM {table}")
@@ -512,3 +522,56 @@ def mcp_servers(monkeypatch, tmp_path, _block_mcp):
     finally:
         for name in list(servers.processes):
             servers.stop(name)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_flywheel(monkeypatch):
+    """测试默认不启动飞轮 Runner，不调上游。"""
+    from app.flywheel import pipeline, runner
+    monkeypatch.setattr(pipeline, "get_question_normalizer", _blocked_factory("get_question_normalizer"))
+    monkeypatch.setattr(pipeline, "get_review_dedup_judge", _blocked_factory("get_review_dedup_judge"))
+    pipeline.clear_vector_cache()
+    runner.set_runner(runner.FlywheelRunner())
+
+
+@pytest.fixture
+def use_flywheel(monkeypatch):
+    """用法：use_flywheel(normalized=[(问题, 答案) 或 None 或异常], dedup=[序号 或 None 或异常])。"""
+    from langchain_core.runnables import RunnableLambda
+    from app.flywheel import pipeline
+    from app.schemas import NormalizedQuestion, ReviewDedup
+
+    def _use(normalized, dedup):
+        nq, dq = list(normalized), list(dedup)
+        calls = {"normalize": [], "dedup": []}
+
+        async def norm(inputs):
+            calls["normalize"].append(inputs)
+            v = nq.pop(0)
+            if isinstance(v, BaseException):
+                raise v
+            parsed = None if v is None else NormalizedQuestion(normalized_question=v[0], suggested_answer=v[1])
+            return {"parsed": parsed, "raw": None}
+
+        async def judge(inputs):
+            calls["dedup"].append(inputs)
+            v = dq.pop(0)
+            if isinstance(v, BaseException):
+                raise v
+            return {"parsed": ReviewDedup(duplicate_of=v), "raw": None}
+
+        monkeypatch.setattr(pipeline, "get_question_normalizer", lambda: RunnableLambda(norm))
+        monkeypatch.setattr(pipeline, "get_review_dedup_judge", lambda: RunnableLambda(judge))
+        return calls
+
+    return _use
+
+
+@pytest.fixture
+async def flywheel_runner():
+    from app.flywheel import runner
+    r = runner.FlywheelRunner()
+    r.start()
+    runner.set_runner(r)
+    yield r
+    await r.stop()

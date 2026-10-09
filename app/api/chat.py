@@ -38,6 +38,7 @@ class ChatTurn:
     today: date
     user_id: str
     resume_value: Any = None
+    intent: str | None = None
 
 
 def sse(name: str, data: dict) -> ServerSentEvent:
@@ -48,13 +49,17 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
     yield sse("session", {"session_id": str(turn.conversation_id)})
     ctx = GraphContext(conversation_id=turn.conversation_id, today=turn.today, model=model, user_id=turn.user_id)
     interrupted = False
+    saved_id = None
     try:
         async for mode, chunk in graph.astream(
-            graph_input, thread_config(turn.conversation_id),
+            graph_input, thread_config(turn.conversation_id, turn.user_id, intent=turn.intent),
             context=ctx, stream_mode=["custom", "updates"],
         ):
             if mode == "custom":
                 name, data = chunk
+                if name == "saved":
+                    saved_id = data["message_id"]
+                    continue
                 yield sse(name, data)
             elif mode == "updates" and "__interrupt__" in chunk:
                 # 节点恢复时会重新执行，卡片由这里发出。
@@ -68,7 +73,10 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
         logger.exception("对话图执行失败")
         yield sse("error", UPSTREAM_ERROR)
         return
-    yield sse("done", {"finish_reason": "interrupted" if interrupted else "stop"})
+    done = {"finish_reason": "interrupted" if interrupted else "stop"}
+    if saved_id is not None and not interrupted:
+        done["message_id"] = saved_id
+    yield sse("done", done)
 
 
 def get_input_token_limit() -> int:
@@ -166,7 +174,7 @@ async def prepare_resume(
                 raise HTTPException(409, detail=NO_PENDING_CONFIRMATION)
             resume_value = {"confirmed": req.ticket_confirm}
         yield ChatTurn(conversation_id=cid, user_input="", today=today, user_id=req.user_id,
-                       resume_value=resume_value)
+                       resume_value=resume_value, intent=state.values.get("intent"))
     finally:
         lock.release()
 

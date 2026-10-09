@@ -121,6 +121,29 @@ class QaExtractionStaging(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
 
+class ReviewItem(Base):
+    __tablename__ = "review_queue"
+
+    id: Mapped[int] = mapped_column(ID, primary_key=True, autoincrement=True)
+    normalized_question: Mapped[str] = mapped_column(String(512))
+    ai_suggested_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurrence_count: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    review_status: Mapped[str] = mapped_column(Enum("待审", "通过", "驳回"), server_default=text("'待审'"))
+    approved_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+
+class EvalRun(Base):
+    __tablename__ = "eval_runs"
+
+    id: Mapped[int] = mapped_column(ID, primary_key=True, autoincrement=True)
+    triggered_by: Mapped[str] = mapped_column(Enum("定时", "手动"), server_default=text("'定时'"))
+    dataset_size: Mapped[int] = mapped_column(Integer)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+
 class LowConfidenceQuestion(Base):
     __tablename__ = "low_confidence_questions"
 
@@ -129,6 +152,8 @@ class LowConfidenceQuestion(Base):
     raw_question: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(Enum("retrieval_low_conf", "self_check", "user_feedback"))
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retrieved_chunks: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    matched_review_id: Mapped[int | None] = mapped_column(ID, ForeignKey("review_queue.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
 

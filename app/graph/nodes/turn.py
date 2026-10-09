@@ -19,7 +19,7 @@ async def start_turn(state, runtime):
         "order": None, "queries": [],
         "approvals": {}, "write_decision": None, "write_outcome": None,
         "intent": None, "intent_confidence": None,
-        "route": "", "evidence": [], "gate": None, "agent_messages": [], "steps": 0, "tokens_used": 0,
+        "route": "", "evidence": [], "retrieval": None, "gate": None, "agent_messages": [], "steps": 0, "tokens_used": 0,
         "force_final": False, "reply": "", "actions": [], "trace": events.enter("start_turn", {}, runtime),
     }
 

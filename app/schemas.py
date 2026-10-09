@@ -154,3 +154,21 @@ class TicketRequest(BaseModel):
     user_id: UserId
     description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
     ticket_type: Literal["售后", "投诉", "咨询"]
+
+
+class NormalizedQuestion(BaseModel):
+    """飞轮标准化结果。"""
+
+    normalized_question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
+    suggested_answer: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+
+class ReviewDedup(BaseModel):
+    """待审问题查重结果。"""
+
+    duplicate_of: int | None = Field(description="同一个意思时填候选序号（从 1 开始）；否则为 null")
+
+    @field_validator("duplicate_of", mode="before")
+    @classmethod
+    def _null_like_to_none(cls, value):
+        return _null_like(value)

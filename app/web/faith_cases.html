@@ -54,6 +54,7 @@
     .subtext { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
     .chat-link { color: var(--primary); font-size: 14px; text-decoration: none; flex-shrink: 0; }
     .chat-link:hover { text-decoration: underline; }
+    .admin-nav { display: flex; flex-wrap: wrap; gap: 12px; }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 0 28px 20px; }
     .filters { display: flex; flex-wrap: wrap; gap: 8px; }
     .button {
@@ -135,7 +136,12 @@
         <h1>编造个案台账</h1>
         <p class="subtext">点击问题所在行，查看答案、裁判理由和证据。</p>
       </div>
-      <a class="chat-link" href="/">返回聊天</a>
+      <nav class="admin-nav" aria-label="管理页面">
+        <a class="chat-link" href="/admin/faith-cases" aria-current="page">编造台账</a>
+        <a class="chat-link" href="/admin/review-queue">待审队列</a>
+        <a class="chat-link" href="/admin/eval-runs">评估趋势</a>
+        <a class="chat-link" href="/">返回聊天</a>
+      </nav>
     </header>
     <div class="toolbar">
       <div id="filters" class="filters" role="group" aria-label="按状态筛选">

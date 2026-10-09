@@ -56,8 +56,8 @@ def test_interleave_positions(n, expected):
 @pytest.mark.parametrize("category, exclude, expected", [
     (None, False, ""),
     ("蓝牙耳机", False, 'product_category in ["蓝牙耳机", "通用"]'),
-    (None, True, 'content_type != "mined"'),
-    ("台灯", True, 'product_category in ["台灯", "通用"] and content_type != "mined"'),
+    (None, True, 'content_type not in ["mined", "flywheel"]'),
+    ("台灯", True, 'product_category in ["台灯", "通用"] and content_type not in ["mined", "flywheel"]'),
 ])
 def test_build_filter(category, exclude, expected):
     assert r.build_filter(category, exclude) == expected
@@ -91,13 +91,16 @@ async def test_dense_orders_by_cosine_and_skips_pending_and_missing(db, milvus):
     assert got[0] == ids[0] and ids[2] not in got and 999999 not in got
 
 
-async def test_category_filter_and_exclude_mined(db, milvus):
+async def test_category_filter_and_exclude_mined_and_flywheel(db, milvus):
     ids = await seed(db, [
         spec("商品手册 > 蓝牙耳机 > X3 保修", "保修 180 天"),
         spec("商品手册 > 羊毛衫 > W1 保修", "保修 90 天"),
         spec("退货政策 > 保修 > 保修期", "保修 从签收算", "policy"),
         spec("对话挖掘 > 售后维修 > 保修多久", "保修一年", "mined"),
+        spec("飞轮补充 > 蓝牙耳机 > 保修多久", "保修两年", "flywheel"),
     ])
+    unfiltered = await r.retrieve("q", "bm25", plan=plan("保修", "蓝牙耳机"))
+    assert sorted(e.chunk_id for e in unfiltered.ranked) == sorted([ids[0], *ids[2:]])
     res = await r.retrieve("q", "bm25", plan=plan("保修", "蓝牙耳机"), exclude_mined=True)
     assert sorted(e.chunk_id for e in res.ranked) == sorted([ids[0], ids[2]])
 

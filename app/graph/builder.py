@@ -15,11 +15,12 @@ from app.graph.nodes.replies import chitchat_reply, complaint_reply, fallback_re
 from app.graph.nodes.turn import resolve_reference, start_turn
 from app.graph.routing import after_agent, after_gate, after_intent, after_tools
 from app.graph.state import ChatState, GraphContext
+from app.observability import TRACE_NAME, get_langfuse_handler
 
 _graph = None
 
 
-def build_graph(checkpointer):
+def build_graph(checkpointer, callbacks: list | None = None):
     g = StateGraph(ChatState, context_schema=GraphContext)
     for name, fn in (
         ("start_turn", start_turn), ("resolve_reference", resolve_reference),
@@ -53,7 +54,9 @@ def build_graph(checkpointer):
     for name in ("fallback_reply", "complaint_reply", "chitchat_reply", "ticket_reply"):
         g.add_edge(name, "finalize")
     g.add_edge("finalize", END)
-    return g.compile(checkpointer=checkpointer)
+    compiled = g.compile(checkpointer=checkpointer)
+    # 编译时挂一次回调，不在每次请求时传入。
+    return compiled.with_config({"callbacks": callbacks}) if callbacks else compiled
 
 
 def get_graph():
@@ -67,15 +70,22 @@ def set_graph(graph) -> None:
     _graph = graph
 
 
-def thread_config(conversation_id: int) -> dict:
-    return {"configurable": {"thread_id": str(conversation_id)}, "recursion_limit": GRAPH_RECURSION_LIMIT}
+def thread_config(conversation_id: int, user_id: str | None = None, intent: str | None = None) -> dict:
+    metadata = {"langfuse_session_id": str(conversation_id), "langfuse_trace_name": TRACE_NAME}
+    if user_id:
+        metadata["langfuse_user_id"] = user_id
+    if intent is not None:
+        metadata["intent"] = intent
+    return {"configurable": {"thread_id": str(conversation_id)}, "recursion_limit": GRAPH_RECURSION_LIMIT,
+            "metadata": metadata}
 
 
 @asynccontextmanager
 async def open_graph(path: str = CHECKPOINT_DB_PATH):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
+    handler = get_langfuse_handler()
     async with AsyncSqliteSaver.from_conn_string(path) as checkpointer:
-        graph = build_graph(checkpointer)
+        graph = build_graph(checkpointer, [handler] if handler else None)
         set_graph(graph)
         try:
             yield graph

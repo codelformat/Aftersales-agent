@@ -1,0 +1,147 @@
+# 本项目自部署的 Langfuse v4。与 docker-compose.yml 分开启停：
+#   docker compose -f docker-compose.langfuse.yml up -d --wait
+# 本机已有 mewhelp 的 Langfuse v3，端口全部错开。密码只用于本机开发。
+# 链路数据含用户对话，暴露端口仅绑定本机 127.0.0.1。
+name: aftersales-langfuse
+services:
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    restart: always
+    depends_on: &langfuse-depends-on
+      postgres: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+    ports:
+      - 127.0.0.1:3130:3030
+    environment: &langfuse-worker-env
+      NEXTAUTH_URL: http://localhost:3100
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      SALT: aftersales-local-salt
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: aftersales-redis
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4
+    restart: always
+    depends_on: *langfuse-depends-on
+    ports:
+      - 127.0.0.1:3100:3000
+    environment:
+      <<: *langfuse-worker-env
+      NEXTAUTH_SECRET: aftersales-local-nextauth
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9092
+      LANGFUSE_S3_MEDIA_UPLOAD_INTERNAL_ENDPOINT: http://minio:9000
+      LANGFUSE_INIT_ORG_ID: aftersales-org
+      LANGFUSE_INIT_ORG_NAME: Aftersales
+      LANGFUSE_INIT_PROJECT_ID: aftersales
+      LANGFUSE_INIT_PROJECT_NAME: aftersales-agent
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?在 .env 中设置 LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?在 .env 中设置 LANGFUSE_SECRET_KEY}
+      LANGFUSE_INIT_USER_EMAIL: admin@aftersales.local
+      LANGFUSE_INIT_USER_NAME: admin
+      LANGFUSE_INIT_USER_PASSWORD: aftersales-admin
+  clickhouse:
+    image: docker.io/clickhouse/clickhouse-server:25.12
+    restart: always
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    volumes:
+      - aftersales-langfuse-clickhouse-data:/var/lib/clickhouse
+      - aftersales-langfuse-clickhouse-logs:/var/log/clickhouse-server
+    ports:
+      - 127.0.0.1:8124:8123
+      - 127.0.0.1:9002:9000
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 1s
+  minio:
+    image: cgr.dev/chainguard/minio
+    restart: always
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniosecret
+    ports:
+      - 127.0.0.1:9092:9000
+      - 127.0.0.1:9192:9001
+    volumes:
+      - aftersales-langfuse-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
+  redis:
+    image: docker.io/redis:7
+    restart: always
+    command: >
+      --requirepass aftersales-redis
+      --maxmemory-policy noeviction
+    ports:
+      - 127.0.0.1:6381:6379
+    volumes:
+      - aftersales-langfuse-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+  postgres:
+    image: docker.io/postgres:17
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - 127.0.0.1:5433:5432
+    volumes:
+      - aftersales-langfuse-postgres-data:/var/lib/postgresql/data
+volumes:
+  aftersales-langfuse-postgres-data:
+    name: aftersales-langfuse-postgres-data
+  aftersales-langfuse-clickhouse-data:
+    name: aftersales-langfuse-clickhouse-data
+  aftersales-langfuse-clickhouse-logs:
+    name: aftersales-langfuse-clickhouse-logs
+  aftersales-langfuse-minio-data:
+    name: aftersales-langfuse-minio-data
+  aftersales-langfuse-redis-data:
+    name: aftersales-langfuse-redis-data

@@ -18,13 +18,18 @@ from app.prompts import (
     extract_prompt,
     faith_judge_prompt,
     intent_prompt,
+    normalize_prompt,
     qa_extract_prompt,
     query_rewrite_prompt,
     resolve_prompt,
+    review_dedup_prompt,
     self_check_prompt,
     summary_prompt,
 )
-from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, QaPairs, QueryExpansion, QueryPlan, ResolvedQuery, SelfCheck
+from app.schemas import (
+    AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, NormalizedQuestion, QaPairs,
+    QueryExpansion, QueryPlan, ResolvedQuery, ReviewDedup, SelfCheck,
+)
 
 
 def _build(settings: Settings, thinking: str | None, model: str | None = None) -> ChatOpenAI:
@@ -146,3 +151,19 @@ def get_small_intent_classifier() -> Runnable:
 @lru_cache
 def get_summarizer() -> Runnable:
     return summary_prompt | build_extract_model(get_settings()) | StrOutputParser()
+
+
+@lru_cache
+def get_question_normalizer() -> Runnable:
+    model = build_extract_model(get_settings())
+    return normalize_prompt | model.with_structured_output(
+        NormalizedQuestion, method="json_mode", include_raw=True
+    )
+
+
+@lru_cache
+def get_review_dedup_judge() -> Runnable:
+    model = build_extract_model(get_settings())
+    return review_dedup_prompt | model.with_structured_output(
+        ReviewDedup, method="json_mode", include_raw=True
+    )

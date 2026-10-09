@@ -21,6 +21,7 @@ async def finalize(state, runtime):
     async with get_sessionmaker()() as s:
         user_row, reply_row = await messages.add_turn(s, cid, final_rows(state["user_input"], final.content))
         await s.commit()
+    events.emit("saved", {"message_id": reply_row.id})
     new = [HumanMessage(state["user_input"], id=msg_id(user_row.id)), *turn[:-1],
            final.model_copy(update={"id": msg_id(reply_row.id)})]
     gate = state.get("gate") or {}
@@ -29,7 +30,7 @@ async def finalize(state, runtime):
         "steps=%s tokens=%s actions=%s ticket_request=%s status_query=%s write=%s",
         cid, state.get("intent"), state.get("intent_confidence"), state.get("route"), state.get("resolved_input"),
         state.get("order_id") or "-", len(state.get("queries") or []), ",".join(trace),
-        f"{gate.get('passed')}/{gate.get('top_score')}/{gate.get('source')}" if gate else "-",
+        f"{gate.get('passed')}/{gate.get('confidence')}/{gate.get('source')}" if gate else "-",
         state.get("steps", 0), state.get("tokens_used", 0),
         ",".join(a["type"] for a in state.get("actions", [])) or "-",
         state.get("ticket_request", False), state.get("status_query", False),
