@@ -1,7 +1,7 @@
 # ch08 即插即用的工具系统：设计规格
 
 - 日期：2026-10-09
-- 状态：待用户审阅
+- 状态：用户已审阅通过（2026-10-09）；计划阶段补充已同步（`approvals`、先校验后注入、退款单 `enum`）
 - 分支：`ch08`（从 `main` 拉出。`main` 已合并 PR #2，含 ch06 和 ch07）
 - 前置：ch07（`docs/superpowers/specs/2026-10-08-ch07-context-management-design.md`）。本文只写新增和变化的部分。没有提到的 ch07 行为保持不变。
 
@@ -107,11 +107,11 @@ Context7 核对结果（`/langchain-ai/langchain-mcp-adapters`、`/modelcontextp
 
 ### 4.4 执行引擎（`app/tools/executor.py`）
 
-入口不变：`execute_tool_calls(calls, *, conversation_id, toolset, approved_ids=frozenset())`，并行执行，按输入顺序返回 `ToolOutcome`。每个调用依次经过：
+入口不变：`execute_tool_calls(calls, *, conversation_id, toolset, approvals={})`，并行执行，按输入顺序返回 `ToolOutcome`。每个调用依次经过：
 
 1. **查找**：名字在内置包、策略文件、本轮发现结果中都不存在 → `失败`（"工具不存在"）。策略文件列为 `read`、但本轮没发现到（Server 连不上）→ `失败`（"工具暂时不可用"）。存在但本轮没开放 → `权限拒绝`（"工具未开放"）。没开放包括：策略 `deny`、未列出的 MCP 工具、MCP 写工具、`ticket_request` 为假时的 `create_ticket`。
-2. **权限**：`write` 工具的 call id 不在 `approved_ids` 中 → `权限拒绝`（"未经用户确认"或"用户取消"）。`approved_ids` 只来自确认节点（第 5 节）和 `POST /tickets`，不是工具参数，模型无法提供。
-3. **校验**：注入 `conversation_id` 后，用 `jsonschema` 校验，收集全部错误，翻成短中文："缺少必填参数 description"、"order_id 格式不对"、"ticket_type 只能是 售后/投诉/咨询"。内置工具内部的 Pydantic 校验（如 `offer_human_options` 的跨字段规则）抛 `ValidationError` 时，同样按校验拦下处理。→ `校验拦下`。
+2. **权限**：`approvals` 是 call id → `"approved"` 或拒绝原因的映射。`write` 工具的 call id 映射到 `"approved"` 才放行；映射到其他文字 → `权限拒绝`，原因即该文字（如"用户取消"）；没有映射 → `权限拒绝`（"未经用户确认"）。`approvals` 只来自确认节点（第 5 节）和 `POST /tickets`，不是工具参数，模型无法提供。
+3. **校验**：对发给模型的 Schema（不含注入字段）用 `jsonschema` 校验；通过后再注入 `conversation_id`，注入值覆盖模型给的同名参数。校验收集全部错误，翻成短中文："缺少必填参数 description"、"order_id 格式不对"、"ticket_type 只能是 售后/投诉/咨询"。内置工具内部的 Pydantic 校验（如 `offer_human_options` 的跨字段规则）抛 `ValidationError` 时，同样按校验拦下处理。→ `校验拦下`。
 4. **执行**：每次尝试用 `asyncio.wait_for(…, timeout)`。重试只用于 `read` 工具，只针对暂时性故障：`TimeoutError`、httpx 传输错误、MCP 会话或连接失败、`OperationalError`。`read` 默认 `max_retries=2`（共 3 次），`write` 默认 0。等待时间用现有 `retry_async`（指数回退 + 抖动），新增 `on_retry` 回调计数。MCP `isError`（`ToolException`）是 Server 给的业务错误，不重试。
 5. **分诊**：
 
@@ -138,7 +138,7 @@ MCP 工具的 runner 用 ToolCall 形式调用转换后的工具，取 `artifact
 ### 4.6 Agent 绑定（变化）
 
 - 删除 `AGENT_TOOLS` 常量。Agent 绑定本轮工具集中 `agent=True` 且权限放行的全部条目。
-- `offer_refund_form` 保持 ch06 条件（aftersales 出口且有订单号）。
+- `offer_refund_form` 保持 ch06 条件（aftersales 出口且有订单号）。本轮 Schema 把 `order_id` 收窄为 `{"enum": [本轮订单号]}`，订单号不符由校验拦下；删除 `agent_tools` 中的 `invalid_order` 分支。
 - `create_ticket` 只在 `ticket_request` 为真时绑定。
 - `agent_tools` 不再自己维护允许列表，统一由执行引擎判定。
 - ch07 预算不变：`SYSTEM_RESERVE_TOKENS=1800` 仍是常量。每轮绑定时实测 System + 工具定义的 token，超出预留时打 `system_reserve_exceeded`。演示配置仍得 5650/3954/1695。
@@ -159,7 +159,7 @@ agent_model ─(含写工具调用)→ confirm_write → agent_tools ─(本步�
 
 "含写工具调用"指本轮已开放的写工具，即 `ticket_request` 为真时的 `create_ticket`。没开放的写调用（MCP 写工具、未开放的 `create_ticket`）走 `agent_tools`，由执行引擎拒绝。
 
-State 新增本轮字段：`ticket_request`、`approved_ids`、`write_decision`、`write_outcome`，由 `start_turn` 重置。
+State 新增本轮字段：`ticket_request`、`approvals`、`write_decision`、`write_outcome`，由 `start_turn` 重置。
 
 ### 5.3 `confirm_write` 节点
 
@@ -167,11 +167,11 @@ State 新增本轮字段：`ticket_request`、`approved_ids`、`write_decision`�
    - 权限：本轮开放了 `create_ticket`。
    - JSON Schema 校验参数。
 2. 任一检查不通过 → 不中断，直接进 `agent_tools`，由执行引擎返回 `权限拒绝` 或 `校验拦下`，模型据此追问用户。所以只有参数合法时才出预览卡片。
-3. 同一步有多个 `create_ticket` 调用时，只预览第一个；其余由执行引擎拒绝（"一次只能提交一张工单"）。
+3. 同一步有多个 `create_ticket` 调用时，只预览第一个；其余在 `approvals` 中记"一次只能提交一张工单"，由执行引擎拒绝。
 4. `interrupt({"type": "ticket_confirm", "call_id", "ticket_type", "description"})`。
-5. 恢复值 `{"confirmed": bool}` → 写 `approved_ids`（确认时为该 call id，取消时为空）和 `write_decision`（`confirmed` / `cancelled`）。
+5. 恢复值 `{"confirmed": bool}` → 写 `approvals`（确认时该 call id → `"approved"`，取消时 → `"用户取消"`；多余的 `create_ticket` → `"一次只能提交一张工单"`）和 `write_decision`（`confirmed` / `cancelled`）。
 
-`agent_tools` 把 `approved_ids` 传给执行引擎。取消时执行引擎记 `权限拒绝`，原因"用户取消"。
+`agent_tools` 把 `approvals` 传给执行引擎。取消时执行引擎记 `权限拒绝`，原因"用户取消"。
 
 ### 5.4 `ticket_reply` 节点（固定话术，不调模型）
 
@@ -189,7 +189,7 @@ State 新增本轮字段：`ticket_request`、`approved_ids`、`write_decision`�
 - `stream_graph` 从 `__interrupt__` 中按 `type` 区分：`order_picker` 发 `order_picker`；`ticket_confirm` 发 `ticket_preview` `{call_id, ticket_type, description}`。之后 `done` 的 `finish_reason=interrupted`。
 - `POST /chat/resume` 请求体增加 `ticket_confirm: bool | None`。`order_id` 和 `ticket_confirm` 必须恰好给一个，否则 422。预检按待处理 interrupt 的类型匹配：没有待处理的 `ticket_confirm` → 409 `no_pending_confirmation`；没有待处理的 `order_picker` → 409 `no_pending_selection`（不变）。恢复值 `Command(resume={"confirmed": ticket_confirm})`。
 - 待确认时用户发新消息：从 START 开始，原 interrupt 作废（ch06 行为）。`prepare_chat_turn` 发现待处理的 `ticket_confirm` 时写一条审计：`权限拒绝`，原因"用户未确认，已被新消息取代"。未确认的 tool_call 只在本轮 `agent_messages` 中，不进历史。
-- `POST /tickets`（投诉流程按钮）不变：点击即确认，执行引擎调用时 `approved_ids` 含该 call id，照常记审计。
+- `POST /tickets`（投诉流程按钮）不变：点击即确认，执行引擎调用时 `approvals` 把该 call id 映射到 `"approved"`，照常记审计。
 
 ### 5.6 Prompt（非可单测，用评估集验证）
 
