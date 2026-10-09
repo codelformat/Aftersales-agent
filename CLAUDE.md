@@ -189,6 +189,11 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
 
   不开启 Codex 的 fast 模式（不加 `-c service_tier="priority"`）。用户 2026-10-06 要求开启，2026-10-07 因额度用完改为关闭。
 
+  **Codex 额度用完时，改派 Sonnet 子代理（用户 2026-10-09 要求）。** 每次 `codex exec` 结束后，先查日志中的额度错误（quota、usage limit、429）。如果额度用完：
+  1. 告诉用户，引用错误原文。
+  2. 用 Agent 工具（`model: "sonnet"`）执行同一份自包含任务描述。
+  3. Claude 照常检查它的 diff、跑测试、提交，与 Codex 的产出同样对待。
+
   Codex 的沙箱不能执行 `docker build`（不能写 `~/.docker/buildx/`）。涉及 docker 的步骤由 Claude 执行。
 
 - **任务描述要自包含**：Codex 看不到对话上下文。写清目标、涉及文件/模块、接口约定、验收标准（要通过的测试或命令）、不许改动的范围，以及相关库的正确 API 用法（来自 Context7 的查询结果）。
