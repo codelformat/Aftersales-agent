@@ -5,7 +5,6 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
-TOKEN_BUDGET = 2000
 # 实测 DeepSeek：55 个中文字符约 30 token。取 2.0 字符/token。
 CHARS_PER_TOKEN = 2.0
 SHOP_NAME = "示例商城"

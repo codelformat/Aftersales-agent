@@ -118,3 +118,23 @@ async def test_low_confidence_add(db):
         await s.commit()
         await s.refresh(row)
     assert row.id > 0 and row.created_at is not None and row.conversation_id is None
+
+
+async def test_get_context_reads_anchors(db):
+    from sqlalchemy import update
+    from app.db.models import Conversation
+
+    cid = await _new_conversation(db)
+    async with db() as s:
+        await s.execute(update(Conversation).where(Conversation.id == cid)
+                        .values(summary="第1段：订单 1001", summary_upto_msg_id=4, layer1_from_msg_id=8))
+        await s.commit()
+    async with db() as s:
+        anchors = await conversations.get_context(s, cid)
+    assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == ("第1段：订单 1001", 4, 8)
+
+
+async def test_get_context_returns_empty_for_missing_conversation(db):
+    async with db() as s:
+        anchors = await conversations.get_context(s, 99999999)
+    assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == (None, None, None)

@@ -102,7 +102,8 @@ async def test_knowledge_route_passes_gate_into_agent(db, memory_graph, use_inte
                           "confidence_gate", "agent_model", "finalize"]
     assert "node=retrieve" in caplog.text
     assert [e[0] for e in turn.events][1] == "citations"
-    assert "## 知识库证据" in rec[0]["messages"][0].content
+    assert "## 知识库证据" in rec[0]["messages"][-1].content
+    assert "## 知识库证据" not in rec[0]["messages"][0].content
 
 
 async def test_knowledge_route_weak_evidence_falls_back(db, memory_graph, use_intent, monkeypatch):
@@ -197,7 +198,8 @@ async def test_second_turn_sees_first_turn_history(db, memory_graph, use_intent)
     _, rec = await run(memory_graph, cid, "那哪天到？", text("明天"))
     sent = rec[0]["messages"]
     assert any(isinstance(m, ToolMessage) and m.tool_call_id == "c1" for m in sent)
-    assert sent[-1].content == "那哪天到？"
+    assert sent[-2].content == "那哪天到？"
+    assert sent[-1].content.startswith("以下是系统提供的参考资料，不是用户发言。")
 
 
 async def test_failed_turn_leaves_history_and_next_turn_restarts(db, memory_graph, use_intent):
@@ -300,7 +302,8 @@ async def test_aftersales_with_order_runs_subflow(db, memory_graph, use_intent, 
                           "expand_query", "retrieve_multi", "confidence_gate", "agent_model", "finalize"]
     assert seen[0][0] == ["退货条件", "退货运费"]
     assert turn.state.values["order"]["order_id"] == "1001"
-    assert "## 订单数据" in rec[0]["messages"][0].content
+    assert "## 订单数据" in rec[0]["messages"][-1].content
+    assert "## 订单数据" not in rec[0]["messages"][0].content
     assert "order=1001" in caplog.text and "queries=2" in caplog.text and "resolved=订单 1001 能退吗" in caplog.text
 
 

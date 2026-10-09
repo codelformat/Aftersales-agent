@@ -1,13 +1,18 @@
 import logging
 
+from app.db.engine import get_sessionmaker
 from app.graph import events
+from app.repositories import conversations
 from app.services import understanding
 
 logger = logging.getLogger(__name__)
 
 
 async def start_turn(state, runtime):
+    async with get_sessionmaker()() as s:
+        anchors = await conversations.get_context(s, runtime.context.conversation_id)
     return {
+        "summary": anchors.summary, "summary_upto": anchors.summary_upto, "layer1_from": anchors.layer1_from,
         "resolved_input": "", "standard_query": "", "product_category": None, "order_scoped": False,
         "order_id": None, "order": None, "queries": [], "intent": None, "intent_confidence": None,
         "route": "", "evidence": [], "gate": None, "agent_messages": [], "steps": 0, "tokens_used": 0,

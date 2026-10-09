@@ -23,6 +23,9 @@ class ChatState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     # 本轮字段：start_turn 每轮重置，节点整体覆盖。
     user_input: str
+    summary: str | None
+    summary_upto: int | None
+    layer1_from: int | None
     resolved_input: str
     standard_query: str
     product_category: str | None

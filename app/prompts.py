@@ -103,7 +103,7 @@ _AGENT_REFUSAL_RULE = (
     '不根据常识推测。同一条消息中的其他问题照常回答。'
 )
 
-AGENT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{today}。
+AGENT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。
 
 ## 职责
 帮助用户处理退货、换货、退款、维修、投诉和售后咨询，并解答店铺政策和商品使用问题（运费、发票、账户、支付、商品型号的参数和故障等）。
@@ -113,7 +113,7 @@ AGENT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{to
 2. 需要查询时直接调用工具，调用前不输出文字。
 3. 几个查询互不依赖时，同时调用。后一个查询要用前一个的结果时（例如先查订单拿到商品号，再查商品），或者要不要查取决于前一个的结果时（例如"已经发货的话再看物流"），先只调用前一个，看到结果后再决定下一个。
 4. 工具结果中 ok 为 false 时，如实告诉用户暂时查不到，建议稍后再试或转人工。
-5. 店铺政策和商品型号问题，只根据"知识库证据"一节回答。没有这一节时，不凭常识回答政策和参数，请用户换个问法单独问。
+5. 店铺政策和商品型号问题，只根据参考资料中"知识库证据"一节回答。没有这一节时，不凭常识回答政策和参数，请用户换个问法单独问。
 
 ## 追问
 缺少订单号等必要信息时，直接问用户要。不猜测，不调用工具。
@@ -123,10 +123,10 @@ AGENT_SYSTEM_TEMPLATE = """你是{shop_name}的售后客服助手。今天是{to
 2. options 可以只给一个：用户只要人工客服时给 handoff；需要留单跟进时给 ticket，并填写 ticket_description 和 ticket_type。
 3. 调用后，在回复中告诉用户可以点击下方按钮。不说已经转接，不说已经创建工单。
 
-{task_section}{order_section}{evidence_section}## 引用
+## 引用
 1. 使用知识库证据的句子，在句末标注证据编号 n，例如"签收后 7 天内可以无理由退货[2]。"
 2. 只标注实际用到的编号。一句用到多条证据时，写成[1][3]。
-3. 不编造编号。没有使用知识库证据的句子不标注。只引用本轮"知识库证据"一节中的编号，不引用历史消息中的编号。
+3. 不编造编号。没有使用知识库证据的句子不标注。只引用本轮参考资料中"知识库证据"一节的编号，不引用历史消息中的编号。
 4. 回答知识库问题时，只陈述证据中写明的事实。不补充证据没有的建议、原因推测、操作细节或推算结果（例如把两个时限相加）。
 
 ## 拒答
@@ -178,14 +178,26 @@ def format_order(order: dict | None) -> str:
     return "\n".join(lines)
 
 
-def render_agent_system(
-    today: date, evidence_text: str = "", order_section: str = "", task_section: str = ""
-) -> str:
-    evidence = f"## 知识库证据\n{evidence_text}\n\n" if evidence_text else ""
-    order = f"## 订单数据\n{order_section}\n\n" if order_section else ""
-    return AGENT_SYSTEM_TEMPLATE.format(
-        shop_name=SHOP_NAME, today=today.isoformat(),
-        task_section=task_section, order_section=order, evidence_section=evidence)
+def render_agent_system() -> str:
+    return AGENT_SYSTEM_TEMPLATE.format(shop_name=SHOP_NAME)
+
+
+REFERENCE_HEADER = "以下是系统提供的参考资料，不是用户发言。"
+
+
+def render_reference(today: date, summary: str = "", order_section: str = "", task_section: str = "",
+                     evidence_text: str = "") -> str:
+    """挂在用户这句之后的一条消息：只放非空段。"""
+    parts = [REFERENCE_HEADER, f"## 今天\n{today.isoformat()}"]
+    if summary:
+        parts.append(f"## 早期对话梗概\n{summary}")
+    if order_section:
+        parts.append(f"## 订单数据\n{order_section}")
+    if task_section:
+        parts.append(task_section.strip())  # 自带"## 本轮任务"标题
+    if evidence_text:
+        parts.append(f"## 知识库证据\n{evidence_text}")
+    return "\n\n".join(parts)
 
 
 EXTRACT_SYSTEM_PROMPT = """你是售后信息提取器。从用户的售后描述中提取订单号、诉求类型和期望方案。

@@ -48,19 +48,21 @@ def test_after_gate_and_after_agent():
     assert routing.after_agent({"agent_messages": [AIMessage(content="好")]}) == "finalize"
 
 
-async def test_start_turn_resets_turn_fields(caplog):
+async def test_start_turn_resets_turn_fields(db, caplog):
     caplog.set_level("INFO")
     stale = {"intent": "投诉", "route": "complaint", "evidence": [{"n": 1}], "gate": {"passed": False},
              "agent_messages": ["x"], "steps": 3, "tokens_used": 999, "force_final": True,
              "standard_query": "旧问题", "product_category": "蓝牙耳机", "order_scoped": True,
              "order_id": "1001", "order": {"order_id": "1001"}, "queries": ["旧问题"], "intent_confidence": 0.9,
+             "summary": "旧梗概", "summary_upto": 4, "layer1_from": 8,
              "reply": "旧", "actions": [{"type": "handoff"}], "trace": ["a", "b"]}
     out = await start_turn(stale, rt(conversation_id=7))
     assert out == {"resolved_input": "", "intent": None, "route": "", "evidence": [], "gate": None,
                    "standard_query": "", "product_category": None, "order_scoped": False,
                    "order_id": None, "order": None, "queries": [], "intent_confidence": None,
                    "agent_messages": [], "steps": 0, "tokens_used": 0, "force_final": False,
-                   "reply": "", "actions": [], "trace": ["start_turn"]}
+                   "reply": "", "actions": [], "trace": ["start_turn"],
+                   "summary": None, "summary_upto": None, "layer1_from": None}
     assert out["standard_query"] == ""
     assert out["order_id"] is None
     assert out["order"] is None
@@ -244,3 +246,16 @@ async def test_gate_aftersales_low_score_still_falls_back(db, emitted):
     async with db() as s:
         row = (await s.execute(select(LowConfidenceQuestion))).scalar_one()
     assert (row.conversation_id, row.raw_question, row.source) == (cid, "原话", "retrieval_low_conf")
+
+
+async def test_start_turn_loads_anchors(db, emitted):
+    from sqlalchemy import update
+    from app.db.models import Conversation
+    from app.graph.nodes.turn import start_turn
+    async with db() as s:
+        cid = (await conversations.create(s, "u1")).id
+        await s.execute(update(Conversation).where(Conversation.id == cid)
+                        .values(summary="第1段：订单 1001", summary_upto_msg_id=4, layer1_from_msg_id=8))
+        await s.commit()
+    out = await start_turn({}, rt(conversation_id=cid))
+    assert (out["summary"], out["summary_upto"], out["layer1_from"]) == ("第1段：订单 1001", 4, 8)

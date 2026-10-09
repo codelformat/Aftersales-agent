@@ -3,17 +3,18 @@
 import json
 import logging
 import math
-from datetime import date
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
-from app.config import AGENT_TOKEN_BUDGET, CHARS_PER_TOKEN, TOKEN_BUDGET, get_settings
-from app.context import build_history, count_tokens
+from app.config import AGENT_TOKEN_BUDGET, CHARS_PER_TOKEN, get_settings
+from app.context import count_tokens
+from app.context.assemble import build_agent_prompt, log_model_ctx
 from app.graph import events
 from app.graph.control import actions_from_args, refund_action
 from app.prompts import (
     AFTERSALES_TASK_POLICY, AFTERSALES_TASK_WITH_ORDER, TOOL_ROUND_CLOSING, format_order, render_agent_system,
+    render_reference,
 )
 from app.services.grounding import Citation, format_evidence, parse_citations
 from app.tools.executor import failure_outcome
@@ -31,7 +32,7 @@ def measure_system_tokens() -> int:
     """估算 System Prompt 和全部 Agent 工具定义的 token。"""
     tools = get_registry().tools_for_model((*AGENT_TOOLS, REFUND_FORM_TOOL))
     schema = json.dumps([convert_to_openai_tool(tool) for tool in tools], ensure_ascii=False)
-    return count_tokens([SystemMessage(render_agent_system(date.today()))]) + math.ceil(len(schema) / CHARS_PER_TOKEN)
+    return count_tokens([SystemMessage(render_agent_system())]) + math.ceil(len(schema) / CHARS_PER_TOKEN)
 
 
 class AgentOutputError(RuntimeError):
@@ -65,19 +66,20 @@ async def agent_model(state, runtime):
     ctx = runtime.context
     citations = [Citation(**c) for c in state.get("evidence", [])]
     order_section, task_section = _aftersales_sections(state)
-    system = render_agent_system(ctx.today, format_evidence(citations) if citations else "",
-                                 order_section=order_section, task_section=task_section)
-    # 历史预算不计证据段、订单段和任务段，与 ch04 不计工具结果一致。
-    history = build_history(
-        state.get("messages", []), render_agent_system(ctx.today), state["resolved_input"], TOKEN_BUDGET)
-    prompt = [SystemMessage(system), *history, HumanMessage(state["resolved_input"]),
-              *state.get("agent_messages", [])]
+    reference = render_reference(ctx.today, state.get("summary") or "", order_section, task_section,
+                                 format_evidence(citations) if citations else "")
+    built = build_agent_prompt(
+        history=state.get("messages", []), summary_upto=state.get("summary_upto"),
+        layer1_from=state.get("layer1_from"), summary=state.get("summary"),
+        user_input=state["resolved_input"], reference=reference, agent_messages=state.get("agent_messages", []))
+    prompt = built.messages
     force = state.get("force_final", False)
     if force:
         runnable = ctx.model
-        prompt = [*prompt, SystemMessage(TOOL_ROUND_CLOSING)]
+        prompt.append(SystemMessage(TOOL_ROUND_CLOSING))
     else:
         runnable = ctx.model.bind_tools(get_registry().tools_for_model(agent_tool_names(state)), tool_choice="auto")
+    log_model_ctx(ctx.conversation_id, state.get("steps", 0), built)
 
     text = ""
     gathered = None
