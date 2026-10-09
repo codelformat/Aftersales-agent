@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Conversation
+from app.db.models import Conversation, Message
 
 
 @dataclass(frozen=True)
@@ -35,6 +35,26 @@ async def get_for_user(
             Conversation.id == conversation_id, Conversation.user_id == user_id
         )
     )
+
+
+async def list_for_user(
+    session: AsyncSession, user_id: str, limit: int = 50
+) -> list[tuple[Conversation, str | None]]:
+    first = (
+        select(Message.content)
+        .where(Message.conversation_id == Conversation.id, Message.role == "user")
+        .order_by(Message.id)
+        .limit(1)
+        .scalar_subquery()
+        .correlate(Conversation)
+    )
+    rows = await session.execute(
+        select(Conversation, first)
+        .where(Conversation.user_id == user_id)
+        .order_by(Conversation.id.desc())
+        .limit(limit)
+    )
+    return [(c, p) for c, p in rows.all()]
 
 
 async def set_status(

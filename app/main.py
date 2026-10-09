@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api import chat, extract, faith_cases, health, knowledge, refunds, tickets, web
+from app.api import chat, conversations, extract, faith_cases, health, knowledge, refunds, tickets, web
 from app.context.budget import get_budget, startup_check
 from app.context.summarizer import get_runner
 from app.graph.builder import open_graph
@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Aftersales Agent", lifespan=lifespan)
 app.include_router(health.router)
 app.include_router(chat.router)
+app.include_router(conversations.router)
 app.include_router(tickets.router)
 app.include_router(refunds.router)
 app.include_router(extract.router)
