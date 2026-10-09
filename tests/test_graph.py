@@ -103,6 +103,34 @@ async def test_complaint_route_offers_actions_and_writes_no_ticket(db, memory_gr
         assert (await s.execute(select(Ticket))).scalars().all() == []
 
 
+@pytest.mark.parametrize("history_recall", [False, True])
+async def test_ticket_request_routes_complaint_to_agent(db, memory_graph, use_resolver, use_intent,
+                                                       history_recall, caplog):
+    caplog.set_level("INFO")
+    cid = await new_cid(db)
+    if history_recall:
+        use_intent("闲聊")
+        await run(memory_graph, cid, "你好")
+    use_resolver({"ticket_request": True, "history_recall": history_recall})
+    use_intent("投诉")
+    turn, _ = await run(memory_graph, cid, "给我提个投诉工单", text("请描述一下遇到的问题"))
+    assert "agent_model" in turn.trace
+    assert "complaint_reply" not in turn.trace
+    assert turn.state.values["ticket_request"] is True
+    assert turn.state.values["history_recall"] is history_recall
+    assert "ticket_request=True" in caplog.text
+
+
+async def test_start_turn_clears_ticket_request(db):
+    from types import SimpleNamespace
+    from app.graph.nodes.turn import start_turn
+
+    cid = await new_cid(db)
+    runtime = SimpleNamespace(context=SimpleNamespace(conversation_id=cid))
+    update = await start_turn({"ticket_request": True}, runtime)
+    assert update["ticket_request"] is False
+
+
 async def test_knowledge_route_passes_gate_into_agent(db, memory_graph, use_intent, monkeypatch, caplog):
     caplog.set_level("INFO")
     use_intent("商品咨询")

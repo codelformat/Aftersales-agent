@@ -109,6 +109,16 @@ def test_resolve_prompt_rules_and_json():
     assert set(resolve_prompt.input_variables) == {"history", "question"}
 
 
+def test_resolve_prompt_includes_ticket_request():
+    import json
+    from app.prompts import RESOLVE_SYSTEM_PROMPT, resolve_prompt
+
+    assert "## ticket_request" in RESOLVE_SYSTEM_PROMPT
+    messages = resolve_prompt.invoke({"history": "（无）", "question": "帮我建个工单"}).to_messages()
+    example = messages[0].content.split("只输出一个 JSON 对象，不输出其他内容：\n", 1)[1]
+    assert json.loads(example)["ticket_request"] is False
+
+
 def test_expand_prompt_json():
     from app.prompts import EXPAND_SYSTEM_PROMPT, expand_prompt
     assert '"queries"' in EXPAND_SYSTEM_PROMPT and "JSON" in EXPAND_SYSTEM_PROMPT

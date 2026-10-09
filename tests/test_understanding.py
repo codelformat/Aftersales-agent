@@ -87,6 +87,21 @@ async def test_resolve_without_history_forces_history_recall_false(use_resolver)
     assert r.history_recall is False
 
 
+@pytest.mark.parametrize("history", ["", "客服：请描述一下遇到的问题"])
+@pytest.mark.parametrize("ticket_request", [True, False])
+async def test_resolve_passes_ticket_request(use_resolver, history, ticket_request):
+    use_resolver({"ticket_request": ticket_request})
+    r = await understanding.resolve("帮我建个工单", history, lexicon=LEX)
+    assert r.ticket_request is ticket_request
+
+
+@pytest.mark.parametrize("value", [None, ValueError("boom")])
+async def test_resolve_failure_clears_ticket_request(use_resolver, value):
+    use_resolver(value)
+    r = await understanding.resolve("帮我建个工单", "用户：耳机坏了", lexicon=LEX)
+    assert r.ticket_request is False
+
+
 @pytest.mark.parametrize("value", [None, ValueError("boom")])
 async def test_resolve_failure_clears_history_recall(use_resolver, value):
     use_resolver(value)

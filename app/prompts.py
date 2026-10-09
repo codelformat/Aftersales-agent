@@ -300,9 +300,13 @@ RESOLVE_SYSTEM_PROMPT = f"""你是售后客服的问题整理器。结合对话�
 用户要回看本次对话中之前说过、答过、查过或定过的内容时为 true。这类话通常带'之前''刚才''上次''后来''最开始''你说过'等回看用语，例如'最开始那个订单后来怎么说''你之前说运费谁出来着''刚才查的物流是什么状态'。
 用户提出新的问题时为 false，即使问题接着前面的话题、需要用历史补全指代，例如前面在聊换货，现在问'运费谁出''这个能退吗''多久能到'，都是 false。
 
+## ticket_request
+用户这句话明确要求建工单、提交工单、留单时为 true，例如"帮我建个工单""给我提个投诉工单""我要提交一个售后工单"。客服刚请用户补充工单信息，用户这句在补充问题描述时也为 true，例如客服问"请描述一下遇到的问题"，用户答"耳机左耳没声音"。
+只抱怨、只要求转人工、只问能不能建工单而没有要求建时为 false，例如"太差了""给我转人工""你们能建工单吗"。
+
 ## 输出格式
 只输出一个 JSON 对象，不输出其他内容：
-{{{{"resolved_input": "...", "standard_query": "...", "product_category": null, "order_scoped": false, "order_id": null, "history_recall": false}}}}"""
+{{{{"resolved_input": "...", "standard_query": "...", "product_category": null, "order_scoped": false, "order_id": null, "history_recall": false, "ticket_request": false}}}}"""
 
 resolve_prompt = ChatPromptTemplate.from_messages([
     ("system", RESOLVE_SYSTEM_PROMPT),

@@ -54,14 +54,15 @@ async def test_start_turn_resets_turn_fields(db, caplog):
     stale = {"intent": "投诉", "route": "complaint", "evidence": [{"n": 1}], "gate": {"passed": False},
              "agent_messages": ["x"], "steps": 3, "tokens_used": 999, "force_final": True,
              "standard_query": "旧问题", "product_category": "蓝牙耳机", "order_scoped": True,
-             "order_id": "1001", "history_recall": True, "order": {"order_id": "1001"},
+             "order_id": "1001", "history_recall": True, "ticket_request": True, "order": {"order_id": "1001"},
              "queries": ["旧问题"], "intent_confidence": 0.9,
              "summary": "旧梗概", "summary_upto": 4, "layer1_from": 8,
              "reply": "旧", "actions": [{"type": "handoff"}], "trace": ["a", "b"]}
     out = await start_turn(stale, rt(conversation_id=7))
     assert out == {"resolved_input": "", "intent": None, "route": "", "evidence": [], "gate": None,
                    "standard_query": "", "product_category": None, "order_scoped": False,
-                   "order_id": None, "history_recall": False, "order": None, "queries": [], "intent_confidence": None,
+                   "order_id": None, "history_recall": False, "ticket_request": False,
+                   "order": None, "queries": [], "intent_confidence": None,
                    "agent_messages": [], "steps": 0, "tokens_used": 0, "force_final": False,
                    "reply": "", "actions": [], "trace": ["start_turn"],
                    "summary": None, "summary_upto": None, "layer1_from": None}
