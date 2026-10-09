@@ -1,10 +1,14 @@
 """主力 Agent：ReAct 循环的两个节点。回边由 builder 连接。"""
 
+import json
 import logging
+import math
+from datetime import date
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.utils.function_calling import convert_to_openai_tool
 
-from app.config import AGENT_MAX_STEPS, AGENT_TOKEN_BUDGET, TOKEN_BUDGET
+from app.config import AGENT_MAX_STEPS, AGENT_TOKEN_BUDGET, CHARS_PER_TOKEN, TOKEN_BUDGET
 from app.context import build_history, count_tokens
 from app.graph import events
 from app.graph.control import actions_from_args, refund_action
@@ -21,6 +25,13 @@ AGENT_TOOLS = ("query_order", "query_logistics", "query_product", "offer_human_o
 REFUND_FORM_TOOL = "offer_refund_form"
 TOOL_MARKUP_PREFIX = "<｜"
 TOOL_MARKUP_MARKERS = ("<｜", "｜DSML｜", "invoke name=")
+
+
+def measure_system_tokens() -> int:
+    """估算 System Prompt 和全部 Agent 工具定义的 token。"""
+    tools = get_registry().tools_for_model((*AGENT_TOOLS, REFUND_FORM_TOOL))
+    schema = json.dumps([convert_to_openai_tool(tool) for tool in tools], ensure_ascii=False)
+    return count_tokens([SystemMessage(render_agent_system(date.today()))]) + math.ceil(len(schema) / CHARS_PER_TOKEN)
 
 
 class AgentOutputError(RuntimeError):

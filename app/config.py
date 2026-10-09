@@ -76,6 +76,21 @@ AGENT_TOKEN_BUDGET = 16000
 GRAPH_RECURSION_LIMIT = 25
 # 置信度闸的 Top-1 重排分门槛。与检索门槛分开设置。
 GATE_MIN_SCORE = 0.20
+SYSTEM_RESERVE_TOKENS = 1800
+EVIDENCE_ITEM_TOKENS = 250
+SUMMARY_RESERVE_TOKENS = 500
+SAFETY_MARGIN_RATIO = 0.05
+STEP_OVERHEAD_TOKENS = 100
+KEEP_TURNS = 30
+TURN_TOKENS = 800
+LAYER1_RATIO = 0.7
+LAYER2_RATIO = 0.3
+LAYER1_LOW_WATER = 0.6
+LAYER2_REPLY_CHARS = 60
+LAYER2_TOOL_MAX_CHARS = 80
+SUMMARY_TIMEOUT_SECONDS = 30
+SUMMARY_MAX_CHARS = 300
+SUMMARY_TOOL_RESULT_CHARS = 200
 
 
 class Settings(BaseSettings):
@@ -92,6 +107,12 @@ class Settings(BaseSettings):
     milvus_uri: str
     rerank_api_key: SecretStr
     rerank_base_url: str = "https://api.siliconflow.cn/v1"
+    model_context_window: int = 128000
+    max_output_tokens: int = 8192
+    max_user_input_tokens: int = 1000
+    max_agent_steps: int = 4
+    tool_result_max_tokens: int = 750
+    rerank_top_k: int = 10
 
 
 def test_database_url(url: str) -> str:

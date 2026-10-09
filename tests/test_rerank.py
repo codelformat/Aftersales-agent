@@ -1,5 +1,6 @@
 import json
 import importlib
+import logging
 
 import httpx
 import pytest
@@ -14,6 +15,22 @@ pytestmark = pytest.mark.anyio
 async def _close_test_reranker(_isolate_knowledge):
     yield
     await rr.close_rerank()
+
+
+@pytest.fixture
+def _tmp_log(monkeypatch, tmp_path):
+    """lifespan 日志写到临时文件，退出后关闭新增的 handler。"""
+    main = importlib.import_module("app.main")
+    monkeypatch.setattr(main, "LOG_PATH", tmp_path / "app.log")
+    root = logging.getLogger()
+    before = list(root.handlers)
+    try:
+        yield
+    finally:
+        for handler in root.handlers[:]:
+            if handler not in before:
+                root.removeHandler(handler)
+                handler.close()
 
 
 async def no_sleep(_):
@@ -180,7 +197,9 @@ async def test_close_rerank_closes_and_resets_client(monkeypatch):
 
 
 @pytest.mark.parametrize("milvus_fails", [False, True])
-async def test_lifespan_always_closes_rerank_after_milvus(monkeypatch, milvus_fails):
+@pytest.mark.usefixtures("_tmp_log")
+async def test_lifespan_always_closes_rerank_after_milvus(monkeypatch, milvus_fails, caplog, tmp_path):
+    caplog.set_level(logging.INFO)
     main = importlib.import_module("app.main")
     calls = []
 
@@ -202,3 +221,4 @@ async def test_lifespan_always_closes_rerank_after_milvus(monkeypatch, milvus_fa
         async with main.app.router.lifespan_context(main.app):
             assert calls == []
     assert calls == ["milvus", "rerank"]
+    assert "budget window=" in (tmp_path / "app.log").read_text(encoding="utf-8")
