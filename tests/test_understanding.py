@@ -1,7 +1,6 @@
 import asyncio
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from app import config
 from app.knowledge.query import Lexicon
@@ -59,15 +58,6 @@ async def test_cascade_small_failure_goes_large(monkeypatch, use_intent, use_sma
     use_small_intent(ValueError("down"))
     use_intent(("订单", 0.9))
     assert (await understanding.classify("订单 1001 付款了吗")).model == "large"
-
-
-def test_history_text_keeps_dialogue_only():
-    msgs = [HumanMessage("订单 1001 到哪了"), AIMessage("", tool_calls=[{"id": "c1", "name": "query_logistics", "args": {}}]),
-            ToolMessage("{}", tool_call_id="c1"), AIMessage("运输中" + "很" * 300)]
-    text = understanding.history_text(msgs, limit=6, max_chars=10)
-    assert text == "用户：订单 1001 到哪\n客服：运输中很很很很很很很"
-    assert understanding.history_text([]) == ""
-    assert understanding.history_text(msgs, limit=1, max_chars=200).startswith("客服：运输中")
 
 
 async def test_resolve_fills_reference(use_resolver):

@@ -6,8 +6,6 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-
 import app.config as config
 from app.knowledge.query import Lexicon, get_lexicon, model_category, normalize_models
 from app.llm import get_intent_classifier, get_query_expander, get_reference_resolver, get_small_intent_classifier
@@ -23,17 +21,6 @@ class Resolution:
     product_category: str | None
     order_scoped: bool
     order_id: str | None
-
-
-def history_text(messages: Sequence[BaseMessage], limit: int = config.RESOLVE_HISTORY_MESSAGES,
-                 max_chars: int = config.RESOLVE_MESSAGE_MAX_CHARS) -> str:
-    lines = []
-    for m in messages:
-        if isinstance(m, HumanMessage):
-            lines.append(f"用户：{m.content[:max_chars]}")
-        elif isinstance(m, AIMessage) and isinstance(m.content, str) and m.content:
-            lines.append(f"客服：{m.content[:max_chars]}")
-    return "\n".join(lines[-limit:])
 
 
 def _category(lex: Lexicon, *texts: str, fallback: str | None = None) -> str | None:

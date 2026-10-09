@@ -1,5 +1,6 @@
 import logging
 
+from app.context.layers import history_lines, split_layers
 from app.db.engine import get_sessionmaker
 from app.graph import events
 from app.repositories import conversations
@@ -22,7 +23,12 @@ async def start_turn(state, runtime):
 
 async def resolve_reference(state, runtime):
     trace = events.enter("resolve_reference", state, runtime)
-    history = understanding.history_text(state.get("messages", []))
+    cid = runtime.context.conversation_id
+    layers = split_layers(state.get("messages", []), state.get("summary_upto"), state.get("layer1_from"))
+    lines = history_lines(state.get("summary"), layers)
+    history = "\n".join(lines)
+    logger.info("history_ctx conversation=%s lines=%s summary=%s\n%s", cid, len(lines),
+                state.get("summary") or "-", "\n".join(f"  {line}" for line in lines) or "  （无）")
     r = await understanding.resolve(state["user_input"], history)
     logger.info("resolved=%s order_scoped=%s order_id=%s conversation=%s",
                 r.resolved_input, r.order_scoped, r.order_id, runtime.context.conversation_id)

@@ -12,6 +12,7 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+from app.context.layers import history_lines, split_layers
 from app.services import understanding
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ async def evaluate_group(
             resolved_input = None
             actual_intent = None
             try:
-                history = understanding.history_text(messages)
+                history = "\n".join(history_lines(None, split_layers(messages, None, None)))
                 resolution = await understanding.resolve(turn["user"], history)
                 resolved_input = resolution.resolved_input
                 decision = await understanding.classify(resolved_input)

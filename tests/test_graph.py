@@ -80,6 +80,17 @@ async def test_chitchat_route_uses_no_chat_model(db, memory_graph, use_intent):
     assert [m.content for m in turn.state.values["messages"]] == ["你好", CHITCHAT_REPLY]
 
 
+async def test_history_ctx_logged_on_chitchat_turn(db, memory_graph, use_intent, caplog):
+    caplog.set_level("INFO")
+    use_intent("闲聊", "闲聊")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "你好")
+    await run(memory_graph, cid, "在吗")
+    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("history_ctx")]
+    assert len(lines) == 2
+    assert f"history_ctx conversation={cid} lines=2 summary=-" in lines[1] and "用户：你好" in lines[1]
+
+
 async def test_complaint_route_offers_actions_and_writes_no_ticket(db, memory_graph, use_intent):
     from app.db.models import Ticket
     use_intent("投诉")

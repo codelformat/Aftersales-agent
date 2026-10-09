@@ -57,7 +57,6 @@ CHECKPOINT_DB_PATH = str(Path(__file__).resolve().parent.parent / "data" / "chec
 # 限制意图识别等待时间，超时后走 business 出口。
 INTENT_TIMEOUT_SECONDS = 8
 RESOLVE_TIMEOUT_SECONDS = 8
-RESOLVE_HISTORY_MESSAGES = 6
 RESOLVE_MESSAGE_MAX_CHARS = 200
 EXPAND_TIMEOUT_SECONDS = 8
 # 扩写查询条数上限，不含原查询。

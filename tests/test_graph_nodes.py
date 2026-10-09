@@ -14,6 +14,7 @@ from app.repositories import conversations
 from app.schemas import QueryPlan, SelfCheck
 from app.services import grounding
 from tests.fakes import rt
+from tests.test_layers import turn
 
 pytestmark = pytest.mark.anyio
 
@@ -84,6 +85,20 @@ async def test_resolve_reference_writes_resolution(use_resolver, caplog):
     assert out["order_scoped"] is True and out["order_id"] == "1001" and out["trace"] == ["resolve_reference"]
     assert calls[0]["history"] == "用户：订单 1001 到哪了\n客服：运输中"
     assert "resolved=订单 1001 能退吗" in caplog.text
+
+
+async def test_resolve_reference_uses_layered_history(use_resolver, caplog):
+    caplog.set_level("INFO")
+    calls = use_resolver({})
+    state = {"user_input": "那个呢", "trace": [], "summary": "第1段：订单 1001 要换货",
+             "summary_upto": 2, "layer1_from": 4,
+             "messages": [*turn(1, 2, user="很早的话"), *turn(3, 4, user="订单 1002 呢", reply="好" * 100),
+                          *turn(5, 6, user="运费呢", reply="商家承担")]}
+    await resolve_reference(state, rt(conversation_id=7))
+    assert calls[0]["history"] == ("梗概：第1段：订单 1001 要换货\n用户：订单 1002 呢\n客服：" + "好" * 60 + "…"
+                                   "\n用户：运费呢\n客服：商家承担")
+    assert "history_ctx conversation=7 lines=5 summary=第1段：订单 1001 要换货" in caplog.text
+    assert "很早的话" not in calls[0]["history"]
 
 
 async def test_classify_intent_sets_route_and_emits_understood(use_intent, emitted, caplog):
