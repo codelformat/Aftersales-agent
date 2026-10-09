@@ -159,6 +159,14 @@
     }
     .order-card:hover:enabled { border-color: var(--primary); background: var(--tool-pending-bg); }
     .order-card.selected { border-color: var(--primary); background: var(--tool-pending-bg); }
+    .ticket-preview { width: 75%; min-width: 0; margin-top: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow-wrap: anywhere; }
+    .ticket-line { margin: 0 0 6px; color: var(--text); font-size: 13px; }
+    .ticket-buttons { display: flex; gap: 8px; margin-top: 10px; }
+    .ticket-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font-size: 14px; }
+    .ticket-btn:hover:enabled { background: var(--assistant); }
+    .ticket-btn.primary { border: 0; padding: 9px 17px; background: var(--primary); color: var(--on-primary); }
+    .ticket-btn.primary:hover:enabled { background: var(--primary-hover); }
+    .ticket-stale { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
     .order-title { font-weight: 600; }
     .order-detail { color: var(--muted); font-size: 12px; }
     .order-status { padding: 2px 8px; border-radius: 999px; background: var(--assistant); color: var(--muted); font-size: 12px; }
@@ -320,6 +328,7 @@
       .messages { padding: 20px 16px; }
       .bubble { max-width: 85%; }
       .order-picker { width: 100%; }
+      .ticket-preview { width: 100%; }
       .order-cards { grid-template-columns: minmax(0, 1fr); }
       .composer { padding: 14px 16px max(14px, env(safe-area-inset-bottom)); }
       .send { padding: 12px 17px; }
@@ -871,6 +880,10 @@
       for (const card of messages.querySelectorAll('.order-card')) {
         card.disabled = streaming || card.parentElement.dataset.locked === 'true';
       }
+      // 工单确认按钮：流式期间或已点击后保持禁用。
+      for (const button of messages.querySelectorAll('.ticket-buttons button')) {
+        button.disabled = streaming || button.parentElement.dataset.locked === 'true';
+      }
     }
 
     function renderOrderPicker(bubble, orders, pickerSessionId) {
@@ -921,6 +934,56 @@
       scrollToBottom();
     }
 
+    // 工单确认卡片：两个按钮点击后立即锁定，再用 /chat/resume 恢复。
+    function renderTicketPreview(bubble, data, previewSessionId) {
+      const card = document.createElement('div');
+      card.className = 'ticket-preview';
+      const prompt = document.createElement('p');
+      prompt.className = 'order-prompt';
+      prompt.textContent = '请确认工单信息';
+      const typeLine = document.createElement('p');
+      typeLine.className = 'ticket-line';
+      typeLine.textContent = `工单类型：${data.ticket_type ?? ''}`;
+      const descLine = document.createElement('p');
+      descLine.className = 'ticket-line';
+      descLine.textContent = `问题描述：${data.description ?? ''}`;
+      const buttons = document.createElement('div');
+      buttons.className = 'ticket-buttons';
+      const previewUserId = getUserId();
+      const confirmButton = document.createElement('button');
+      const cancelButton = document.createElement('button');
+      for (const [button, label] of [[confirmButton, '确认提交'], [cancelButton, '取消']]) {
+        button.type = 'button';
+        button.className = button === confirmButton ? 'ticket-btn primary' : 'ticket-btn';
+        button.textContent = label;
+        button.disabled = streaming;
+        buttons.append(button);
+      }
+      function submit(confirmed) {
+        if (streaming || buttons.dataset.locked === 'true') return;
+        buttons.dataset.locked = 'true';
+        confirmButton.disabled = true;
+        cancelButton.disabled = true;
+        streamReply('/chat/resume', {
+          session_id: previewSessionId, user_id: previewUserId, ticket_confirm: confirmed,
+        }, confirmed ? '确认提交' : '取消', {
+          onStale() {
+            const stale = document.createElement('p');
+            stale.className = 'ticket-stale';
+            stale.textContent = '该工单已失效，请重新发起';
+            card.append(stale);
+            scrollToBottom();
+          },
+        });
+      }
+      confirmButton.addEventListener('click', () => submit(true));
+      cancelButton.addEventListener('click', () => submit(false));
+      card.append(prompt, typeLine, descLine, buttons);
+      bubble.parentElement.classList.add('has-actions');
+      bubble.after(card);
+      scrollToBottom();
+    }
+
     function resetChat() {
       if (streaming && !stopTyping) return;
       if (stopTyping) stopTyping();
@@ -961,7 +1024,7 @@
       await streamReply('/chat/stream', payload, message);
     }
 
-    async function streamReply(endpoint, payload, originalInput) {
+    async function streamReply(endpoint, payload, originalInput, hooks = {}) {
       streaming = true;
       updateControls();
       const { bubble, reply } = addMessage('assistant');
@@ -1109,6 +1172,9 @@
         } else if (event === 'order_picker') {
           typing.hidden = true;
           renderOrderPicker(bubble, data.orders, answer.sessionId);
+        } else if (event === 'ticket_preview') {
+          typing.hidden = true;
+          renderTicketPreview(bubble, data, answer.sessionId);
         } else if (event === 'token') {
           typing.hidden = true;
           enqueue(data.text);
@@ -1144,6 +1210,10 @@
           body: JSON.stringify(payload),
         });
         if (!response.ok) {
+          if (endpoint === '/chat/resume' && payload.ticket_confirm !== undefined && response.status === 409) {
+            hooks.onStale?.(); // 工单确认已失效，提示放在卡片下方。
+            return;
+          }
           if (endpoint === '/chat/resume' && (response.status === 409 || response.status === 422)) {
             throw new Error('订单选择已失效，请重新提问');
           }
