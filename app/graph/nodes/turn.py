@@ -15,7 +15,8 @@ async def start_turn(state, runtime):
     return {
         "summary": anchors.summary, "summary_upto": anchors.summary_upto, "layer1_from": anchors.layer1_from,
         "resolved_input": "", "standard_query": "", "product_category": None, "order_scoped": False,
-        "order_id": None, "history_recall": False, "ticket_request": False, "order": None, "queries": [],
+        "order_id": None, "history_recall": False, "ticket_request": False, "status_query": False,
+        "order": None, "queries": [],
         "approvals": {}, "write_decision": None, "write_outcome": None,
         "intent": None, "intent_confidence": None,
         "route": "", "evidence": [], "gate": None, "agent_messages": [], "steps": 0, "tokens_used": 0,
@@ -32,9 +33,9 @@ async def resolve_reference(state, runtime):
     logger.info("history_ctx conversation=%s lines=%s summary=%s\n%s", cid, len(lines),
                 state.get("summary") or "-", "\n".join(f"  {line}" for line in lines) or "  （无）")
     r = await understanding.resolve(state["user_input"], history)
-    logger.info("resolved=%s order_scoped=%s order_id=%s history_recall=%s ticket_request=%s conversation=%s",
-                r.resolved_input, r.order_scoped, r.order_id, r.history_recall, r.ticket_request, cid)
+    logger.info("resolved=%s order_scoped=%s order_id=%s history_recall=%s ticket_request=%s status_query=%s conversation=%s",
+                r.resolved_input, r.order_scoped, r.order_id, r.history_recall, r.ticket_request, r.status_query, cid)
     return {"resolved_input": r.resolved_input, "standard_query": r.standard_query,
             "product_category": r.product_category, "order_scoped": r.order_scoped,
             "order_id": r.order_id, "history_recall": r.history_recall,
-            "ticket_request": r.ticket_request, "trace": trace}
+            "ticket_request": r.ticket_request, "status_query": r.status_query, "trace": trace}

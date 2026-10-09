@@ -30,12 +30,14 @@ async def evaluate_group(
             actual_intent = None
             actual_history_recall = None
             actual_ticket_request = None
+            actual_status_query = None
             try:
                 history = "\n".join(history_lines(None, split_layers(messages, None, None)))
                 resolution = await understanding.resolve(turn["user"], history)
                 resolved_input = resolution.resolved_input
                 actual_history_recall = resolution.history_recall
                 actual_ticket_request = resolution.ticket_request
+                actual_status_query = resolution.status_query
                 decision = await understanding.classify(resolved_input)
                 actual_intent = decision.intent
             except Exception:
@@ -54,6 +56,8 @@ async def evaluate_group(
                 errors.append("回顾错")
             if "expect_ticket_request" in turn and actual_ticket_request != turn["expect_ticket_request"]:
                 errors.append("工单请求错")
+            if "expect_status_query" in turn and actual_status_query != turn["expect_status_query"]:
+                errors.append("状态查询错")
             if not reference_ok:
                 errors.append("指代错")
             results.append((resolved_input, actual_intent, errors))

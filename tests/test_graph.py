@@ -121,6 +121,31 @@ async def test_ticket_request_routes_complaint_to_agent(db, memory_graph, use_re
     assert "ticket_request=True" in caplog.text
 
 
+@pytest.mark.parametrize("ticket_request", [False, True])
+async def test_status_query_routes_aftersales_to_agent(db, memory_graph, use_resolver, use_intent,
+                                                       ticket_request, caplog):
+    caplog.set_level("INFO")
+    cid = await new_cid(db)
+    use_resolver({"status_query": True, "ticket_request": ticket_request})
+    use_intent("售后")
+    turn, _ = await run(memory_graph, cid, "订单 1001 的维修进度怎么样了", text("我来帮您查一下"))
+    assert "agent_model" in turn.trace
+    for node in ("ensure_order", "retrieve_multi", "fallback_reply"):
+        assert node not in turn.trace
+    assert turn.state.values["status_query"] is True
+    assert "status_query=True" in caplog.text
+
+
+async def test_start_turn_clears_status_query(db):
+    from types import SimpleNamespace
+    from app.graph.nodes.turn import start_turn
+
+    cid = await new_cid(db)
+    runtime = SimpleNamespace(context=SimpleNamespace(conversation_id=cid))
+    update = await start_turn({"status_query": True}, runtime)
+    assert update["status_query"] is False
+
+
 async def test_start_turn_clears_ticket_request(db):
     from types import SimpleNamespace
     from app.graph.nodes.turn import start_turn

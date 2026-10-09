@@ -23,6 +23,7 @@ class Resolution:
     order_id: str | None
     history_recall: bool = False
     ticket_request: bool = False
+    status_query: bool = False
 
 
 def _category(lex: Lexicon, *texts: str, fallback: str | None = None) -> str | None:
@@ -51,7 +52,7 @@ async def resolve(user_input: str, history: str, *, resolver=None, lexicon: Lexi
             raise ValueError(f"指代消解结果无效：raw={result.get('raw')!r}")
     except Exception:
         logger.warning("指代消解失败，原样透传", exc_info=True)
-        return Resolution(user_input, normalized, _category(lex, normalized), False, None, False, False)
+        return Resolution(user_input, normalized, _category(lex, normalized), False, None, False, False, False)
     resolved = parsed.resolved_input if history else user_input
     standard = normalize_models(parsed.standard_query, lex)
     order_id = parsed.order_id
@@ -66,6 +67,7 @@ async def resolve(user_input: str, history: str, *, resolver=None, lexicon: Lexi
         order_id=order_id,
         history_recall=parsed.history_recall if history else False,
         ticket_request=parsed.ticket_request,
+        status_query=parsed.status_query,
     )
 
 

@@ -169,3 +169,17 @@ async def test_expand_failure_returns_standard_only(use_expander, value, caplog)
     use_expander(value)
     assert await understanding.expand("退货条件", [], lexicon=LEX) == ["退货条件"]
     assert "扩写失败" in caplog.text
+
+
+@pytest.mark.parametrize("history", ["", "用户：订单 1001 到哪了"])
+async def test_resolve_passes_status_query(use_resolver, history):
+    use_resolver({"status_query": True})
+    r = await understanding.resolve("订单 1001 的维修进度怎么样了", history, lexicon=LEX)
+    assert r.status_query is True
+
+
+@pytest.mark.parametrize("value", [None, ValueError("boom")])
+async def test_resolve_failure_clears_status_query(use_resolver, value):
+    use_resolver(value)
+    r = await understanding.resolve("维修进度怎么样了", "用户：耳机坏了", lexicon=LEX)
+    assert r.status_query is False

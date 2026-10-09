@@ -149,6 +149,7 @@ MCP 工具的 runner 用 ToolCall 形式调用转换后的工具，取 `artifact
 
 - `resolve_reference` 的 JSON 输出增加 `ticket_request`（bool）。为真的情况：用户这句明确要求建工单、提交工单；或者 Agent 刚追问了工单信息，用户这句在补充问题描述。
 - `after_intent` 中 `ticket_request` 优先于其他规则（含 `history_recall` 和投诉），直接走 business。8 类意图和意图评估集不变。
+- **`status_query`（实现阶段用户裁定，2026-10-09）：** 验收第 3 项实测，"帮我查一下订单 1001 的维修进度"被识别为售后，走 aftersales 出口，检索 Top-1 为 0.1995，低于闸门 0.20，回兜底话术，Agent 没有机会调售后 MCP 工具。解析器再加一个 `status_query`（bool）：用户问自己订单的实时状态时为真，包括维修进度、退货进度、退款进度、售后进度、是否在保修期内。只问政策和规则（"退货多久到账""保修多久"）、要求办理（"我要退货"）、问物流时为假。`after_intent` 中 `status_query` 排在 `ticket_request` 之后、其他规则之前，直接走 business。ch06 的 aftersales 闸门规则对政策问题不变。
 
 ### 5.2 图的变化
 

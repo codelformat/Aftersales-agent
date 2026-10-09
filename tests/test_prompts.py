@@ -163,3 +163,13 @@ def test_render_reference_with_order_and_task():
     assert "offer_refund_form" in text
     plain = render_agent_system()
     assert "## 本轮任务" not in plain and "## 订单数据" not in plain
+
+
+def test_resolve_prompt_includes_status_query():
+    import json
+    from app.prompts import RESOLVE_SYSTEM_PROMPT, resolve_prompt
+
+    assert "## status_query" in RESOLVE_SYSTEM_PROMPT
+    messages = resolve_prompt.invoke({"history": "（无）", "question": "退款退到哪了"}).to_messages()
+    example = messages[0].content.split("只输出一个 JSON 对象，不输出其他内容：\n", 1)[1]
+    assert json.loads(example)["status_query"] is False

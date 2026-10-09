@@ -12,8 +12,8 @@ SAMPLES_PATH = Path(__file__).resolve().parent.parent / "evals" / "multiturn_sam
 
 def test_multiturn_samples_shape():
     samples = [json.loads(line) for line in SAMPLES_PATH.read_text(encoding="utf-8").splitlines() if line.strip()]
-    assert len(samples) == 9
-    assert {sample["id"] for sample in samples} == {"m1", "m2", "m3", "m4", "m5", "m6", "m7", "ticket-1", "ticket-2"}
+    assert len(samples) == 10
+    assert {sample["id"] for sample in samples} == {"m1", "m2", "m3", "m4", "m5", "m6", "m7", "ticket-1", "ticket-2", "status-1"}
     followup_groups = 0
     for sample in samples:
         assert set(sample) == {"id", "turns"}
@@ -24,6 +24,8 @@ def test_multiturn_samples_shape():
             assert len(turns) == 3
             expected = [True, True, False] if sample["id"] == "ticket-1" else [False, False, True]
             assert [turn["expect_ticket_request"] for turn in turns] == expected
+        elif sample["id"] == "status-1":
+            assert [turn["expect_status_query"] for turn in turns] == [True, False, True, False]
         elif sample["id"] != "m7":
             assert [turn["intent"] for turn in turns] == ["物流", *["退款退货"] * (len(turns) - 2), "物流"]
         else:
@@ -34,12 +36,14 @@ def test_multiturn_samples_shape():
         for i, turn in enumerate(turns):
             assert "user" in turn
             assert set(turn) <= {"user", "assistant", "intent", "unchanged", "must_contain_any", "history_recall",
-                                 "expect_ticket_request"}
+                                 "expect_ticket_request", "expect_status_query"}
             assert isinstance(turn["user"], str) and turn["user"].strip()
             if "intent" in turn:
                 assert turn["intent"] in INTENTS
             if "history_recall" in turn:
                 assert isinstance(turn["history_recall"], bool)
+            if "expect_status_query" in turn:
+                assert isinstance(turn["expect_status_query"], bool)
             if "expect_ticket_request" in turn:
                 assert isinstance(turn["expect_ticket_request"], bool)
             assert ("unchanged" in turn) != ("must_contain_any" in turn)
@@ -105,3 +109,27 @@ async def test_run_eval_reports_turn_without_intent(tmp_path, monkeypatch, use_r
     use_intent("闲聊")
     assert await run_multiturn_eval.run_eval() == 0
     assert "通过轮数：1/1" in capsys.readouterr().out
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("actual, expected, errors", [
+    (True, True, []), (False, False, []),
+    (False, True, ["状态查询错"]), (True, False, ["状态查询错"]),
+])
+async def test_eval_checks_status_query(use_resolver, use_intent, actual, expected, errors):
+    use_resolver({"status_query": actual})
+    use_intent("其他")
+    sample = {"id": "test", "turns": [
+        {"user": "退款退到哪了", "unchanged": True, "expect_status_query": expected},
+    ]}
+    results = await run_multiturn_eval.evaluate_group(sample, asyncio.Semaphore(1))
+    assert results[0][2] == errors
+
+
+@pytest.mark.anyio
+async def test_eval_skips_status_query_when_unmarked(use_resolver, use_intent):
+    use_resolver({"status_query": True})
+    use_intent("其他")
+    sample = {"id": "test", "turns": [{"user": "退款退到哪了", "unchanged": True}]}
+    results = await run_multiturn_eval.evaluate_group(sample, asyncio.Semaphore(1))
+    assert results[0][2] == []

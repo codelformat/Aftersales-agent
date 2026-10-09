@@ -34,6 +34,7 @@ class ChatState(TypedDict, total=False):
     order_id: str | None
     history_recall: bool
     ticket_request: bool
+    status_query: bool
     approvals: dict[str, str]
     write_decision: Literal["confirmed", "cancelled"] | None
     write_outcome: dict | None

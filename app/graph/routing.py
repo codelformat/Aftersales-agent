@@ -23,6 +23,8 @@ def route_for(intent: str | None) -> str:
 def after_intent(state: dict) -> str:
     if state.get("ticket_request"):
         return "business"
+    if state.get("status_query"):
+        return "business"
     if state.get("history_recall"):
         return "business"
     route = state["route"]

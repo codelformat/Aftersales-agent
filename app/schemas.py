@@ -110,6 +110,7 @@ class ResolvedQuery(BaseModel):
     order_id: OrderId | None = None
     history_recall: bool = False
     ticket_request: bool = False
+    status_query: bool = False
 
     @field_validator("product_category", "order_id", mode="before")
     @classmethod

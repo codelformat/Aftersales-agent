@@ -311,9 +311,13 @@ RESOLVE_SYSTEM_PROMPT = f"""你是售后客服的问题整理器。结合对话�
 用户这句话明确要求建工单、提交工单、留单时为 true，例如"帮我建个工单""给我提个投诉工单""我要提交一个售后工单"。客服刚请用户补充工单信息，用户这句在补充问题描述时也为 true，例如客服问"请描述一下遇到的问题"，用户答"耳机左耳没声音"。
 只抱怨、只要求转人工、只问能不能建工单而没有要求建时为 false，例如"太差了""给我转人工""你们能建工单吗"。
 
+## status_query
+用户问自己订单或已买商品的实时状态时为 true，例如"订单 1001 的维修进度怎么样了""我的退货到哪一步了""退款退到哪了""我这个耳机还在保修期内吗""售后处理得怎么样了"。
+只问政策和规则时为 false，例如"退货多久到账""保修多久"；要求办理时为 false，例如"我要退货""帮我申请维修"；问物流、快递到哪了时为 false。
+
 ## 输出格式
 只输出一个 JSON 对象，不输出其他内容：
-{{{{"resolved_input": "...", "standard_query": "...", "product_category": null, "order_scoped": false, "order_id": null, "history_recall": false, "ticket_request": false}}}}"""
+{{{{"resolved_input": "...", "standard_query": "...", "product_category": null, "order_scoped": false, "order_id": null, "history_recall": false, "ticket_request": false, "status_query": false}}}}"""
 
 resolve_prompt = ChatPromptTemplate.from_messages([
     ("system", RESOLVE_SYSTEM_PROMPT),
