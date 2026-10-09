@@ -87,3 +87,4 @@ async def test_retrieve_multi_evidence(monkeypatch):
     assert seen["queries"] == ["退货条件", "退货运费"]
     assert seen["plan"] == QueryPlan(standard_query="退货条件", product_category=None)
     assert out["evidence"][0]["n"] == 1 and out["gate"]["top_score"] == 0.8 and out["trace"] == ["retrieve_multi"]
+    assert [r["score"] for r in out["retrieval"]] == [0.8]

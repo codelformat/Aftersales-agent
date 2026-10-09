@@ -51,7 +51,7 @@ def test_after_gate_and_after_agent():
 
 async def test_start_turn_resets_turn_fields(db, caplog):
     caplog.set_level("INFO")
-    stale = {"intent": "投诉", "route": "complaint", "evidence": [{"n": 1}], "gate": {"passed": False},
+    stale = {"intent": "投诉", "route": "complaint", "evidence": [{"n": 1}], "retrieval": [{"chunk_id": 100, "score": 0.8}], "gate": {"passed": False},
              "agent_messages": ["x"], "steps": 3, "tokens_used": 999, "force_final": True,
              "standard_query": "旧问题", "product_category": "蓝牙耳机", "order_scoped": True,
              "order_id": "1001", "history_recall": True, "ticket_request": True, "status_query": True, "order": {"order_id": "1001"},
@@ -60,7 +60,7 @@ async def test_start_turn_resets_turn_fields(db, caplog):
              "summary": "旧梗概", "summary_upto": 4, "layer1_from": 8,
              "reply": "旧", "actions": [{"type": "handoff"}], "trace": ["a", "b"]}
     out = await start_turn(stale, rt(conversation_id=7))
-    assert out == {"resolved_input": "", "intent": None, "route": "", "evidence": [], "gate": None,
+    assert out == {"resolved_input": "", "intent": None, "route": "", "evidence": [], "retrieval": None, "gate": None,
                    "standard_query": "", "product_category": None, "order_scoped": False,
                    "order_id": None, "history_recall": False, "ticket_request": False, "status_query": False,
                    "approvals": {}, "write_decision": None, "write_outcome": None,
@@ -183,6 +183,9 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
     assert set(out["evidence"][0]) == {"n", "chunk_id", "section_path", "question", "answer"}
     assert out["gate"]["top_score"] == 0.9 and out["trace"] == ["retrieve"]
     assert "node=retrieve" in caplog.text
+    # 快照取门槛过滤前的 ranked，包含 0.1 这条低分证据。
+    assert [(r["chunk_id"], r["score"]) for r in out["retrieval"]] == [(100, 0.9), (101, 0.5), (102, 0.1)]
+    assert set(out["retrieval"][0]) == {"chunk_id", "section_path", "question", "answer", "score"}
 
 
 async def test_retrieve_with_no_hits(monkeypatch):
@@ -197,11 +200,19 @@ async def test_retrieve_with_no_hits(monkeypatch):
         {"resolved_input": "q", "standard_query": "q", "product_category": None, "trace": []}, rt())
     assert seen == [("q", QueryPlan(standard_query="q", product_category=None))]
     assert out["evidence"] == [] and out["gate"]["top_score"] is None
+    assert out["retrieval"] == []
 
 
-def gate_state(evidence, top):
-    return {"user_input": "原话", "resolved_input": "原话", "evidence": evidence,
-            "gate": {"passed": False, "top_score": top, "reason": "", "source": None}, "trace": []}
+def gate_state(evidence, scores):
+    snap = [{"chunk_id": 100 + i, "section_path": "p", "question": "q", "answer": "a", "score": sc}
+            for i, sc in enumerate(scores)]
+    return {"user_input": "原话", "resolved_input": "原话", "evidence": evidence, "retrieval": snap,
+            "gate": {"passed": False, "top_score": scores[0] if scores else None, "reason": "", "source": None},
+            "trace": []}
+
+
+def gate_view(gate):
+    return {k: gate[k] for k in ("passed", "reason", "source")}
 
 
 EVIDENCE = [{"n": 1, "chunk_id": 100, "section_path": "退换货 > 运费", "question": "退货运费谁出",
@@ -210,33 +221,47 @@ EVIDENCE = [{"n": 1, "chunk_id": 100, "section_path": "退换货 > 运费", "que
 
 async def test_gate_passes_and_emits_citations(db, monkeypatch, emitted):
     calls = use_checker(monkeypatch)
-    out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, 0.8), rt(await new_conversation(db)))
-    assert out["gate"] == {"passed": True, "top_score": 0.8, "reason": "依据[1]", "source": None}
+    out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, [0.8]), rt(await new_conversation(db)))
+    assert gate_view(out["gate"]) == {"passed": True, "reason": "依据[1]", "source": None}
+    assert out["gate"]["confidence"] == 0.8 and out["gate"]["signals"]["top1"] == 0.8
+    assert out["gate"]["top_score"] == 0.8
     assert "[1] 退换货 > 运费" in calls[0]["evidence"]
     assert emitted == [("citations", {"items": EVIDENCE, "refused": False})]
 
 
-@pytest.mark.parametrize("evidence,top", [([], None), (EVIDENCE, 0.1)])
-async def test_gate_low_score_pools_without_self_check(db, monkeypatch, emitted, evidence, top):
-    monkeypatch.setattr(knowledge_nodes, "GATE_MIN_SCORE", 0.2)
+@pytest.mark.parametrize("evidence,scores", [([], []), (EVIDENCE, [0.1])])
+async def test_gate_low_score_pools_without_self_check(db, monkeypatch, emitted, evidence, scores):
     cid = await new_conversation(db)
-    out = await knowledge_nodes.confidence_gate(gate_state(evidence, top), rt(cid))
+    state = gate_state(evidence, scores)
+    out = await knowledge_nodes.confidence_gate(state, rt(cid))
     assert out["gate"]["passed"] is False and out["gate"]["source"] == "retrieval_low_conf"
     assert emitted == []
     async with db() as s:
         row = (await s.execute(select(LowConfidenceQuestion))).scalar_one()
     assert (row.conversation_id, row.raw_question, row.source) == (cid, "原话", "retrieval_low_conf")
+    assert row.retrieved_chunks == state["retrieval"]
 
 
-async def test_gate_self_check_not_useful_pools(db, monkeypatch, emitted):
+async def test_gate_uses_weighted_confidence(db, monkeypatch, emitted):
+    monkeypatch.setattr(knowledge_nodes, "GATE_WEIGHTS", (0.0, 0.0, 1.0))
+    monkeypatch.setattr(knowledge_nodes, "GATE_CONF_THRESHOLD", 0.3)
+    cid = await new_conversation(db)
+    # Top-1 很高，但与 Top-2 几乎相同，分差 0.01 < 0.3。
+    out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, [0.9, 0.89]), rt(cid))
+    assert out["gate"]["passed"] is False and out["gate"]["source"] == "retrieval_low_conf"
+    assert out["gate"]["signals"]["margin"] == pytest.approx(0.01, abs=1e-4)
+
+
+async def test_gate_self_check_not_useful_pools_with_snapshot(db, monkeypatch, emitted):
     use_checker(monkeypatch, useful=False, reason="没写到防水")
     cid = await new_conversation(db)
-    out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, 0.8), rt(cid))
-    assert out["gate"] == {"passed": False, "top_score": 0.8, "reason": "没写到防水", "source": "self_check"}
+    state = gate_state(EVIDENCE, [0.8])
+    out = await knowledge_nodes.confidence_gate(state, rt(cid))
+    assert gate_view(out["gate"]) == {"passed": False, "reason": "没写到防水", "source": "self_check"}
     assert emitted == []
     async with db() as s:
         row = (await s.execute(select(LowConfidenceQuestion))).scalar_one()
-    assert (row.source, row.reason) == ("self_check", "没写到防水")
+    assert (row.source, row.reason, row.retrieved_chunks) == ("self_check", "没写到防水", state["retrieval"])
 
 
 async def test_gate_self_check_failure_fails_open(db, monkeypatch, emitted):
@@ -244,21 +269,21 @@ async def test_gate_self_check_failure_fails_open(db, monkeypatch, emitted):
         raise RuntimeError("upstream")
 
     monkeypatch.setattr(grounding, "get_self_checker", lambda: RunnableLambda(boom))
-    out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, 0.8), rt(await new_conversation(db)))
+    out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, [0.8]), rt(await new_conversation(db)))
     assert out["gate"]["passed"] is True
 
 
 async def test_gate_aftersales_passes_on_score_without_self_check(db, emitted):
-    state = gate_state(EVIDENCE, 0.8)
+    state = gate_state(EVIDENCE, [0.8])
     state["route"] = "aftersales"
     out = await knowledge_nodes.confidence_gate(state, rt(await new_conversation(db)))
-    assert out["gate"] == {"passed": True, "top_score": 0.8, "reason": "", "source": None}
+    assert gate_view(out["gate"]) == {"passed": True, "reason": "", "source": None}
     assert ("citations", {"items": EVIDENCE, "refused": False}) in emitted
 
 
 async def test_gate_aftersales_low_score_still_falls_back(db, emitted):
     cid = await new_conversation(db)
-    state = gate_state(EVIDENCE, 0.05)
+    state = gate_state(EVIDENCE, [0.05])
     state["route"] = "aftersales"
     out = await knowledge_nodes.confidence_gate(state, rt(cid))
     assert out["gate"]["passed"] is False and out["gate"]["source"] == "retrieval_low_conf"
@@ -278,3 +303,4 @@ async def test_start_turn_loads_anchors(db, emitted):
         await s.commit()
     out = await start_turn({}, rt(conversation_id=cid))
     assert (out["summary"], out["summary_upto"], out["layer1_from"]) == ("第1段：订单 1001", 4, 8)
+    assert out["retrieval"] is None

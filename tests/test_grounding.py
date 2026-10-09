@@ -145,3 +145,22 @@ async def test_record_low_confidence_source(db):
     async with db() as s:
         rows = (await s.execute(select(LowConfidenceQuestion).order_by(LowConfidenceQuestion.id))).scalars().all()
     assert [(r.source, r.reason) for r in rows] == [("retrieval_low_conf", "分数低"), ("self_check", "不够")]
+
+
+async def test_record_low_confidence_returns_id_and_snapshot(db):
+    async with db() as s:
+        conv = await conversations.create(s, "u1")
+        await s.commit()
+    snap = [{"chunk_id": 1, "section_path": "p", "question": "q", "answer": "a", "score": 0.1}]
+    lcq_id = await g.record_low_confidence(conv.id, "问", "低", source="retrieval_low_conf", retrieved_chunks=snap)
+    async with db() as s:
+        row = await s.get(LowConfidenceQuestion, lcq_id)
+    assert row.retrieved_chunks == snap
+
+
+async def test_record_low_confidence_failure_returns_none(db, monkeypatch):
+    async def boom(*a, **k):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(g.low_confidence, "add", boom)
+    assert await g.record_low_confidence(1, "q", "r") is None

@@ -44,6 +44,7 @@ class ChatState(TypedDict, total=False):
     intent_confidence: float | None
     route: str
     evidence: list[dict]
+    retrieval: list[dict] | None
     gate: dict | None
     agent_messages: list[AnyMessage]
     steps: int
