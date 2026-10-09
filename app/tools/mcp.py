@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+from urllib.parse import urlparse
 
+import httpx
 from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -14,9 +16,21 @@ from app.tools.toolset import Toolset
 logger = logging.getLogger(__name__)
 
 
+def _local_client_factory(headers=None, timeout=None, auth=None) -> httpx.AsyncClient:
+    return httpx.AsyncClient(headers=headers, timeout=timeout, auth=auth,
+                             follow_redirects=True, trust_env=False)
+
+
 async def discover(policy: ToolPolicy) -> tuple[dict[str, list[BaseTool]], dict[str, str]]:
+    connections = {}
+    for name, server in policy.servers.items():
+        connection = {"transport": "http", "url": server.url}
+        if urlparse(server.url).hostname in {"127.0.0.1", "localhost", "::1"}:
+            # 本机 MCP 直连，避免环境代理拦截请求。
+            connection["httpx_client_factory"] = _local_client_factory
+        connections[name] = connection
     client = MultiServerMCPClient(
-        {name: {"transport": "http", "url": server.url} for name, server in policy.servers.items()},
+        connections,
         handle_tool_errors=False,
     )
 

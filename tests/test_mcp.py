@@ -3,6 +3,7 @@ import json
 import textwrap
 from pathlib import Path
 
+import httpx
 import pytest
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -72,6 +73,51 @@ async def test_calls_logistics_formats_and_audits(mcp_servers, audit_log):
     outcome, payload = await execute(ts)
     assert outcome.status == "成功" and payload["data"]["status"] == "运输中"
     assert (audit_log[0].tool_source, audit_log[0].mcp_server) == ("mcp", "logistics")
+
+
+def set_unreachable_proxy(monkeypatch):
+    for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
+        monkeypatch.setenv(name, "http://127.0.0.1:9")
+        monkeypatch.setenv(name.lower(), "http://127.0.0.1:9")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    monkeypatch.delenv("no_proxy", raising=False)
+
+
+@pytest.mark.mcp
+async def test_local_mcp_discovery_and_call_bypass_env_proxy(mcp_servers, monkeypatch):
+    from app.tools.mcp import build_base_toolset
+
+    set_unreachable_proxy(monkeypatch)
+    ts = await build_base_toolset(1)
+    assert ts.entries["query_logistics"].source == "mcp"
+    outcome, payload = await execute(ts)
+    assert outcome.status == "成功"
+    assert payload["data"]["status"] == "运输中"
+
+
+@pytest.mark.mcp
+async def test_local_mcp_stopped_with_env_proxy_retries_connection_error(mcp_servers, monkeypatch):
+    from app.tools import executor
+    from app.tools.mcp import build_base_toolset
+
+    set_unreachable_proxy(monkeypatch)
+    ts = await build_base_toolset(1)
+    assert "query_logistics" in ts.entries
+    mcp_servers.stop("logistics")
+    captured = []
+    original_is_transient = executor.is_transient
+
+    def capture_exception(exc):
+        captured.append(exc)
+        return original_is_transient(exc)
+
+    monkeypatch.setattr(executor, "is_transient", capture_exception)
+    outcome, payload = await execute(ts)
+    assert outcome.status == "失败"
+    assert outcome.retry_count == 2
+    assert payload["error"] == "tool_error"
+    assert any(isinstance(exc, httpx.ConnectError) for exc in captured)
+    assert all(not isinstance(exc, httpx.HTTPStatusError) for exc in captured)
 
 
 @pytest.mark.mcp
