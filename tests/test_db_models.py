@@ -128,3 +128,22 @@ async def test_faith_case_defaults_and_utf8_enum(db):
         # HEX 校验存储字节，避免双重编码被反向还原后漏检。
         hexed = await s.scalar(sql_text("SELECT HEX(status) FROM faith_cases WHERE id = :i"), {"i": row.id})
         assert hexed == "E69CAAE8A7A3E586B3"
+
+
+async def test_conversation_context_columns_and_summaries(db):
+    from app.db.models import Conversation, ConversationSummary
+
+    async with db() as s:
+        c = Conversation(user_id="u1")
+        s.add(c)
+        await s.flush()
+        s.add(ConversationSummary(
+            conversation_id=c.id, seq=1, from_msg_id=1, upto_msg_id=4, content="用户报订单 1001",
+        ))
+        await s.commit()
+        await s.refresh(c)
+        assert (c.summary, c.summary_upto_msg_id, c.layer1_from_msg_id) == (None, None, None)
+        rows = (await s.scalars(select(ConversationSummary))).all()
+        assert [(r.seq, r.from_msg_id, r.upto_msg_id, r.content) for r in rows] == [
+            (1, 1, 4, "用户报订单 1001"),
+        ]

@@ -90,11 +90,12 @@ async def _reset_schema(url: str) -> None:
     try:
         async with engine.begin() as conn:
             for table in (
+                "conversation_summaries",
                 "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations", "faq",
             ):
                 await conn.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
-            for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql"):
+            for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql", "schema_ch07.sql"):
                 for stmt in split_sql((ROOT / "db" / name).read_text(encoding="utf-8")):
                     await conn.exec_driver_sql(stmt)
     finally:
@@ -109,6 +110,7 @@ async def _clear_runtime_tables(url: str) -> None:
                 "UPDATE knowledge_chunks SET prev_chunk_id = NULL, next_chunk_id = NULL"
             )
             for table in (
+                "conversation_summaries",
                 "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations",
             ):
