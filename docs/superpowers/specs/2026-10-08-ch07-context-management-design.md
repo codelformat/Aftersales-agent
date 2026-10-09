@@ -271,7 +271,9 @@ model_ctx conversation=12 step=0 window=9 tokens≈4210 summary=第1段：…
 
 `app/main.py` 给根 logger 加 `FileHandler("log/app.log", encoding="utf-8")`，保留控制台输出。`log/` 加入 `.gitignore`。启动时目录不存在则创建。
 
-日志行汇总：`budget`、`上下文预算不足`、`system_reserve_exceeded`、`model_ctx`、`history_ctx`、`层1 降级`、`summary trigger|skip|start|done|fail|cancel`、`context_maintain_failed`。
+日志行汇总：`budget`、`上下文预算不足`、`system_reserve_exceeded`、`model_ctx`、`history_ctx`、`context_usage`、`层1 降级`、`summary trigger|skip|start|done|fail|cancel`、`context_maintain_failed`。
+
+`context_usage conversation= layer1=<token>/<预算> layer2=<token>/<预算>`：`finalize` 每轮维护后打一行（计划阶段补充，用于实测 `TURN_TOKENS` 和观察水位）。
 
 ## 10. 错误处理
 
