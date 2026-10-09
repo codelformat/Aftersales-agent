@@ -20,8 +20,23 @@ class Conversation(Base):
     status: Mapped[str] = mapped_column(
         Enum("进行中", "已转人工", "已结束"), server_default=text("'进行中'")
     )
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary_upto_msg_id: Mapped[int | None] = mapped_column(ID, nullable=True)
+    layer1_from_msg_id: Mapped[int | None] = mapped_column(ID, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+
+class ConversationSummary(Base):
+    __tablename__ = "conversation_summaries"
+
+    id: Mapped[int] = mapped_column(ID, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int] = mapped_column(ID)
+    seq: Mapped[int] = mapped_column(Integer)
+    from_msg_id: Mapped[int] = mapped_column(ID)
+    upto_msg_id: Mapped[int] = mapped_column(ID)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
 
 class Message(Base):

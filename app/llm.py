@@ -1,10 +1,12 @@
 from functools import lru_cache
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
 from app.config import (
+    INTENT_SMALL_MODEL,
     UPSTREAM_MAX_RETRIES,
     UPSTREAM_TIMEOUT_SECONDS,
     Settings,
@@ -12,23 +14,26 @@ from app.config import (
 )
 from app.prompts import (
     dedup_judge_prompt,
+    expand_prompt,
     extract_prompt,
     faith_judge_prompt,
     intent_prompt,
     qa_extract_prompt,
     query_rewrite_prompt,
+    resolve_prompt,
     self_check_prompt,
+    summary_prompt,
 )
-from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, QaPairs, QueryPlan, SelfCheck
+from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, QaPairs, QueryExpansion, QueryPlan, ResolvedQuery, SelfCheck
 
 
-def _build(settings: Settings, thinking: str | None) -> ChatOpenAI:
+def _build(settings: Settings, thinking: str | None, model: str | None = None) -> ChatOpenAI:
     kwargs = {}
     # 仅在配置 CHAT_THINKING 时发送 thinking。GPT 和 Ollama 不识别该字段。
     if settings.chat_thinking is not None and thinking is not None:
         kwargs["extra_body"] = {"thinking": {"type": thinking}}
     return ChatOpenAI(
-        model=settings.chat_model,
+        model=model or settings.chat_model,
         base_url=settings.chat_base_url,
         api_key=settings.chat_api_key,
         timeout=UPSTREAM_TIMEOUT_SECONDS,
@@ -88,6 +93,22 @@ def get_query_rewriter() -> Runnable:
 
 
 @lru_cache
+def get_reference_resolver() -> Runnable:
+    model = build_extract_model(get_settings())
+    return resolve_prompt | model.with_structured_output(
+        ResolvedQuery, method="json_mode", include_raw=True
+    )
+
+
+@lru_cache
+def get_query_expander() -> Runnable:
+    model = build_extract_model(get_settings())
+    return expand_prompt | model.with_structured_output(
+        QueryExpansion, method="json_mode", include_raw=True
+    )
+
+
+@lru_cache
 def get_self_checker() -> Runnable:
     model = build_extract_model(get_settings())
     return self_check_prompt | model.with_structured_output(
@@ -105,8 +126,23 @@ def get_faith_judge() -> Runnable:
 
 @lru_cache
 def get_intent_classifier() -> Runnable:
-    # 与改写器一样关闭思考：强制 tool_choice 与 DeepSeek 思考模式冲突。
+    # 关闭思考。json_mode 要求 Prompt 写明 JSON 字段。
     model = build_extract_model(get_settings())
     return intent_prompt | model.with_structured_output(
-        IntentResult, method="function_calling", include_raw=True
+        IntentResult, method="json_mode", include_raw=True
     )
+
+
+@lru_cache
+def get_small_intent_classifier() -> Runnable:
+    if INTENT_SMALL_MODEL is None:
+        raise RuntimeError("未配置 INTENT_SMALL_MODEL")
+    model = _build(get_settings(), "disabled", model=INTENT_SMALL_MODEL)
+    return intent_prompt | model.with_structured_output(
+        IntentResult, method="json_mode", include_raw=True
+    )
+
+
+@lru_cache
+def get_summarizer() -> Runnable:
+    return summary_prompt | build_extract_model(get_settings()) | StrOutputParser()

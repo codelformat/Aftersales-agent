@@ -2,10 +2,10 @@ from datetime import date
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from app.context import build_history
+from app.context.layers import render_layer2, split_layers
 from app.db.models import Message
 from app.prompts import chat_prompt, chat_prompt_vars
-from app.services.history import to_langchain, turn_messages_rows, turn_rows
+from app.services.history import to_langchain, turn_rows
 
 CALLS = [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]
 
@@ -42,18 +42,21 @@ def test_turn_rows_with_tools_roundtrip():
     assert isinstance(back[2], ToolMessage)
 
 
-def test_trim_keeps_tool_pairs_together():
+def test_layers_keep_tool_pairs_together():
     def turn(i):
-        return [HumanMessage(f"问{i}" * 40), AIMessage(content="", tool_calls=[{"id": f"c{i}", "name": "query_order", "args": {}}]),
-                ToolMessage(content=f"结果{i}" * 40, tool_call_id=f"c{i}"), AIMessage(f"答{i}" * 40)]
+        return [HumanMessage(f"问{i}" * 40, id=f"msg-{2 * i - 1}"),
+                AIMessage(content="", tool_calls=[{"id": f"c{i}", "name": "query_order", "args": {}}]),
+                ToolMessage(content=f"结果{i}" * 40, tool_call_id=f"c{i}"),
+                AIMessage(f"答{i}" * 40, id=f"msg-{2 * i}")]
     history = turn(1) + turn(2) + turn(3)
-    for budget in range(200, 1200, 37):
-        out = build_history(history, "系统", "新问题", budget)
-        if out:
-            assert isinstance(out[0], HumanMessage)
-        ids = {m.tool_call_id for m in out if isinstance(m, ToolMessage)}
-        requested = {c["id"] for m in out if isinstance(m, AIMessage) for c in m.tool_calls}
-        assert ids == requested
+    for summary_upto, layer1_from in ((None, None), (None, 2), (2, 4), (4, 6)):
+        layers = split_layers(history, summary_upto, layer1_from)
+        for out in (render_layer2(layers.layer2), layers.layer1):
+            if out:
+                assert isinstance(out[0], HumanMessage)
+            ids = {m.tool_call_id for m in out if isinstance(m, ToolMessage)}
+            requested = {c["id"] for m in out if isinstance(m, AIMessage) for c in m.tool_calls}
+            assert ids == requested
 
 
 def test_prompt_tool_round_placeholder_and_rules():
@@ -68,22 +71,27 @@ def test_prompt_tool_round_placeholder_and_rules():
     assert [type(m) for m in without] == [SystemMessage, HumanMessage]
 
 
-def test_turn_messages_rows_multi_round():
-    turn = [
-        AIMessage(content="", tool_calls=[{"id": "c1", "name": "query_order", "args": {"order_id": "1"}}]),
-        ToolMessage(content="{}", tool_call_id="c1"),
-        AIMessage(content="我查一下物流", tool_calls=[{"id": "c2", "name": "query_logistics", "args": {"order_id": "1"}}]),
-        ToolMessage(content="{}", tool_call_id="c2"),
-        AIMessage(content="好了"),
-    ]
-    rows = turn_messages_rows("问", turn)
-    assert [(r.role, r.content, r.tool_call_id) for r in rows] == [
-        ("user", "问", None), ("assistant", None, None), ("tool", "{}", "c1"),
-        ("assistant", "我查一下物流", None), ("tool", "{}", "c2"), ("assistant", "好了", None)]
-    assert rows[1].tool_calls == [{"id": "c1", "name": "query_order", "args": {"order_id": "1"}}]
-    assert rows[5].tool_calls is None
+def test_msg_id_round_trip():
+    from app.services.history import db_id, msg_id
+
+    assert msg_id(42) == "msg-42"
+    assert db_id(HumanMessage("x", id="msg-42")) == 42
+    assert db_id(HumanMessage("x", id="5f1c-uuid")) is None
+    assert db_id(HumanMessage("x")) is None
+    assert db_id(ToolMessage("{}", tool_call_id="c1", id="msg-x")) is None
+    assert db_id(HumanMessage("x", id="msg-")) is None
+    assert db_id(HumanMessage("x", id="msg-42-extra")) is None
 
 
-def test_turn_messages_rows_fixed_reply():
-    rows = turn_messages_rows("你好", [AIMessage(content="您好")])
-    assert [(r.role, r.content) for r in rows] == [("user", "你好"), ("assistant", "您好")]
+def test_final_rows_has_user_and_reply_only():
+    from app.services.history import final_rows
+
+    rows = final_rows("问", "答")
+    assert [(r.role, r.content) for r in rows] == [("user", "问"), ("assistant", "答")]
+    assert all(r.tool_calls is None and r.tool_call_id is None for r in rows)
+
+
+def test_db_id_rejects_non_decimal_digit():
+    from app.services.history import db_id
+
+    assert db_id(HumanMessage("x", id="msg-²")) is None

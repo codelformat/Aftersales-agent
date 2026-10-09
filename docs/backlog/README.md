@@ -18,3 +18,6 @@
 | [2026-10-08-token-budget-usage-source.md](2026-10-08-token-budget-usage-source.md) | token 预算依赖上游主动返回 usage | ch05 | 搁置 |
 | [2026-10-08-stale-checkpoint-guard.md](2026-10-08-stale-checkpoint-guard.md) | 新会话没有防御残留的 checkpoint | ch05 | 搁置 |
 | [2026-10-08-actions-after-error.md](2026-10-08-actions-after-error.md) | 本轮出错后人工选项按钮仍可点击 | ch05 | 搁置 |
+| [2026-10-08-duplicate-human-actions.md](2026-10-08-duplicate-human-actions.md) | 同一步两次调用 offer_human_options 时按钮重复 | ch06 | 搁置 |
+| [2026-10-08-ticket-during-pending-picker.md](2026-10-08-ticket-during-pending-picker.md) | 订单选择器待处理时点工单或退款按钮会清掉待选状态 | ch06 | 搁置 |
+| [2026-10-09-non-numeric-citation-marker.md](2026-10-09-non-numeric-citation-marker.md) | 回复中偶发非数字方括号标记（如"[工具数据]"） | ch07 | 搁置 |

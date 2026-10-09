@@ -6,6 +6,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.config import CHECKPOINT_DB_PATH, GRAPH_RECURSION_LIMIT
 from app.graph.nodes.agent import agent_model, agent_tools
+from app.graph.nodes.aftersales import ensure_order, expand_query, fetch_order, retrieve_multi_evidence
 from app.graph.nodes.finalize import finalize
 from app.graph.nodes.intent import classify_intent
 from app.graph.nodes.knowledge import confidence_gate, retrieve_evidence
@@ -22,6 +23,8 @@ def build_graph(checkpointer):
     for name, fn in (
         ("start_turn", start_turn), ("resolve_reference", resolve_reference),
         ("classify_intent", classify_intent), ("retrieve", retrieve_evidence),
+        ("ensure_order", ensure_order), ("fetch_order", fetch_order), ("expand_query", expand_query),
+        ("retrieve_multi", retrieve_multi_evidence),
         ("confidence_gate", confidence_gate), ("agent_model", agent_model),
         ("agent_tools", agent_tools), ("fallback_reply", fallback_reply),
         ("complaint_reply", complaint_reply), ("chitchat_reply", chitchat_reply),
@@ -34,7 +37,12 @@ def build_graph(checkpointer):
     g.add_conditional_edges("classify_intent", after_intent, {
         "knowledge": "retrieve", "business": "agent_model",
         "complaint": "complaint_reply", "chitchat": "chitchat_reply",
+        "ensure_order": "ensure_order", "expand_query": "expand_query",
     })
+    g.add_edge("ensure_order", "fetch_order")
+    g.add_edge("fetch_order", "expand_query")
+    g.add_edge("expand_query", "retrieve_multi")
+    g.add_edge("retrieve_multi", "confidence_gate")
     g.add_edge("retrieve", "confidence_gate")
     g.add_conditional_edges("confidence_gate", after_gate, ["agent_model", "fallback_reply"])
     g.add_conditional_edges("agent_model", after_agent, ["agent_tools", "finalize"])

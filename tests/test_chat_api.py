@@ -5,7 +5,8 @@ import pytest
 from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
-from app.api.chat import get_token_budget
+from app.api import chat as chat_mod
+from app.config import MAX_INPUT_CHARS
 from app.db.models import Message
 from app.graph.nodes import knowledge as knowledge_nodes
 from app.knowledge.retrieval import EvidenceItem, Retrieval
@@ -57,7 +58,8 @@ async def test_chitchat_events(client, db, use_script, use_intent):
     rec = use_script()
     r, ev = await chat(client, "你好")
     assert ev[0][0] == "session" and ev[0][1]["session_id"].isdigit()
-    assert ev[1:] == [("token", {"text": CHITCHAT_REPLY}), ("done", {"finish_reason": "stop"})]
+    assert ev[1:] == [("understood", {"resolved_input": "你好", "intent": "闲聊"}),
+                      ("token", {"text": CHITCHAT_REPLY}), ("done", {"finish_reason": "stop"})]
     assert rec == [] and "\\u" not in r.text
 
 
@@ -65,16 +67,17 @@ async def test_business_tool_round_events(client, db, use_script, use_intent):
     use_intent("物流")
     rec = use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
     _, ev = await chat(client, "订单 1001 的物流到哪了")
-    assert [e for e, _ in ev] == ["session", "tool_start", "tool_end", "token", "token", "token", "done"]
-    assert ev[1][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
+    assert [e for e, _ in ev] == ["session", "understood", "tool_start", "tool_end", "token", "token", "token", "done"]
+    assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
     assert rec[1]["tools"] == ["query_order", "query_logistics", "query_product", "offer_human_options"]
-    assert [m.role for m in await rows(db)] == ["user", "assistant", "tool", "assistant"]
+    assert [(m.role, m.content) for m in await rows(db)] == [("user", "订单 1001 的物流到哪了"),
+                                                          ("assistant", "运输中")]
 
 
 async def test_knowledge_events(client, db, use_script, use_intent, monkeypatch):
-    use_intent("退款退货")
+    use_intent("商品咨询")
 
-    async def fake(q):
+    async def fake(q, plan=None, top_n=None):
         item = EvidenceItem(7, "退换货 > 运费", "退货运费谁出", "商家承担", 0.9)
         return Retrieval(QueryPlan(standard_query=q), [item], [item])
 
@@ -85,7 +88,7 @@ async def test_knowledge_events(client, db, use_script, use_intent, monkeypatch)
     monkeypatch.setattr(grounding, "get_self_checker", lambda: RunnableLambda(check))
     use_script(text("商家承担[1]"))
     _, ev = await chat(client, "退货运费谁出")
-    assert ev[1] == ("citations", {"items": [{"n": 1, "chunk_id": 7, "section_path": "退换货 > 运费",
+    assert ev[2] == ("citations", {"items": [{"n": 1, "chunk_id": 7, "section_path": "退换货 > 运费",
                                               "question": "退货运费谁出", "answer": "商家承担"}],
                                    "refused": False})
     assert ev[-1] == ("done", {"finish_reason": "stop"})
@@ -95,8 +98,8 @@ async def test_complaint_actions_event(client, db, use_script, use_intent):
     use_intent("投诉")
     use_script()
     _, ev = await chat(client, "我要投诉")
-    assert [e for e, _ in ev] == ["session", "token", "actions", "done"]
-    assert [o["type"] for o in ev[2][1]["options"]] == ["handoff", "ticket"]
+    assert [e for e, _ in ev] == ["session", "understood", "token", "actions", "done"]
+    assert [o["type"] for o in ev[3][1]["options"]] == ["handoff", "ticket"]
 
 
 async def test_second_turn_uses_checkpoint_history(client, db, use_script, use_intent):
@@ -172,18 +175,27 @@ async def test_recursion_limit_is_error(client, db, use_script, use_intent, monk
     assert ev[-1] == UPSTREAM_ERROR
 
 
+async def test_default_limit_accepts_max_input_chars(client, db, use_script, use_intent):
+    use_intent("闲聊")
+    use_script()
+    r, ev = await chat(client, "字" * MAX_INPUT_CHARS)
+    assert r.status_code == 200
+    assert ev[-1] == ("done", {"finish_reason": "stop"})
+
+
 async def test_budget_exceeded(client, db, use_script):
     use_script()
-    app.dependency_overrides[get_token_budget] = lambda: 10
-    r, _ = await chat(client, "你好")
+    app.dependency_overrides[chat_mod.get_input_token_limit] = lambda: 10
+    r, _ = await chat(client, "字" * 30)
     assert r.status_code == 422 and r.json()["detail"]["code"] == "budget_exceeded"
 
 
 async def test_budget_exceeded_on_new_session_creates_no_conversation(client, db, use_script):
     from app.db.models import Conversation
     use_script()
-    app.dependency_overrides[get_token_budget] = lambda: 10
-    await chat(client, "你好")
+    app.dependency_overrides[chat_mod.get_input_token_limit] = lambda: 10
+    r, _ = await chat(client, "字" * 30)
+    assert r.status_code == 422
     async with db() as s:
         assert (await s.execute(select(Conversation))).scalars().all() == []
 
@@ -227,8 +239,8 @@ async def test_budget_exceeded_on_existing_session_releases_lock(client, db, use
     use_script()
     _, ev = await chat(client, "你好")
     sid = ev[0][1]["session_id"]
-    app.dependency_overrides[get_token_budget] = lambda: 10
-    r, _ = await chat(client, "再问一句", session_id=sid)
+    app.dependency_overrides[chat_mod.get_input_token_limit] = lambda: 10
+    r, _ = await chat(client, "字" * 30, session_id=sid)
     assert r.status_code == 422 and r.json()["detail"]["code"] == "budget_exceeded"
     assert not locks.get(int(sid)).locked()
 
@@ -252,7 +264,7 @@ async def test_busy_session_does_not_read_history(client, db, use_script, use_in
         lock.release()
 
 
-async def test_existing_session_holds_lock_while_reading_history(client, db, use_script, use_intent, locks, memory_graph, monkeypatch):
+async def test_input_precheck_does_not_read_checkpoint(client, db, use_script, use_intent, locks, memory_graph, monkeypatch):
     use_intent("闲聊")
     use_script()
     _, ev = await chat(client, "你好")
@@ -265,8 +277,45 @@ async def test_existing_session_holds_lock_while_reading_history(client, db, use
         return await original(config)
 
     monkeypatch.setattr(memory_graph, "aget_state", record_read)
-    app.dependency_overrides[get_token_budget] = lambda: 10
-    r, _ = await chat(client, "再问一句", session_id=sid)
+    app.dependency_overrides[chat_mod.get_input_token_limit] = lambda: 10
+    r, _ = await chat(client, "字" * 30, session_id=sid)
     assert r.status_code == 422
-    assert observed == [True]
+    assert observed == []
     assert not locks.get(int(sid)).locked()
+
+
+@pytest.mark.parametrize("message", ["字" * 2, "字" * 6])
+async def test_message_within_input_limit_is_accepted(client, db, use_script, use_intent, locks, message):
+    use_intent("闲聊")
+    use_script()
+    app.dependency_overrides[chat_mod.get_input_token_limit] = lambda: 10
+    r, ev = await chat(client, message)
+    assert r.status_code == 200 and ev[-1][0] == "done"
+
+
+async def test_existing_session_precheck_does_not_read_history(client, db, use_script, use_intent,
+                                                              locks, memory_graph, monkeypatch):
+    use_intent("闲聊", "闲聊")
+    use_script()
+    _, ev = await chat(client, "你好")
+    sid = ev[0][1]["session_id"]
+
+    async def blocked_read(*args, **kwargs):
+        raise AssertionError("输入预检不能读取 checkpoint")
+
+    monkeypatch.setattr(memory_graph, "aget_state", blocked_read)
+    r, ev = await chat(client, "你好", session_id=sid)
+    assert r.status_code == 200 and ev[-1][0] == "done"
+    assert not locks.get(int(sid)).locked()
+
+
+async def test_message_over_input_token_limit_is_422(client, db, use_script, use_intent, monkeypatch):
+    from app.config import get_settings
+
+    use_intent("闲聊")
+    use_script()
+    monkeypatch.setattr(chat_mod, "get_settings",
+                        lambda: get_settings().model_copy(update={"max_user_input_tokens": 10}), raising=False)
+    r, _ = await chat(client, "字" * 30)
+    assert r.status_code == 422
+    assert r.json()["detail"]["code"] == "budget_exceeded"

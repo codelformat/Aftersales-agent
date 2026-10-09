@@ -1,13 +1,11 @@
-import asyncio
-
 import pytest
 from langchain_core.runnables import RunnableLambda
 from sqlalchemy import select
 
 from app.db.models import LowConfidenceQuestion
 from app.graph import routing
+from app.graph.nodes import intent as intent_mod
 from app.graph.nodes import knowledge as knowledge_nodes
-from app.graph.nodes.intent import classify_intent
 from app.graph.nodes.replies import chitchat_reply, complaint_reply, fallback_reply
 from app.graph.nodes.turn import resolve_reference, start_turn
 from app.knowledge.retrieval import EvidenceItem, Retrieval
@@ -16,17 +14,24 @@ from app.repositories import conversations
 from app.schemas import QueryPlan, SelfCheck
 from app.services import grounding
 from tests.fakes import rt
+from tests.test_layers import turn
 
 pytestmark = pytest.mark.anyio
 
 
-@pytest.mark.parametrize("intent,route", [
-    ("商品咨询", "knowledge"), ("退款退货", "knowledge"),
-    ("物流", "business"), ("订单", "business"), ("售后", "business"),
-    ("投诉", "complaint"), ("闲聊", "chitchat"), (None, "business"),
+@pytest.mark.parametrize("intent, route", [
+    ("商品咨询", "knowledge"), ("退款退货", "aftersales"), ("售后", "aftersales"),
+    ("物流", "business"), ("订单", "business"), ("其他", "business"),
+    ("投诉", "complaint"), ("闲聊", "chitchat"), (None, "business"), ("未知", "business"),
 ])
 def test_route_for(intent, route):
     assert routing.route_for(intent) == route
+
+
+def test_after_intent_splits_aftersales():
+    assert routing.after_intent({"route": "aftersales", "order_scoped": True}) == "ensure_order"
+    assert routing.after_intent({"route": "aftersales", "order_scoped": False}) == "expand_query"
+    assert routing.after_intent({"route": "knowledge"}) == "knowledge"
 
 
 def test_every_intent_has_a_route():
@@ -44,49 +49,74 @@ def test_after_gate_and_after_agent():
     assert routing.after_agent({"agent_messages": [AIMessage(content="好")]}) == "finalize"
 
 
-async def test_start_turn_resets_turn_fields(caplog):
+async def test_start_turn_resets_turn_fields(db, caplog):
     caplog.set_level("INFO")
     stale = {"intent": "投诉", "route": "complaint", "evidence": [{"n": 1}], "gate": {"passed": False},
              "agent_messages": ["x"], "steps": 3, "tokens_used": 999, "force_final": True,
+             "standard_query": "旧问题", "product_category": "蓝牙耳机", "order_scoped": True,
+             "order_id": "1001", "history_recall": True, "order": {"order_id": "1001"},
+             "queries": ["旧问题"], "intent_confidence": 0.9,
+             "summary": "旧梗概", "summary_upto": 4, "layer1_from": 8,
              "reply": "旧", "actions": [{"type": "handoff"}], "trace": ["a", "b"]}
     out = await start_turn(stale, rt(conversation_id=7))
     assert out == {"resolved_input": "", "intent": None, "route": "", "evidence": [], "gate": None,
+                   "standard_query": "", "product_category": None, "order_scoped": False,
+                   "order_id": None, "history_recall": False, "order": None, "queries": [], "intent_confidence": None,
                    "agent_messages": [], "steps": 0, "tokens_used": 0, "force_final": False,
-                   "reply": "", "actions": [], "trace": ["start_turn"]}
+                   "reply": "", "actions": [], "trace": ["start_turn"],
+                   "summary": None, "summary_upto": None, "layer1_from": None}
+    assert out["standard_query"] == ""
+    assert out["order_id"] is None
+    assert out["order"] is None
+    assert out["queries"] == []
+    assert out["order_scoped"] is False
+    assert out["product_category"] is None
+    assert out["intent_confidence"] is None
     assert "node=start_turn conversation=7" in caplog.text
 
 
-async def test_resolve_reference_passes_through():
-    out = await resolve_reference({"user_input": "那它呢", "trace": ["start_turn"]}, rt())
-    assert out == {"resolved_input": "那它呢", "trace": ["start_turn", "resolve_reference"]}
+async def test_resolve_reference_writes_resolution(use_resolver, caplog):
+    from langchain_core.messages import AIMessage, HumanMessage
+    caplog.set_level("INFO")
+    calls = use_resolver({"resolved_input": "订单 1001 能退吗", "standard_query": "退货条件",
+                          "order_scoped": True, "order_id": "1001"})
+    state = {"user_input": "它能退吗", "messages": [HumanMessage("订单 1001 到哪了"), AIMessage("运输中")], "trace": []}
+    out = await resolve_reference(state, rt())
+    assert out["resolved_input"] == "订单 1001 能退吗" and out["standard_query"] == "退货条件"
+    assert out["order_scoped"] is True and out["order_id"] == "1001" and out["trace"] == ["resolve_reference"]
+    assert calls[0]["history"] == "用户：订单 1001 到哪了\n客服：运输中"
+    assert "resolved=订单 1001 能退吗" in caplog.text
 
 
-async def test_classify_intent_sets_route(use_intent):
-    calls = use_intent("物流")
-    out = await classify_intent({"resolved_input": "到哪了", "trace": []}, rt())
-    assert (out["intent"], out["route"]) == ("物流", "business")
-    assert calls == [{"text": "到哪了"}]
+async def test_resolve_reference_uses_layered_history(use_resolver, caplog):
+    caplog.set_level("INFO")
+    calls = use_resolver({})
+    state = {"user_input": "那个呢", "trace": [], "summary": "第1段：订单 1001 要换货",
+             "summary_upto": 2, "layer1_from": 4,
+             "messages": [*turn(1, 2, user="很早的话"), *turn(3, 4, user="订单 1002 呢", reply="好" * 100),
+                          *turn(5, 6, user="运费呢", reply="商家承担")]}
+    await resolve_reference(state, rt(conversation_id=7))
+    assert calls[0]["history"] == ("梗概：第1段：订单 1001 要换货\n用户：订单 1002 呢\n客服：" + "好" * 60 + "…"
+                                   "\n用户：运费呢\n客服：商家承担")
+    assert "history_ctx conversation=7 lines=5 summary=第1段：订单 1001 要换货" in caplog.text
+    assert "很早的话" not in calls[0]["history"]
 
 
-@pytest.mark.parametrize("value", [None, RuntimeError("boom"), asyncio.TimeoutError()])
-async def test_classify_intent_failure_falls_back(use_intent, value, caplog):
-    use_intent(value)
-    out = await classify_intent({"resolved_input": "q", "trace": []}, rt())
-    assert (out["intent"], out["route"]) == (None, "business")
-    assert "意图识别失败" in caplog.text
+async def test_classify_intent_sets_route_and_emits_understood(use_intent, emitted, caplog):
+    caplog.set_level("INFO")
+    use_intent(("退款退货", 0.92))
+    out = await intent_mod.classify_intent({"resolved_input": "蓝牙耳机能退吗", "trace": []}, rt())
+    assert out["intent"] == "退款退货" and out["intent_confidence"] == 0.92
+    assert out["route"] == routing.route_for("退款退货")
+    assert emitted == [("understood", {"resolved_input": "蓝牙耳机能退吗", "intent": "退款退货"})]
+    assert "confidence=0.92" in caplog.text and "intent_model=large" in caplog.text
 
 
-async def test_classify_intent_timeout(monkeypatch, use_intent):
-    from langchain_core.runnables import RunnableLambda
-    from app.graph.nodes import intent as intent_mod
-    monkeypatch.setattr(intent_mod, "INTENT_TIMEOUT_SECONDS", 0.01)
-
-    async def slow(_):
-        await asyncio.sleep(1)
-
-    monkeypatch.setattr(intent_mod, "get_intent_classifier", lambda: RunnableLambda(slow))
-    out = await classify_intent({"resolved_input": "q", "trace": []}, rt())
-    assert out["route"] == "business"
+async def test_classify_intent_failure_falls_back(use_intent, emitted):
+    use_intent(None)
+    out = await intent_mod.classify_intent({"resolved_input": "x", "trace": []}, rt())
+    assert out["intent"] is None and out["intent_confidence"] is None and out["route"] == "business"
+    assert emitted == [("understood", {"resolved_input": "x", "intent": None})]
 
 
 async def test_chitchat_reply(emitted):
@@ -138,13 +168,14 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
     caplog.set_level("INFO")
     seen = []
 
-    async def fake(question):
-        seen.append(question)
+    async def fake(question, plan=None, top_n=None):
+        seen.append((question, plan))
         return fake_retrieval([0.9, 0.5, 0.1])
 
     monkeypatch.setattr(knowledge_nodes, "retrieve", fake)
-    out = await knowledge_nodes.retrieve_evidence({"resolved_input": "退货运费谁出", "trace": []}, rt())
-    assert seen == ["退货运费谁出"]
+    out = await knowledge_nodes.retrieve_evidence(
+        {"resolved_input": "退货运费谁出", "standard_query": "退货运费", "product_category": None, "trace": []}, rt())
+    assert seen == [("退货运费谁出", QueryPlan(standard_query="退货运费", product_category=None))]
     assert [(e["n"], e["chunk_id"]) for e in out["evidence"]] == [(1, 100), (2, 101)]
     assert set(out["evidence"][0]) == {"n", "chunk_id", "section_path", "question", "answer"}
     assert out["gate"]["top_score"] == 0.9 and out["trace"] == ["retrieve"]
@@ -152,11 +183,16 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
 
 
 async def test_retrieve_with_no_hits(monkeypatch):
-    async def fake(question):
+    seen = []
+
+    async def fake(question, plan=None, top_n=None):
+        seen.append((question, plan))
         return Retrieval(QueryPlan(standard_query="q"), [], [])
 
     monkeypatch.setattr(knowledge_nodes, "retrieve", fake)
-    out = await knowledge_nodes.retrieve_evidence({"resolved_input": "q", "trace": []}, rt())
+    out = await knowledge_nodes.retrieve_evidence(
+        {"resolved_input": "q", "standard_query": "q", "product_category": None, "trace": []}, rt())
+    assert seen == [("q", QueryPlan(standard_query="q", product_category=None))]
     assert out["evidence"] == [] and out["gate"]["top_score"] is None
 
 
@@ -207,3 +243,35 @@ async def test_gate_self_check_failure_fails_open(db, monkeypatch, emitted):
     monkeypatch.setattr(grounding, "get_self_checker", lambda: RunnableLambda(boom))
     out = await knowledge_nodes.confidence_gate(gate_state(EVIDENCE, 0.8), rt(await new_conversation(db)))
     assert out["gate"]["passed"] is True
+
+
+async def test_gate_aftersales_passes_on_score_without_self_check(db, emitted):
+    state = gate_state(EVIDENCE, 0.8)
+    state["route"] = "aftersales"
+    out = await knowledge_nodes.confidence_gate(state, rt(await new_conversation(db)))
+    assert out["gate"] == {"passed": True, "top_score": 0.8, "reason": "", "source": None}
+    assert ("citations", {"items": EVIDENCE, "refused": False}) in emitted
+
+
+async def test_gate_aftersales_low_score_still_falls_back(db, emitted):
+    cid = await new_conversation(db)
+    state = gate_state(EVIDENCE, 0.05)
+    state["route"] = "aftersales"
+    out = await knowledge_nodes.confidence_gate(state, rt(cid))
+    assert out["gate"]["passed"] is False and out["gate"]["source"] == "retrieval_low_conf"
+    async with db() as s:
+        row = (await s.execute(select(LowConfidenceQuestion))).scalar_one()
+    assert (row.conversation_id, row.raw_question, row.source) == (cid, "原话", "retrieval_low_conf")
+
+
+async def test_start_turn_loads_anchors(db, emitted):
+    from sqlalchemy import update
+    from app.db.models import Conversation
+    from app.graph.nodes.turn import start_turn
+    async with db() as s:
+        cid = (await conversations.create(s, "u1")).id
+        await s.execute(update(Conversation).where(Conversation.id == cid)
+                        .values(summary="第1段：订单 1001", summary_upto_msg_id=4, layer1_from_msg_id=8))
+        await s.commit()
+    out = await start_turn({}, rt(conversation_id=cid))
+    assert (out["summary"], out["summary_upto"], out["layer1_from"]) == ("第1段：订单 1001", 4, 8)

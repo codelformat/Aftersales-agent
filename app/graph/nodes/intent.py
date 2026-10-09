@@ -1,27 +1,17 @@
-import asyncio
 import logging
 
-from app.config import INTENT_TIMEOUT_SECONDS
 from app.graph import events
 from app.graph.routing import route_for
-from app.llm import get_intent_classifier
+from app.services import understanding
 
 logger = logging.getLogger(__name__)
 
 
 async def classify_intent(state, runtime):
     trace = events.enter("classify_intent", state, runtime)
-    # 工厂在 try 之外调用：配置错误和测试中未替换时立即暴露。
-    classifier = get_intent_classifier()
-    intent = None
-    try:
-        result = await asyncio.wait_for(
-            classifier.ainvoke({"text": state["resolved_input"]}), INTENT_TIMEOUT_SECONDS)
-        if result["parsed"] is None:
-            raise ValueError(f"意图结果无效：raw={result.get('raw')!r}")
-        intent = result["parsed"].intent
-    except Exception:
-        logger.warning("意图识别失败，走兜底出口", exc_info=True)
-    route = route_for(intent)
-    logger.info("intent=%s route=%s conversation=%s", intent, route, runtime.context.conversation_id)
-    return {"intent": intent, "route": route, "trace": trace}
+    decision = await understanding.classify(state["resolved_input"])
+    route = route_for(decision.intent)
+    logger.info("intent=%s confidence=%s intent_model=%s route=%s conversation=%s", decision.intent,
+                decision.confidence, decision.model, route, runtime.context.conversation_id)
+    events.emit("understood", {"resolved_input": state["resolved_input"], "intent": decision.intent})
+    return {"intent": decision.intent, "intent_confidence": decision.confidence, "route": route, "trace": trace}

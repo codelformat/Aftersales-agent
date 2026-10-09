@@ -50,15 +50,19 @@ async def test_history_and_turn_messages_are_sent_in_order():
     await agent_model(state(messages=history, agent_messages=prior), rt(model=m))
     sent = rec[0]["messages"]
     assert [type(x).__name__ for x in sent] == [
-        "SystemMessage", "HumanMessage", "AIMessage", "HumanMessage", "AIMessage", "ToolMessage"]
+        "SystemMessage", "HumanMessage", "AIMessage", "HumanMessage", "HumanMessage", "AIMessage", "ToolMessage"]
 
 
-async def test_evidence_goes_into_system_prompt():
+async def test_evidence_goes_into_reference_message():
+    from app.prompts import REFERENCE_HEADER
     evidence = [{"n": 1, "chunk_id": 9, "section_path": "退换货 > 运费", "question": "运费谁出", "answer": "商家"}]
     m, rec = model(text("商家承担[1]"))
-    await agent_model(state(evidence=evidence), rt(model=m))
-    system = rec[0]["messages"][0].content
-    assert "## 知识库证据\n[1] 退换货 > 运费\n问：运费谁出\n答：商家" in system
+    await agent_model(state(evidence=evidence, summary="第1段：订单 1001"), rt(model=m))
+    sent = rec[0]["messages"]
+    assert "退换货 > 运费" not in sent[0].content and "订单 1001" not in sent[0].content
+    assert sent[-2].content == "订单 1001 到哪了"
+    assert sent[-1].content.startswith(REFERENCE_HEADER)
+    assert "## 早期对话梗概\n第1段：订单 1001" in sent[-1].content and "[1] 退换货 > 运费" in sent[-1].content
 
 
 @pytest.mark.parametrize("reply, warning", [
@@ -183,7 +187,10 @@ async def test_invalid_offer_args_emit_no_actions(emitted):
 
 async def test_step_limit_sets_force_final(monkeypatch, caplog):
     caplog.set_level("INFO")
-    monkeypatch.setattr(agent_mod, "AGENT_MAX_STEPS", 2)
+    from app.config import get_settings
+
+    monkeypatch.setattr(agent_mod, "get_settings",
+                        lambda: get_settings().model_copy(update={"max_agent_steps": 2}), raising=False)
     out = await agent_tools(call_state(("c1", "query_order", {"order_id": "1"}), steps=1), rt())
     assert out["steps"] == 2 and out["force_final"] is True
     assert "agent_limit reason=steps" in caplog.text
@@ -194,3 +201,91 @@ async def test_token_limit_sets_force_final(monkeypatch, caplog):
     monkeypatch.setattr(agent_mod, "AGENT_TOKEN_BUDGET", 500)
     out = await agent_tools(call_state(("c1", "query_order", {"order_id": "1"}), tokens_used=600), rt())
     assert out["force_final"] is True and "agent_limit reason=tokens" in caplog.text
+
+
+def aftersales_state(**kw):
+    state = {"user_input": "这个能退吗", "resolved_input": "订单 1001 的蓝牙耳机能退吗", "route": "aftersales",
+             "order_scoped": True, "order_id": "1001",
+             "order": {"order_id": "1001", "status": "已签收", "created_at": "2026-10-01 10:00", "total": 299,
+                       "items": [{"product_id": "P001", "name": "蓝牙耳机", "price": 299, "quantity": 1}]},
+             "evidence": [], "messages": [], "agent_messages": [], "trace": []}
+    state.update(kw)
+    return state
+
+
+def test_agent_tool_names():
+    from app.graph.nodes.agent import agent_tool_names
+
+    assert agent_tool_names(aftersales_state()) == (*AGENT_TOOLS, "offer_refund_form")
+    assert agent_tool_names(aftersales_state(order_id=None)) == AGENT_TOOLS
+    assert agent_tool_names({"route": "business", "order_id": "1001"}) == AGENT_TOOLS
+
+
+async def test_aftersales_prompt_has_order_and_refund_tool(emitted):
+    rec = Recorder()
+    model = ScriptedChatModel(scripts=[text("可以退[1]")], recorder=rec)
+    await agent_mod.agent_model(aftersales_state(), rt(model=model))
+    reference = rec[0]["messages"][-1].content
+    assert "## 订单数据" in reference and "订单号：1001" in reference and "## 本轮任务" in reference
+    assert "## 订单数据" not in rec[0]["messages"][0].content
+    assert rec[0]["tools"][-1] == "offer_refund_form"
+
+
+async def test_policy_only_aftersales_prompt(emitted):
+    rec = Recorder()
+    model = ScriptedChatModel(scripts=[text("一般 7 天")], recorder=rec)
+    await agent_mod.agent_model(aftersales_state(order_scoped=False, order_id=None, order=None), rt(model=model))
+    reference = rec[0]["messages"][-1].content
+    assert "## 订单数据" not in reference and "## 本轮任务" in reference
+    assert "## 本轮任务" not in rec[0]["messages"][0].content
+    assert "offer_refund_form" not in rec[0]["tools"]
+
+
+async def test_order_unavailable_prompt(emitted):
+    rec = Recorder()
+    model = ScriptedChatModel(scripts=[text("暂时查不到")], recorder=rec)
+    await agent_mod.agent_model(aftersales_state(order=None), rt(model=model))
+    assert "订单数据暂不可用。" in rec[0]["messages"][-1].content
+
+
+async def test_refund_form_emits_refund_action(emitted):
+    msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}}])
+    out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
+    assert out["actions"] == [{"type": "refund", "order_id": "1001"}]
+    assert ("actions", {"options": [{"type": "refund", "order_id": "1001"}]}) in emitted
+
+
+async def test_refund_form_with_other_order_fails(emitted):
+    msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "2002"}}])
+    out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
+    assert "actions" not in out
+    assert not any(name == "actions" for name, _ in emitted)
+    assert json.loads(out["agent_messages"][-1].content)["error"] == "invalid_order"
+
+
+async def test_refund_form_not_allowed_outside_aftersales(emitted):
+    msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}}])
+    out = await agent_mod.agent_tools(aftersales_state(route="business", agent_messages=[msg]), rt())
+    assert "actions" not in out
+    assert json.loads(out["agent_messages"][-1].content)["error"] == "unknown_tool"
+
+
+async def test_refund_and_human_actions_merge(emitted):
+    msg = AIMessage(content="", tool_calls=[
+        {"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}},
+        {"id": "c2", "name": "offer_human_options", "args": {"options": ["handoff"]}},
+    ])
+    out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
+    assert out["actions"] == [{"type": "refund", "order_id": "1001"}, {"type": "handoff"}]
+    assert [name for name, _ in emitted].count("actions") == 1
+
+
+async def test_force_final_logs_tokens_for_entire_prompt(caplog):
+    from app.context import count_tokens
+
+    caplog.set_level("INFO")
+    m, rec = model(text("只能查到这些"))
+    await agent_model(state(force_final=True, summary="第1段：订单 1001"), rt(model=m))
+    sent = rec[0]["messages"]
+    assert all("第1段：订单 1001" not in msg.content for msg in sent if isinstance(msg, SystemMessage))
+    assert f"tokens≈{count_tokens(sent)} summary=第1段：订单 1001" in caplog.text

@@ -54,18 +54,21 @@ def turn_rows(
     return rows
 
 
-def turn_messages_rows(user_input: str, turn: Sequence[BaseMessage]) -> list[NewMessage]:
-    """一轮的记录：用户消息，然后按顺序写 AI 工具请求、工具结果和最终回复。"""
-    rows = [NewMessage(role="user", content=user_input)]
-    for message in turn:
-        if isinstance(message, ToolMessage):
-            rows.append(NewMessage(role="tool", content=message.content, tool_call_id=message.tool_call_id))
-        elif message.tool_calls:
-            rows.append(NewMessage(
-                role="assistant",
-                content=message.content or None,
-                tool_calls=[{"id": c["id"], "name": c["name"], "args": c["args"]} for c in message.tool_calls],
-            ))
-        else:
-            rows.append(NewMessage(role="assistant", content=message.content))
-    return rows
+MSG_ID_PREFIX = "msg-"
+
+
+def msg_id(n: int) -> str:
+    return f"{MSG_ID_PREFIX}{n}"
+
+
+def db_id(message: BaseMessage) -> int | None:
+    """返回 State 消息对应的数据库主键，没有有效 id 时返回 None。"""
+    mid = message.id or ""
+    if mid.startswith(MSG_ID_PREFIX) and mid[len(MSG_ID_PREFIX):].isdecimal():
+        return int(mid[len(MSG_ID_PREFIX):])
+    return None
+
+
+def final_rows(user_input: str, reply: str) -> list[NewMessage]:
+    """一轮只写用户消息和最终回复，工具调用和结果留在 State。"""
+    return [NewMessage(role="user", content=user_input), NewMessage(role="assistant", content=reply)]

@@ -17,6 +17,7 @@ services:
       - ./db/schema_ch03.sql:/docker-entrypoint-initdb.d/02-schema-ch03.sql:ro
       - ./db/schema_ch04.sql:/docker-entrypoint-initdb.d/03-schema-ch04.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/04-seed.sql:ro
+      - ./db/schema_ch07.sql:/docker-entrypoint-initdb.d/05-schema-ch07.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -paftersales-root --silent"]
       interval: 5s

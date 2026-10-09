@@ -49,8 +49,7 @@ def test_unknown_env_file_keys_are_ignored(monkeypatch, tmp_path):
 
 
 def test_constants():
-    assert config.TOKEN_BUDGET == 2000
-    assert config.CHARS_PER_TOKEN == 2.0
+    assert config.CHARS_PER_TOKEN == 1.5
     assert config.SHOP_NAME == "示例商城"
     assert config.UPSTREAM_TIMEOUT_SECONDS == 60
     assert config.UPSTREAM_MAX_RETRIES == 1
@@ -79,7 +78,6 @@ def test_tool_constants():
     assert config.TOOL_MAX_ATTEMPTS == 3
     assert config.TOOL_RETRY_BASE_DELAY == 0.2
     assert config.TOOL_RETRY_MAX_DELAY == 2.0
-    assert config.TOOL_RESULT_MAX_CHARS == 1500
 
 
 def test_reads_knowledge_variables(monkeypatch):
@@ -144,3 +142,10 @@ def test_obsolete_faq_constants_are_removed():
 def test_rewrite_and_self_check_timeout_constants():
     assert config.QUERY_REWRITE_TIMEOUT_SECONDS == 8
     assert config.SELF_CHECK_TIMEOUT_SECONDS == 10
+
+
+def test_ch06_constants():
+    assert (config.RESOLVE_TIMEOUT_SECONDS, config.RESOLVE_MESSAGE_MAX_CHARS) == (8, 200)
+    assert (config.EXPAND_TIMEOUT_SECONDS, config.EXPAND_MAX_QUERIES, config.MULTI_FUSED_LIMIT) == (8, 3, 50)
+    assert config.INTENT_SMALL_MODEL is None and config.INTENT_ESCALATE_BELOW == 0.7
+    assert config.USER_ORDER_COUNT == 3

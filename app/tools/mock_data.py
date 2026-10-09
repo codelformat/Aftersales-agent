@@ -1,6 +1,8 @@
 import random
 from datetime import date, datetime, time, timedelta
 
+from app.config import USER_ORDER_COUNT
+
 CATALOG = {
     "P001": ("蓝牙耳机", 299),
     "P002": ("羊毛衫", 459),
@@ -56,6 +58,36 @@ def order(order_id: str, today: date) -> dict:
         "total": sum(item["price"] * item["quantity"] for item in items),
         "created_at": created_at.strftime("%Y-%m-%d %H:%M"),
     }
+
+
+def order_card(order_id: str, today: date) -> dict:
+    """订单选择器中的一张卡片。"""
+    data = order(order_id, today)
+    items = data["items"]
+    title = items[0]["name"] if len(items) == 1 else f"{items[0]['name']} 等 {len(items)} 件"
+    return {
+        "order_id": order_id,
+        "title": title,
+        "total": data["total"],
+        "created_at": data["created_at"],
+        "status": data["status"],
+    }
+
+
+def user_orders(user_id: str, today: date, count: int = USER_ORDER_COUNT) -> list[dict]:
+    """按用户生成固定的可售后订单列表。跳过待付款和已取消的订单。"""
+    rng = random.Random(f"user_orders:{user_id}")
+    cards: list[dict] = []
+    seen: set[str] = set()
+    while len(cards) < count:
+        order_id = str(rng.randint(100000, 999999))
+        if order_id in seen:
+            continue
+        seen.add(order_id)
+        card = order_card(order_id, today)
+        if card["status"] not in ("待付款", "已取消"):
+            cards.append(card)
+    return cards
 
 
 def logistics(order_id: str, today: date) -> dict:

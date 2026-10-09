@@ -2,7 +2,10 @@ from datetime import date
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from app.prompts import REFUSAL_PREFIX, chat_prompt, extract_prompt, render_chat_system
+from app.prompts import (
+    INTENT_SYSTEM_PROMPT, REFUSAL_PREFIX, chat_prompt, extract_prompt, intent_prompt, render_chat_system,
+)
+from app.schemas import INTENTS
 
 
 def test_system_prompt_contains_shop_and_date():
@@ -71,22 +74,60 @@ def test_faith_judge_prompt_conservative_wording():
 
 
 def test_intent_prompt_lists_all_intents():
-    from app.prompts import INTENT_SYSTEM_PROMPT, intent_prompt
-    from app.schemas import INTENTS
-    assert INTENTS == ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊")
-    for intent in INTENTS:
-        assert f"- {intent}：" in INTENT_SYSTEM_PROMPT
+    assert INTENTS == ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊", "其他")
     msgs = intent_prompt.invoke({"text": "订单 1001 到哪了"}).to_messages()
     assert msgs[-1].content == "订单 1001 到哪了"
 
 
 def test_agent_system_prompt():
-    from datetime import date
     from app.prompts import render_agent_system
-    plain = render_agent_system(date(2026, 10, 6))
-    assert "示例商城" in plain and "2026-10-06" in plain
+    plain = render_agent_system()
+    assert "示例商城" in plain and "今天是" not in plain
     assert "offer_human_options" in plain and "create_ticket" not in plain and "query_faq" not in plain
     assert "## 知识库证据" not in plain and "{" not in plain
-    with_evidence = render_agent_system(date(2026, 10, 6), "[1] 退换货 > 运费\n问：q\n答：a {x}")
-    assert "## 知识库证据\n[1] 退换货 > 运费" in with_evidence and "{x}" in with_evidence
     assert "要不要查取决于前一个的结果时" in plain
+    assert '只根据参考资料中"知识库证据"一节回答' in plain
+    assert '只引用本轮参考资料中"知识库证据"一节的编号' in plain
+
+
+def test_intent_prompt_four_parts():
+    from app.prompts import INTENT_SYSTEM_PROMPT
+    from app.schemas import INTENTS
+    for label in INTENTS:
+        assert label in INTENT_SYSTEM_PROMPT
+    for letter in "ABCDEFGH":
+        assert f"{letter}. " in INTENT_SYSTEM_PROMPT
+    assert '"intent"' in INTENT_SYSTEM_PROMPT and '"confidence"' in INTENT_SYSTEM_PROMPT
+    assert "JSON" in INTENT_SYSTEM_PROMPT and "## 示例" in INTENT_SYSTEM_PROMPT
+
+
+def test_resolve_prompt_rules_and_json():
+    from app.prompts import RESOLVE_SYSTEM_PROMPT, resolve_prompt
+    for key in ('"resolved_input"', '"standard_query"', '"product_category"', '"order_scoped"', '"order_id"'):
+        assert key in RESOLVE_SYSTEM_PROMPT
+    assert "一字不差" in RESOLVE_SYSTEM_PROMPT and "JSON" in RESOLVE_SYSTEM_PROMPT
+    assert set(resolve_prompt.input_variables) == {"history", "question"}
+
+
+def test_expand_prompt_json():
+    from app.prompts import EXPAND_SYSTEM_PROMPT, expand_prompt
+    assert '"queries"' in EXPAND_SYSTEM_PROMPT and "JSON" in EXPAND_SYSTEM_PROMPT
+    assert set(expand_prompt.input_variables) == {"question", "products"}
+
+
+def test_render_reference_with_order_and_task():
+    from app.prompts import AFTERSALES_TASK_WITH_ORDER, format_order, render_agent_system, render_reference
+
+    order = {"order_id": "1001", "status": "已签收", "created_at": "2026-10-01 10:00", "total": 598,
+             "items": [{"product_id": "P001", "name": "蓝牙耳机", "price": 299, "quantity": 2}]}
+    section = format_order(order)
+    assert "订单号：1001" in section and "状态：已签收" in section and "蓝牙耳机（P001）× 2，单价 299 元" in section
+    assert format_order(None) == "订单数据暂不可用。"
+    text = render_reference(date(2026, 10, 6), summary="第1段：订单 1001", evidence_text="[1] 证据 {x}",
+                            order_section=section, task_section=AFTERSALES_TASK_WITH_ORDER)
+    assert (text.index("## 今天") < text.index("## 早期对话梗概") < text.index("## 订单数据")
+            < text.index("## 本轮任务") < text.index("## 知识库证据"))
+    assert "{x}" in text and "2026-10-06" in text
+    assert "offer_refund_form" in text
+    plain = render_agent_system()
+    assert "## 本轮任务" not in plain and "## 订单数据" not in plain

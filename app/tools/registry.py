@@ -5,7 +5,7 @@ from functools import lru_cache
 from langchain_core.tools import BaseTool
 
 from app.config import QUERY_FAQ_TIMEOUT_SECONDS, TOOL_TIMEOUT_SECONDS
-from app.graph.control import offer_human_options
+from app.graph.control import offer_human_options, offer_refund_form
 from app.tools.faq import query_faq
 from app.tools.logistics import query_logistics
 from app.tools.order import query_order
@@ -59,6 +59,7 @@ def build_default_registry() -> ToolRegistry:
         inject_conversation_id=True,
     ))
     registry.register(ToolSpec(offer_human_options, retryable=False, timeout=TOOL_TIMEOUT_SECONDS))
+    registry.register(ToolSpec(offer_refund_form, retryable=False, timeout=TOOL_TIMEOUT_SECONDS))
     return registry
 
 

@@ -1,11 +1,12 @@
-"""分流规则写死在代码中。"""
+"""分流规则写死在代码中。「其他」走 business，由 Agent 做需求澄清。"""
 
 INTENT_ROUTES = {
     "商品咨询": "knowledge",
-    "退款退货": "knowledge",
+    "退款退货": "aftersales",
+    "售后": "aftersales",
     "物流": "business",
     "订单": "business",
-    "售后": "business",
+    "其他": "business",
     "投诉": "complaint",
     "闲聊": "chitchat",
 }
@@ -18,7 +19,12 @@ def route_for(intent: str | None) -> str:
 
 
 def after_intent(state: dict) -> str:
-    return state["route"]
+    if state.get("history_recall"):
+        return "business"
+    route = state["route"]
+    if route == "aftersales":
+        return "ensure_order" if state.get("order_scoped") else "expand_query"
+    return route
 
 
 def after_gate(state: dict) -> str:

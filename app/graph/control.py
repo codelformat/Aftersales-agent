@@ -43,3 +43,18 @@ def actions_from_args(args: dict) -> list[dict]:
             actions.append({"type": "ticket", "description": parsed.ticket_description,
                             "ticket_type": parsed.ticket_type})
     return actions
+
+
+class OfferRefundFormArgs(BaseModel):
+    order_id: str = Field(
+        pattern=r"^[A-Za-z0-9-]{1,32}$", description="要退款的订单号，必须是本轮订单数据中的订单号")
+
+
+@tool("offer_refund_form", args_schema=OfferRefundFormArgs)
+async def offer_refund_form(order_id: str) -> dict:
+    """在回复下方展示「提交退款单」按钮。用户自己选择退款原因并提交。只展示按钮，不会提交退款。"""
+    return {"shown": "refund"}
+
+
+def refund_action(order_id: str) -> dict:
+    return {"type": "refund", "order_id": order_id}

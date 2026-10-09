@@ -4,10 +4,12 @@ from datetime import date
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
+from langgraph.types import Command
 from sqlalchemy import select
 
 from app.db.models import LowConfidenceQuestion, Message
 from app.graph.builder import get_graph, set_graph, thread_config
+from app.graph.nodes import aftersales as aftersales_nodes
 from app.graph.nodes import agent as agent_mod
 from app.graph.nodes import knowledge as knowledge_nodes
 from app.graph.state import GraphContext
@@ -33,9 +35,11 @@ class Turn:
 async def run(graph, cid, message, *scripts):
     rec = Recorder()
     model = ScriptedChatModel(scripts=list(scripts), recorder=rec)
-    ctx = GraphContext(conversation_id=cid, today=date(2026, 10, 6), model=model)
-    events = [e async for e in graph.astream({"user_input": message}, thread_config(cid),
-                                             context=ctx, stream_mode="custom")]
+    ctx = GraphContext(conversation_id=cid, today=date(2026, 10, 6), model=model, user_id="u1")
+    graph_input = message if isinstance(message, Command) else {"user_input": message}
+    events = [chunk async for mode, chunk in graph.astream(
+        graph_input, thread_config(cid), context=ctx, stream_mode=["custom", "updates"],
+    ) if mode == "custom"]
     return Turn(events, await graph.aget_state(thread_config(cid))), rec
 
 
@@ -53,7 +57,7 @@ async def saved(db, cid):
 
 
 def kb(monkeypatch, scores=(0.9,), useful=True):
-    async def fake(question):
+    async def fake(question, plan=None, top_n=None):
         items = [EvidenceItem(100 + i, "退换货 > 运费", "退货运费谁出", "质量问题商家承担", s)
                  for i, s in enumerate(scores)]
         return Retrieval(QueryPlan(standard_query=question), items, [e for e in items if e.score >= 0.2])
@@ -70,9 +74,21 @@ async def test_chitchat_route_uses_no_chat_model(db, memory_graph, use_intent):
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "你好")
     assert turn.trace == ["start_turn", "resolve_reference", "classify_intent", "chitchat_reply", "finalize"]
-    assert turn.events == [("token", {"text": CHITCHAT_REPLY})] and rec == []
+    assert turn.events == [("understood", {"resolved_input": "你好", "intent": "闲聊"}),
+                           ("token", {"text": CHITCHAT_REPLY})] and rec == []
     assert await saved(db, cid) == [("user", "你好"), ("assistant", CHITCHAT_REPLY)]
     assert [m.content for m in turn.state.values["messages"]] == ["你好", CHITCHAT_REPLY]
+
+
+async def test_history_ctx_logged_on_chitchat_turn(db, memory_graph, use_intent, caplog):
+    caplog.set_level("INFO")
+    use_intent("闲聊", "闲聊")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "你好")
+    await run(memory_graph, cid, "在吗")
+    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("history_ctx")]
+    assert len(lines) == 2
+    assert f"history_ctx conversation={cid} lines=2 summary=-" in lines[1] and "用户：你好" in lines[1]
 
 
 async def test_complaint_route_offers_actions_and_writes_no_ticket(db, memory_graph, use_intent):
@@ -81,23 +97,24 @@ async def test_complaint_route_offers_actions_and_writes_no_ticket(db, memory_gr
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "我要投诉")
     assert turn.trace[-2:] == ["complaint_reply", "finalize"] and rec == []
-    assert turn.events[0] == ("token", {"text": COMPLAINT_REPLY})
-    assert [o["type"] for o in turn.events[1][1]["options"]] == ["handoff", "ticket"]
+    assert turn.events[1] == ("token", {"text": COMPLAINT_REPLY})
+    assert [o["type"] for o in turn.events[2][1]["options"]] == ["handoff", "ticket"]
     async with db() as s:
         assert (await s.execute(select(Ticket))).scalars().all() == []
 
 
 async def test_knowledge_route_passes_gate_into_agent(db, memory_graph, use_intent, monkeypatch, caplog):
     caplog.set_level("INFO")
-    use_intent("退款退货")
+    use_intent("商品咨询")
     kb(monkeypatch)
     cid = await new_cid(db)
-    turn, rec = await run(memory_graph, cid, "退货运费谁出", text("商家承担[1]"))
+    turn, rec = await run(memory_graph, cid, "X3 Pro 续航多久", text("商家承担[1]"))
     assert turn.trace == ["start_turn", "resolve_reference", "classify_intent", "retrieve",
                           "confidence_gate", "agent_model", "finalize"]
     assert "node=retrieve" in caplog.text
-    assert [e[0] for e in turn.events][0] == "citations"
-    assert "## 知识库证据" in rec[0]["messages"][0].content
+    assert [e[0] for e in turn.events][1] == "citations"
+    assert "## 知识库证据" in rec[0]["messages"][-1].content
+    assert "## 知识库证据" not in rec[0]["messages"][0].content
 
 
 async def test_knowledge_route_weak_evidence_falls_back(db, memory_graph, use_intent, monkeypatch):
@@ -106,7 +123,8 @@ async def test_knowledge_route_weak_evidence_falls_back(db, memory_graph, use_in
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "X9 防水吗")
     assert turn.trace[-3:] == ["confidence_gate", "fallback_reply", "finalize"] and rec == []
-    assert turn.events == [("token", {"text": GATE_FALLBACK_REPLY})]
+    assert turn.events == [("understood", {"resolved_input": "X9 防水吗", "intent": "商品咨询"}),
+                           ("token", {"text": GATE_FALLBACK_REPLY})]
     async with db() as s:
         assert (await s.execute(select(LowConfidenceQuestion))).scalar_one().source == "retrieval_low_conf"
 
@@ -124,14 +142,41 @@ async def test_business_route_multi_step_react(db, memory_graph, use_intent, cap
     assert turn.trace[3:] == ["agent_model", "agent_tools", "agent_model", "agent_tools", "agent_model", "finalize"]
     assert turn.state.values["steps"] == 2
     assert [e[0] for e in turn.events].count("tool_start") == 2
-    assert [r for r, _ in await saved(db, cid)] == ["user", "assistant", "tool", "assistant", "tool", "tool", "assistant"]
+    assert [r for r, _ in await saved(db, cid)] == ["user", "assistant"]
+    assert [type(m).__name__ for m in turn.state.values["messages"]] == [
+        "HumanMessage", "AIMessage", "ToolMessage", "AIMessage", "ToolMessage", "ToolMessage", "AIMessage"]
     assert "steps=2" in caplog.text and "route=business" in caplog.text
+
+
+async def test_finalize_stamps_db_ids_on_state_messages(db, memory_graph, use_intent):
+    use_intent("订单")
+    cid = await new_cid(db)
+    turn, _ = await run(memory_graph, cid, "订单 1001 到哪了",
+                        tools(("c1", "query_order", {"order_id": "1001"})), text("已发货"))
+    async with db() as s:
+        rows = (await s.scalars(select(Message).where(Message.conversation_id == cid).order_by(Message.id))).all()
+    msgs = turn.state.values["messages"]
+    assert [type(m).__name__ for m in msgs] == ["HumanMessage", "AIMessage", "ToolMessage", "AIMessage"]
+    assert [(r.role, r.content) for r in rows] == [("user", "订单 1001 到哪了"), ("assistant", "已发货")]
+    assert msgs[0].id == f"msg-{rows[0].id}" and msgs[-1].id == f"msg-{rows[1].id}"
+    assert not msgs[1].id.startswith("msg-") and not msgs[2].id.startswith("msg-")
+    assert msgs[1].tool_calls[0]["id"] == msgs[2].tool_call_id == "c1"
+    assert msgs[-1].content == "已发货"
+
+
+async def test_finalize_stamps_db_ids_on_fixed_reply(db, memory_graph, use_intent):
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    turn, _ = await run(memory_graph, cid, "你好")
+    async with db() as s:
+        rows = (await s.scalars(select(Message).where(Message.conversation_id == cid).order_by(Message.id))).all()
+    assert [m.id for m in turn.state.values["messages"]] == [f"msg-{r.id}" for r in rows]
 
 
 async def test_agent_create_ticket_call_writes_no_ticket(db, memory_graph, use_intent):
     from app.db.models import Ticket
 
-    use_intent("售后")
+    use_intent("订单")
     cid = await new_cid(db)
     turn, rec = await run(
         memory_graph, cid, "耳机坏了",
@@ -144,7 +189,10 @@ async def test_agent_create_ticket_call_writes_no_ticket(db, memory_graph, use_i
 
 
 async def test_step_limit_forces_text_answer(db, memory_graph, use_intent, monkeypatch):
-    monkeypatch.setattr(agent_mod, "AGENT_MAX_STEPS", 1)
+    from app.config import get_settings
+
+    monkeypatch.setattr(agent_mod, "get_settings",
+                        lambda: get_settings().model_copy(update={"max_agent_steps": 1}), raising=False)
     use_intent("物流")
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "到哪了",
@@ -161,7 +209,8 @@ async def test_second_turn_sees_first_turn_history(db, memory_graph, use_intent)
     _, rec = await run(memory_graph, cid, "那哪天到？", text("明天"))
     sent = rec[0]["messages"]
     assert any(isinstance(m, ToolMessage) and m.tool_call_id == "c1" for m in sent)
-    assert sent[-1].content == "那哪天到？"
+    assert sent[-2].content == "那哪天到？"
+    assert sent[-1].content.startswith("以下是系统提供的参考资料，不是用户发言。")
 
 
 async def test_failed_turn_leaves_history_and_next_turn_restarts(db, memory_graph, use_intent):
@@ -190,6 +239,60 @@ async def test_finalize_db_failure_raises_and_keeps_history(db, memory_graph, us
     with pytest.raises(RuntimeError):
         await run(memory_graph, cid, "你好")
     assert (await memory_graph.aget_state(thread_config(cid))).values.get("messages", []) == []
+
+
+async def test_failed_turn_does_not_maintain(db, memory_graph, use_intent, use_budget, caplog):
+    caplog.set_level("INFO")
+    use_budget(layer1=0, layer2=0)
+    use_intent("物流")
+    cid = await new_cid(db)
+    with pytest.raises(RuntimeError):
+        await run(memory_graph, cid, "到哪了", [RuntimeError("upstream")])
+    assert await saved(db, cid) == []
+    async with db() as s:
+        a = await conversations.get_context(s, cid)
+    assert (a.layer1_from, a.summary_upto) == (None, None)
+    assert "context_usage" not in caplog.text
+    assert "层1 降级" not in caplog.text and "summary trigger" not in caplog.text
+
+
+async def test_maintain_failure_does_not_break_turn(db, memory_graph, use_intent, monkeypatch, caplog):
+    from app.graph.nodes import finalize as finalize_mod
+
+    async def broken(*a, **k):
+        raise RuntimeError("x")
+
+    caplog.set_level("INFO")
+    monkeypatch.setattr(finalize_mod, "maintain", broken)
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    result, _ = await run(memory_graph, cid, "你好")
+    assert result.state.values["reply"] == CHITCHAT_REPLY
+    assert await saved(db, cid) == [("user", "你好"), ("assistant", CHITCHAT_REPLY)]
+    assert f"context_maintain_failed conversation={cid}" in caplog.text
+
+
+async def test_summary_does_not_block_reply(db, memory_graph, use_intent, use_budget, use_summarizer):
+    import asyncio
+    from app.context.summarizer import get_runner
+
+    gate = asyncio.Event()
+    use_summarizer(gate, "用户打招呼")
+    use_budget(layer1=0, layer2=0)
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    try:
+        result, _ = await asyncio.wait_for(run(memory_graph, cid, "你好"), timeout=5)
+        assert result.state.values["reply"] == CHITCHAT_REPLY
+        assert ("token", {"text": CHITCHAT_REPLY}) in result.events
+        assert get_runner().running(cid) is True
+    finally:
+        gate.set()
+        await get_runner().drain()
+    async with db() as s:
+        a = await conversations.get_context(s, cid)
+    assert a.summary_upto == a.layer1_from
+    assert a.summary == "第1段：用户打招呼"
 
 
 async def test_turn_log_line(db, memory_graph, use_intent, caplog):
@@ -232,3 +335,155 @@ async def test_sqlite_checkpointer_concurrent_conversations(db, tmp_path, use_in
         sb = await graph.aget_state(thread_config(b))
     assert [m.content for m in sa.values["messages"]][0] == "订单 1 到哪了"
     assert [m.content for m in sb.values["messages"]][-1] == "B"
+
+
+def kb_multi(monkeypatch, scores=(0.9,), useful=True):
+    seen = []
+
+    async def fake(queries, plan, top_n=None):
+        seen.append((queries, plan))
+        items = [EvidenceItem(200 + i, "退货政策 > 条件", f"问{i}", f"答{i}", s) for i, s in enumerate(scores)]
+        return Retrieval(plan, items, [e for e in items if e.score >= 0.20])
+
+    async def check(_):
+        return {"parsed": SelfCheck(useful=useful, reason="r"), "raw": None}
+
+    monkeypatch.setattr(aftersales_nodes, "retrieve_multi", fake)
+    monkeypatch.setattr(grounding, "get_self_checker", lambda: RunnableLambda(check))
+    return seen
+
+
+async def test_aftersales_with_order_runs_subflow(db, memory_graph, use_intent, use_resolver, use_expander,
+                                                monkeypatch, caplog):
+    caplog.set_level("INFO")
+    use_resolver({"resolved_input": "订单 1001 能退吗", "standard_query": "退货条件",
+                  "order_scoped": True, "order_id": "1001"})
+    use_intent("退款退货")
+    use_expander(["退货运费"])
+    seen = kb_multi(monkeypatch)
+    cid = await new_cid(db)
+    turn, rec = await run(memory_graph, cid, "订单 1001 能退吗", text("可以退[1]"))
+    assert turn.trace == ["start_turn", "resolve_reference", "classify_intent", "ensure_order", "fetch_order",
+                          "expand_query", "retrieve_multi", "confidence_gate", "agent_model", "finalize"]
+    assert seen[0][0] == ["退货条件", "退货运费"]
+    assert turn.state.values["order"]["order_id"] == "1001"
+    assert "## 订单数据" in rec[0]["messages"][-1].content
+    assert "## 订单数据" not in rec[0]["messages"][0].content
+    assert "order=1001" in caplog.text and "queries=2" in caplog.text and "resolved=订单 1001 能退吗" in caplog.text
+
+
+async def test_aftersales_policy_only_skips_order(db, memory_graph, use_intent, use_resolver, use_expander, monkeypatch):
+    use_resolver({"resolved_input": "拆封了还能退吗", "standard_query": "拆封后退货条件", "order_scoped": False})
+    use_intent("退款退货")
+    use_expander(["拆封退货运费"])
+    kb_multi(monkeypatch)
+    cid = await new_cid(db)
+    turn, _ = await run(memory_graph, cid, "拆封了还能退吗", text("不影响二次销售可退[1]"))
+    assert "ensure_order" not in turn.trace and "fetch_order" not in turn.trace
+    assert turn.trace[3:5] == ["expand_query", "retrieve_multi"]
+
+
+async def test_history_recall_skips_gate(db, memory_graph, use_resolver, use_intent, use_expander, monkeypatch, caplog):
+    caplog.set_level("INFO")
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "你好")
+
+    use_resolver({"history_recall": True, "order_scoped": True, "order_id": "1001"})
+    use_intent("售后")
+    use_expander([])
+    kb_multi(monkeypatch, scores=(0.05,))
+    turn, _ = await run(memory_graph, cid, "订单 1001 的换货刚才怎么说", text("订单 1001 的换货需要核实商品状态"))
+    assert "ensure_order" not in turn.trace
+    assert "retrieve_multi" not in turn.trace
+    assert "confidence_gate" not in turn.trace
+    assert "agent_model" in turn.trace
+    assert turn.state.values["history_recall"] is True
+    assert turn.state.values["intent"] == "售后" and turn.state.values["route"] == "aftersales"
+    assert "history_recall=True" in caplog.text
+
+
+async def test_aftersales_weak_policy_falls_back(db, memory_graph, use_intent, use_resolver, use_expander, monkeypatch):
+    use_resolver({"order_scoped": False})
+    use_intent("售后")
+    use_expander(["x"])
+    kb_multi(monkeypatch, scores=(0.05,))
+    cid = await new_cid(db)
+    turn, rec = await run(memory_graph, cid, "维修要多久")
+    assert turn.trace[-3:] == ["confidence_gate", "fallback_reply", "finalize"] and rec == []
+
+
+async def test_invented_order_id_leads_to_picker(db, memory_graph, use_intent, use_resolver):
+    use_resolver({"resolved_input": "订单 2002 能退吗", "standard_query": "退货条件",
+                  "order_scoped": True, "order_id": "2002"})
+    use_intent("退款退货")
+    cid = await new_cid(db)
+    turn, rec = await run(memory_graph, cid, "这个能退吗")
+    state = await memory_graph.aget_state(thread_config(cid))
+    assert state.next == ("ensure_order",) and state.interrupts[0].value["type"] == "order_picker"
+    assert rec == [] and await saved(db, cid) == []
+
+
+async def test_interrupt_then_resume_finishes_turn_once(db, memory_graph, use_intent, use_resolver, use_expander,
+                                                      monkeypatch):
+    use_resolver({"resolved_input": "我要退货", "standard_query": "退货流程", "order_scoped": True})
+    use_intent("退款退货")
+    use_expander(["退货运费"])
+    kb_multi(monkeypatch)
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "我要退货")
+    picked = (await memory_graph.aget_state(thread_config(cid))).interrupts[0].value["orders"][0]["order_id"]
+    turn, rec = await run(memory_graph, cid, Command(resume=picked), text("可以退[1]"))
+    assert turn.state.values["order_id"] == picked
+    assert turn.trace[2:] == ["classify_intent", "ensure_order", "fetch_order", "expand_query",
+                              "retrieve_multi", "confidence_gate", "agent_model", "finalize"]
+    assert await saved(db, cid) == [("user", "我要退货"), ("assistant", "可以退[1]")]
+    assert [m.content for m in turn.state.values["messages"]] == ["我要退货", "可以退[1]"]
+
+
+async def test_new_input_while_interrupted_restarts(db, memory_graph, use_intent, use_resolver):
+    use_resolver({"order_scoped": True}, {})
+    use_intent("退款退货", "闲聊")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "我要退货")
+    turn, _ = await run(memory_graph, cid, "你好")
+    assert turn.trace[-2:] == ["chitchat_reply", "finalize"]
+    state = await memory_graph.aget_state(thread_config(cid))
+    assert state.interrupts == () and [m.content for m in state.values["messages"]] == ["你好", CHITCHAT_REPLY]
+
+
+async def test_retrieve_nodes_pass_rerank_top_k(db, memory_graph, use_intent, monkeypatch):
+    from app.config import get_settings
+    seen = {}
+
+    async def fake(question, plan=None, top_n=None):
+        seen["top_n"] = top_n
+        return Retrieval(QueryPlan(standard_query=question), [], [])
+
+    monkeypatch.setattr(knowledge_nodes, "retrieve", fake)
+    monkeypatch.setattr(knowledge_nodes, "get_settings",
+                        lambda: get_settings().model_copy(update={"rerank_top_k": 5}), raising=False)
+    use_intent("商品咨询")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "X3 Pro 续航多久")
+    assert seen["top_n"] == 5
+
+
+async def test_aftersales_retrieve_passes_rerank_top_k(db, memory_graph, use_intent, use_resolver,
+                                                    use_expander, monkeypatch):
+    from app.config import get_settings
+    seen = {}
+
+    async def fake(queries, plan, top_n=None):
+        seen["top_n"] = top_n
+        return Retrieval(plan, [], [])
+
+    monkeypatch.setattr(aftersales_nodes, "retrieve_multi", fake)
+    monkeypatch.setattr(aftersales_nodes, "get_settings",
+                        lambda: get_settings().model_copy(update={"rerank_top_k": 5}), raising=False)
+    use_resolver({"order_scoped": False})
+    use_intent("退款退货")
+    use_expander(["退货运费"])
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "拆封了还能退吗")
+    assert seen["top_n"] == 5

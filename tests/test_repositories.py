@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from app.db.models import Message
 from app.repositories import conversations, low_confidence, messages, tickets
 from app.repositories.messages import NewMessage
 
@@ -25,20 +26,20 @@ async def test_get_for_user_checks_owner(db):
 
 async def test_add_turn_and_list_in_order(db):
     cid = await _new_conversation(db)
-    calls = [{"id": "c1", "name": "query_order", "args": {"order_id": "1001"}}]
     async with db() as s:
-        await messages.add_turn(s, cid, [
+        written = await messages.add_turn(s, cid, [
             NewMessage(role="user", content="订单 1001"),
-            NewMessage(role="assistant", content=None, tool_calls=calls),
-            NewMessage(role="tool", content='{"ok": true}', tool_call_id="c1"),
             NewMessage(role="assistant", content="已发货"),
         ])
+        assert len(written) == 2
+        assert all(isinstance(row, Message) and row.id > 0 for row in written)
+        assert written[0].id < written[1].id
         await s.commit()
     async with db() as s:
         rows = await messages.list_for_conversation(s, cid)
-    assert [r.role for r in rows] == ["user", "assistant", "tool", "assistant"]
-    assert rows[1].tool_calls == calls
-    assert rows[2].tool_call_id == "c1"
+    assert [(r.role, r.content) for r in rows] == [("user", "订单 1001"), ("assistant", "已发货")]
+    assert [r.id for r in rows] == [r.id for r in written]
+    assert all(r.tool_calls is None and r.tool_call_id is None for r in rows)
 
 
 async def test_ticket_numbers_increment(db):
@@ -117,3 +118,64 @@ async def test_low_confidence_add(db):
         await s.commit()
         await s.refresh(row)
     assert row.id > 0 and row.created_at is not None and row.conversation_id is None
+
+
+async def test_get_context_reads_anchors(db):
+    from sqlalchemy import update
+    from app.db.models import Conversation
+
+    cid = await _new_conversation(db)
+    async with db() as s:
+        await s.execute(update(Conversation).where(Conversation.id == cid)
+                        .values(summary="第1段：订单 1001", summary_upto_msg_id=4, layer1_from_msg_id=8))
+        await s.commit()
+    async with db() as s:
+        anchors = await conversations.get_context(s, cid)
+    assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == ("第1段：订单 1001", 4, 8)
+
+
+async def test_get_context_returns_empty_for_missing_conversation(db):
+    async with db() as s:
+        anchors = await conversations.get_context(s, 99999999)
+    assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == (None, None, None)
+
+
+async def test_summaries_append_in_order_per_conversation(db):
+    from app.repositories import summaries
+
+    cid = await _new_conversation(db)
+    other = await _new_conversation(db, "u2")
+    async with db() as s:
+        assert await summaries.list_for_conversation(s, cid) == []
+        assert await summaries.append(s, cid, 1, 2, "第一批") == 1
+        assert await summaries.append(s, other, 5, 6, "另一会话") == 1
+        assert await summaries.append(s, cid, 3, 4, "第二批") == 2
+        await s.commit()
+    async with db() as s:
+        rows = await summaries.list_for_conversation(s, cid)
+    assert [(r.seq, r.from_msg_id, r.upto_msg_id, r.content) for r in rows] == [
+        (1, 1, 2, "第一批"), (2, 3, 4, "第二批"),
+    ]
+
+
+async def test_context_anchors_only_advance(db):
+    cid = await _new_conversation(db)
+    async with db() as s:
+        assert await conversations.set_summary(s, cid, 4, "第一段") is True
+        assert await conversations.advance_layer1(s, cid, 8) is True
+        for upto in (2, 4):
+            assert await conversations.set_summary(s, cid, upto, "不应写入") is False
+        for new_from in (6, 8):
+            assert await conversations.advance_layer1(s, cid, new_from) is False
+        await s.commit()
+    async with db() as s:
+        anchors = await conversations.get_context(s, cid)
+        assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == ("第一段", 4, 8)
+        assert await conversations.set_summary(s, cid, 6, "第二段") is True
+        assert await conversations.advance_layer1(s, cid, 10) is True
+        assert await conversations.set_summary(s, 99999999, 6, "无会话") is False
+        assert await conversations.advance_layer1(s, 99999999, 10) is False
+        await s.commit()
+    async with db() as s:
+        anchors = await conversations.get_context(s, cid)
+    assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == ("第二段", 6, 10)
