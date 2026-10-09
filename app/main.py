@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.api import chat, conversations, extract, faith_cases, feedback, health, knowledge, refunds, review_queue, tickets, web
+from app.api import eval_runs as eval_runs_api
 from app.context.budget import get_budget, startup_check
 from app.context.summarizer import get_runner
 from app.flywheel.runner import get_runner as get_flywheel_runner
@@ -62,4 +63,5 @@ app.include_router(extract.router)
 app.include_router(knowledge.router)
 app.include_router(faith_cases.router)
 app.include_router(review_queue.router)
+app.include_router(eval_runs_api.router)
 app.include_router(web.router)

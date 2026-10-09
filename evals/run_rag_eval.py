@@ -2,7 +2,7 @@
 
 import argparse
 import asyncio
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 import json
 import logging
@@ -134,6 +134,89 @@ async def write_faith_cases(results: list[GenResult], judge_model: str) -> int:
     return count
 
 
+@dataclass
+class Collected:
+    plans: dict
+    scores: list
+    post_scores: list
+    rows: list
+    results: list
+    failures: list[str]
+
+
+async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
+                  do_generation: bool, concurrency: int, write_cases: bool) -> Collected:
+    semaphore = asyncio.Semaphore(concurrency)
+    failures = []
+    plans = {}
+
+    async def prepare(sample):
+        async with semaphore:
+            try:
+                plans[sample.id] = await understand(sample.query)
+            except Exception as exc:
+                logger.exception("问题理解失败：%s", sample.id)
+                failures.append(f"{sample.id}/understand：{type(exc).__name__}")
+
+    await asyncio.gather(*(prepare(s) for s in samples))
+    scores, post_scores, rows = [], [], []
+
+    async def retrieve_one(sample, strategy):
+        async with semaphore:
+            try:
+                r = await retrieve(sample.query, strategy, plan=plans[sample.id], exclude_mined=True)
+                ranked = [source_key(e.section_path, e.question) for e in r.ranked]
+                if sample.bucket in ANSWERABLE:
+                    scores.append(score_retrieval(sample.id, sample.bucket, sample.difficulty,
+                                                  strategy, ranked, sample.relevant))
+                if strategy == "hybrid_rerank":
+                    rows.append(ThresholdRow(sample.bucket, bool(ranked) and any(ranked[0] in group for group in sample.relevant),
+                                             r.ranked[0].score if r.ranked else None))
+                    if sample.bucket in ANSWERABLE:
+                        kept = [source_key(e.section_path, e.question) for e in r.ranked
+                                if e.score >= RERANK_MIN_SCORE]
+                        post_scores.append(score_retrieval(sample.id, sample.bucket, sample.difficulty,
+                                                           strategy, kept, sample.relevant))
+            except Exception as exc:
+                logger.exception("检索评估失败：%s/%s", sample.id, strategy)
+                failures.append(f"{sample.id}/{strategy}：{type(exc).__name__}")
+
+    if do_retrieval:
+        await asyncio.gather(*(retrieve_one(s, strategy) for s in samples if s.id in plans
+                               for strategy in strategies))
+
+    results = []
+    if do_generation:
+        model, judge = get_chat_model(), get_faith_judge()
+        today = date.today()
+
+        async def generate(sample, strategy):
+            async with semaphore:
+                try:
+                    result = await generate_one(sample, plans[sample.id], strategy,
+                                                model=model, judge=judge, today=today)
+                    if result.retrieved and not result.refused and result.faithful is None:
+                        failures.append(f"{sample.id}/{strategy}：裁判失败")
+                    return result
+                except Exception as exc:
+                    logger.exception("生成评估失败：%s/%s", sample.id, strategy)
+                    failures.append(f"{sample.id}/{strategy}：{type(exc).__name__}")
+                    return None
+
+        generated = await asyncio.gather(*(generate(s, strategy) for s in samples if s.id in plans
+                                          for strategy in gen_strategies))
+        results = [r for r in generated if r is not None]
+        if write_cases:
+            try:
+                count = await write_faith_cases(results, get_settings().chat_model)
+                print(f"编造个案写入条数：{count}")
+            except Exception as exc:
+                logger.exception("编造个案写入失败")
+                failures.append(f"faith_cases：{type(exc).__name__}")
+
+    return Collected(plans, scores, post_scores, rows, results, failures)
+
+
 async def run_eval(args: argparse.Namespace) -> int:
     try:
         await ensure_collection()
@@ -154,76 +237,16 @@ async def run_eval(args: argparse.Namespace) -> int:
         samples = [s for s in all_samples if args.bucket is None or s.bucket == args.bucket]
         if args.limit is not None:
             samples = samples[:args.limit]
-        semaphore = asyncio.Semaphore(args.concurrency)
-        failures = []
-        plans = {}
-
-        async def prepare(sample):
-            async with semaphore:
-                try:
-                    plans[sample.id] = await understand(sample.query)
-                except Exception as exc:
-                    logger.exception("问题理解失败：%s", sample.id)
-                    failures.append(f"{sample.id}/understand：{type(exc).__name__}")
-
-        await asyncio.gather(*(prepare(s) for s in samples))
-        scores, post_scores, rows = [], [], []
         do_retrieval = args.stage in ("retrieval", "all")
         do_generation = args.stage in ("generation", "all")
-
-        async def retrieve_one(sample, strategy):
-            async with semaphore:
-                try:
-                    r = await retrieve(sample.query, strategy, plan=plans[sample.id], exclude_mined=True)
-                    ranked = [source_key(e.section_path, e.question) for e in r.ranked]
-                    if sample.bucket in ANSWERABLE:
-                        scores.append(score_retrieval(sample.id, sample.bucket, sample.difficulty,
-                                                      strategy, ranked, sample.relevant))
-                    if strategy == "hybrid_rerank":
-                        rows.append(ThresholdRow(sample.bucket, bool(ranked) and any(ranked[0] in group for group in sample.relevant),
-                                                 r.ranked[0].score if r.ranked else None))
-                        if sample.bucket in ANSWERABLE:
-                            kept = [source_key(e.section_path, e.question) for e in r.ranked
-                                    if e.score >= RERANK_MIN_SCORE]
-                            post_scores.append(score_retrieval(sample.id, sample.bucket, sample.difficulty,
-                                                               strategy, kept, sample.relevant))
-                except Exception as exc:
-                    logger.exception("检索评估失败：%s/%s", sample.id, strategy)
-                    failures.append(f"{sample.id}/{strategy}：{type(exc).__name__}")
-
-        if do_retrieval:
-            await asyncio.gather(*(retrieve_one(s, strategy) for s in samples if s.id in plans
-                                   for strategy in STRATEGIES))
-
-        results = []
-        if do_generation:
-            model, judge = get_chat_model(), get_faith_judge()
-            strategies = STRATEGIES if args.gen_strategies == "all" else ("hybrid_rerank",)
-            today = date.today()
-
-            async def generate(sample, strategy):
-                async with semaphore:
-                    try:
-                        result = await generate_one(sample, plans[sample.id], strategy,
-                                                    model=model, judge=judge, today=today)
-                        if result.retrieved and not result.refused and result.faithful is None:
-                            failures.append(f"{sample.id}/{strategy}：裁判失败")
-                        return result
-                    except Exception as exc:
-                        logger.exception("生成评估失败：%s/%s", sample.id, strategy)
-                        failures.append(f"{sample.id}/{strategy}：{type(exc).__name__}")
-                        return None
-
-            generated = await asyncio.gather(*(generate(s, strategy) for s in samples if s.id in plans
-                                              for strategy in strategies))
-            results = [r for r in generated if r is not None]
-            if not args.no_write:
-                try:
-                    count = await write_faith_cases(results, get_settings().chat_model)
-                    print(f"编造个案写入条数：{count}")
-                except Exception as exc:
-                    logger.exception("编造个案写入失败")
-                    failures.append(f"faith_cases：{type(exc).__name__}")
+        got = await collect(
+            samples, strategies=STRATEGIES,
+            gen_strategies=STRATEGIES if args.gen_strategies == "all" else ("hybrid_rerank",),
+            do_retrieval=do_retrieval, do_generation=do_generation,
+            concurrency=args.concurrency, write_cases=not args.no_write,
+        )
+        scores, post_scores, rows = got.scores, got.post_scores, got.rows
+        results, failures = got.results, got.failures
 
         # 并发完成顺序不影响报告中组名的顺序。
         scores.sort(key=lambda s: (STRATEGIES.index(s.strategy), s.sample_id))

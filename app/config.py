@@ -88,6 +88,8 @@ SNAPSHOT_TOP_N = 5
 GATE_WEIGHTS: tuple[float, float, float] = (0.2, 0.3, 0.5)
 GATE_EFFECTIVE_N = 2
 GATE_CONF_THRESHOLD = 0.39
+# 相对上一轮下降超过这个值时标为下滑。
+EVAL_DROP_TOLERANCE = 0.02
 # ch08 接入 MCP 后，System + 工具定义实测 2047–2360 token（全部内置 Agent 工具 + 3 个 MCP 工具时最大）。
 SYSTEM_RESERVE_TOKENS = 2400
 EVIDENCE_ITEM_TOKENS = 250
