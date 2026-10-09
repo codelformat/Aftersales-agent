@@ -136,7 +136,7 @@ async def test_business_route_multi_step_react(db, memory_graph, use_intent, cap
     turn, rec = await run(
         memory_graph, cid, "订单 1001 第一件商品保修多久，物流到哪了",
         tools(("c1", "query_order", {"order_id": "1001"})),
-        tools(("c2", "query_product", {"product_id": "P002"}), ("c3", "query_logistics", {"order_id": "1001"})),
+        tools(("c2", "query_product", {"product_id": "P002"}), ("c3", "query_order", {"order_id": "1001"})),
         text("保修 180 天，运输中"),
     )
     assert turn.trace[3:] == ["agent_model", "agent_tools", "agent_model", "agent_tools", "agent_model", "finalize"]
@@ -196,7 +196,7 @@ async def test_step_limit_forces_text_answer(db, memory_graph, use_intent, monke
     use_intent("物流")
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "到哪了",
-                          tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
+                          tools(("c1", "query_order", {"order_id": "1001"})), text("运输中"))
     assert rec[1]["tools"] == [] and turn.state.values["force_final"] is True
     assert turn.state.values["reply"] == "运输中"
 
@@ -205,7 +205,7 @@ async def test_second_turn_sees_first_turn_history(db, memory_graph, use_intent)
     use_intent("物流", "物流")
     cid = await new_cid(db)
     await run(memory_graph, cid, "订单 1001 到哪了",
-              tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
+              tools(("c1", "query_order", {"order_id": "1001"})), text("运输中"))
     _, rec = await run(memory_graph, cid, "那哪天到？", text("明天"))
     sent = rec[0]["messages"]
     assert any(isinstance(m, ToolMessage) and m.tool_call_id == "c1" for m in sent)
@@ -218,7 +218,7 @@ async def test_failed_turn_leaves_history_and_next_turn_restarts(db, memory_grap
     cid = await new_cid(db)
     with pytest.raises(RuntimeError):
         await run(memory_graph, cid, "到哪了",
-                  tools(("c1", "query_logistics", {"order_id": "1001"})), [RuntimeError("upstream")])
+                  tools(("c1", "query_order", {"order_id": "1001"})), [RuntimeError("upstream")])
     state = await memory_graph.aget_state(thread_config(cid))
     assert state.values.get("messages", []) == [] and state.next == ("agent_model",)
     assert await saved(db, cid) == []
@@ -328,8 +328,8 @@ async def test_sqlite_checkpointer_concurrent_conversations(db, tmp_path, use_in
     a, b = await new_cid(db), await new_cid(db)
     async with open_graph(str(tmp_path / "cp.sqlite")) as graph:
         await asyncio.gather(
-            run(graph, a, "订单 1 到哪了", tools(("a1", "query_logistics", {"order_id": "1"})), text("A")),
-            run(graph, b, "订单 2 到哪了", tools(("b1", "query_logistics", {"order_id": "2"})), text("B")),
+            run(graph, a, "订单 1 到哪了", tools(("a1", "query_order", {"order_id": "1"})), text("A")),
+            run(graph, b, "订单 2 到哪了", tools(("b1", "query_order", {"order_id": "2"})), text("B")),
         )
         sa = await graph.aget_state(thread_config(a))
         sb = await graph.aget_state(thread_config(b))

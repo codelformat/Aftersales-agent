@@ -65,11 +65,11 @@ async def test_chitchat_events(client, db, use_script, use_intent):
 
 async def test_business_tool_round_events(client, db, use_script, use_intent):
     use_intent("物流")
-    rec = use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"))
+    rec = use_script(tools(("c1", "query_order", {"order_id": "1001"})), text("运输中"))
     _, ev = await chat(client, "订单 1001 的物流到哪了")
     assert [e for e, _ in ev] == ["session", "understood", "tool_start", "tool_end", "token", "token", "token", "done"]
-    assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
-    assert rec[1]["tools"] == ["query_order", "query_logistics", "query_product", "offer_human_options"]
+    assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_order", "args": {"order_id": "1001"}}]}
+    assert rec[1]["tools"] == ["query_order", "query_product", "offer_human_options"]
     assert [(m.role, m.content) for m in await rows(db)] == [("user", "订单 1001 的物流到哪了"),
                                                           ("assistant", "运输中")]
 
@@ -104,7 +104,7 @@ async def test_complaint_actions_event(client, db, use_script, use_intent):
 
 async def test_second_turn_uses_checkpoint_history(client, db, use_script, use_intent):
     use_intent("物流", "物流")
-    rec = use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("运输中"), text("明天到"))
+    rec = use_script(tools(("c1", "query_order", {"order_id": "1001"})), text("运输中"), text("明天到"))
     _, ev = await chat(client, "订单 1001 的物流到哪了")
     await chat(client, "那哪天到？", session_id=ev[0][1]["session_id"])
     assert any(getattr(m, "tool_call_id", None) == "c1" for m in rec[2]["messages"])
@@ -145,7 +145,7 @@ async def test_upstream_error_writes_nothing(client, db, use_script, use_intent)
 
 async def test_error_after_tools_writes_nothing(client, db, use_script, use_intent):
     use_intent("物流")
-    use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), [RuntimeError("boom")])
+    use_script(tools(("c1", "query_order", {"order_id": "1001"})), [RuntimeError("boom")])
     _, ev = await chat(client, "到哪了")
     assert ev[-1] == UPSTREAM_ERROR and await rows(db) == []
 
@@ -170,7 +170,7 @@ async def test_recursion_limit_is_error(client, db, use_script, use_intent, monk
     from app.graph import builder
     monkeypatch.setattr(builder, "GRAPH_RECURSION_LIMIT", 4)
     use_intent("物流")
-    use_script(tools(("c1", "query_logistics", {"order_id": "1001"})), text("好"))
+    use_script(tools(("c1", "query_order", {"order_id": "1001"})), text("好"))
     _, ev = await chat(client, "到哪了")
     assert ev[-1] == UPSTREAM_ERROR
 

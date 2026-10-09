@@ -52,9 +52,9 @@ def test_catalog_product():
     assert (p["name"], p["price"]) == ("蓝牙耳机", 299)
 
 
-def test_registry_lists_seven_tools_and_flags():
+def test_registry_lists_production_tools_and_flags():
     reg = builtin_registry()
-    assert sorted(reg) == ["create_ticket", "offer_human_options", "offer_refund_form", "query_faq", "query_logistics", "query_order", "query_product"]
+    assert sorted(reg) == ["create_ticket", "offer_human_options", "offer_refund_form", "query_faq", "query_order", "query_product"]
     assert reg.get("create_ticket").max_retries == 0
     assert reg.get("create_ticket").inject_conversation_id is True
     refund = reg.get("offer_refund_form")
@@ -167,13 +167,13 @@ async def test_query_product_model_name_is_invalid_arguments():
     assert json.loads(out[0].message.content)["error"] == "invalid_arguments"
 
 
-def test_toolset_filters_by_name_in_given_order():
+def test_toolset_uses_fixed_builtin_order():
     from app.tools.toolset import Toolset, builtin_toolset
 
     reg = builtin_registry()
-    ts = Toolset({name: reg[name] for name in ("query_logistics", "offer_human_options")})
+    ts = Toolset({name: reg[name] for name in ("offer_human_options", "query_product", "query_order")})
     names = [t["function"]["name"] for t in ts.agent_tools()]
-    assert names == ["query_logistics", "offer_human_options"]
+    assert names == ["query_order", "query_product", "offer_human_options"]
     assert "offer_human_options" in [t["function"]["name"] for t in builtin_toolset().agent_tools()]
     assert ts.get("nope") is None
 

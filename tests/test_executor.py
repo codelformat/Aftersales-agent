@@ -313,9 +313,9 @@ async def test_write_approval_is_per_call_not_in_arguments():
 
 
 def test_failure_outcome_compatibility():
-    o = failure_outcome("c1", "offer_refund_form", "invalid_order")
+    o = failure_outcome("c1", "query_order", "unknown_tool")
     assert not o.ok and o.status == "失败" and o.data is None
-    assert payload(o) == {"ok": False, "error": "invalid_order", "message": "退款单订单号与本轮订单不符"}
+    assert payload(o) == {"ok": False, "error": "unknown_tool", "message": "工具不存在"}
 
 
 def test_failure_outcome_keeps_legacy_invalid_arguments():
@@ -336,3 +336,16 @@ async def test_truncation_uses_tool_result_max_tokens(monkeypatch, size, expecte
                         lambda: get_settings().model_copy(update={"tool_result_max_tokens": 10}))
     outcome = executor._make_outcome("c1", "t", ok=True, content="字" * size)
     assert outcome.message.content == expected
+
+
+@pytest.mark.parametrize("status, retries", [(502, 2), (503, 2), (504, 2), (400, 0), (403, 0)])
+async def test_mcp_gateway_error_group_retries_only_transient_status(status, retries, audit_log):
+    request = httpx.Request("POST", "http://127.0.0.1:18101/mcp")
+    response = httpx.Response(status, request=request)
+    error = ExceptionGroup("MCP session failed", [httpx.HTTPStatusError(
+        "gateway error", request=request, response=response)])
+    ts, counts = make(raises=lambda _: error)
+    [outcome] = await run(ts)
+    assert outcome.status == "失败" and outcome.retry_count == retries
+    assert counts["n"] == retries + 1
+    assert audit_log[0].retry_count == retries

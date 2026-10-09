@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 Permission = Literal["read", "write"]
 BUILTIN_PACKAGE = "app.tools.builtin"
+BUILTIN_AGENT_ORDER = ("query_order", "query_product", "offer_human_options", "offer_refund_form", "create_ticket")
 CH04_CHAT_TOOLS = ("query_order", "query_product", "query_logistics", "query_faq", "create_ticket")
 
 
@@ -94,12 +95,17 @@ def _unregister(name: str) -> None:
 
 
 def ch04_tools() -> list[BaseTool]:
+    from app.tools.legacy.logistics import query_logistics
+
     entries = builtin_registry()
+    entries["query_logistics"] = entry_from_tool(query_logistics)
     return [entries[name].tool for name in CH04_CHAT_TOOLS]
 
 
 def ch04_toolset() -> "Toolset":
+    from app.tools.legacy.logistics import query_logistics
     from app.tools.toolset import Toolset
 
     entries = builtin_registry()
+    entries["query_logistics"] = entry_from_tool(query_logistics)
     return Toolset({name: entries[name] for name in CH04_CHAT_TOOLS})

@@ -30,7 +30,6 @@ APPROVED = "approved"
 
 _ERROR_MESSAGES = {
     "invalid_arguments": "参数不合法",
-    "invalid_order": "退款单订单号与本轮订单不符",
     "unknown_tool": "工具不存在",
     "tool_unavailable": "工具暂时不可用",
     "timeout": "查询超时，暂时不可用",
@@ -84,6 +83,8 @@ def is_transient(exc: BaseException) -> bool:
         return all(is_transient(child) for child in exc.exceptions)
     if isinstance(exc, ToolException):
         return False
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in (502, 503, 504)
     return isinstance(exc, (TimeoutError, OperationalError, httpx.TransportError, ConnectionError))
 
 

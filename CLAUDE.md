@@ -122,7 +122,7 @@ api.conversations → repositories.conversations, repositories.messages
 - **ch07 起 `messages` 表只写用户消息、最终回复和工单/退款提示**；工具调用和结果只留 State。State 中有数据库行的消息 id 为 `msg-<主键>`，其他消息的有效 id 继承前一条。升级后旧 checkpoint 没有 `msg-` id，必须执行 `reset_db.sh`（或删除 `data/checkpoints.sqlite`）。
 - **Agent System Prompt 每轮相同**：日期、梗概、订单段、任务段、证据放在用户这句之后的一条参考资料 `HumanMessage` 中；梗概不进任何 `SystemMessage`（上游模板会上提合并所有 System，前缀缓存失效）。`TOOL_ROUND_CLOSING` 例外。
 - **梗概段只追加不重写**，旧段只作背景；摘要中 4 位以上数字串必须出现在源文本中（`unsupported_number`）。两个锚点只增不减；`maintain` 每轮从数据库重读锚点。
-- **预算常量与 `CHARS_PER_TOKEN` 同一口径，一起校准**（`run_token_calibration.py`，spec 4.4）。演示配置必须得 5650/3954/1695（`tests/test_budget.py`）。
+- **预算常量与 `CHARS_PER_TOKEN` 同一口径，一起校准**（`run_token_calibration.py`，spec 4.4）。演示配置必须得 5150/3604/1545（`tests/test_budget.py`；ch08 接入 MCP 后 `SYSTEM_RESERVE_TOKENS` 1900 → 2400，原为 5650/3954/1695）。
 - **`history_recall` 为真时 `after_intent` 直接走 business**，不检索、不过置信度闸（spec 5.5，用户裁定）。
 - **State `messages` 只由 `finalize` 和 `POST /tickets` 追加；本轮字段由 `start_turn` 重置。** 一轮失败时历史不变，checkpoint 的 `next` 停在失败节点，下一轮新输入从 START 重新开始。
 - **节点用 `events.emit(name, data)` 发 SSE 事件，API 用 `stream_mode="custom"`；每轮依赖（会话 ID、日期、聊天模型、执行函数）走 `context=GraphContext(...)`，不进 State。** 每个节点进入时打 `node=<名> conversation=<id>`，`finalize` 打一行 `turn ...` 汇总日志。

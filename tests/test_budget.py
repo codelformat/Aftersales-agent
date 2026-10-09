@@ -19,17 +19,17 @@ def test_default_input_token_limit_covers_max_input_chars():
     )
 
 
-def test_demo_config_gives_5650():
+def test_demo_config_gives_5150():
     b = compute_budget(**DEMO)
-    assert (b.system, b.summary) == (1900, 400)
+    assert (b.system, b.summary) == (2400, 400)
     assert (b.margin, b.evidence, b.peak) == (900, 1250, 5900)
-    assert (b.history, b.layer1, b.layer2) == (5650, 3954, 1695)
+    assert (b.history, b.layer1, b.layer2) == (5150, 3604, 1545)
 
 
 def test_window_only_change_gives_zero():
     b = compute_budget(window=18000, **DEFAULTS)
-    assert (b.system, b.summary) == (1900, 400)
-    assert b.avail == -692
+    assert (b.system, b.summary) == (2400, 400)
+    assert b.avail == -1192
     assert (b.history, b.layer1, b.layer2) == (0, 0, 0)
 
 
@@ -38,8 +38,8 @@ def test_default_window_is_capped_by_keep_turns(monkeypatch):
 
     monkeypatch.setattr(config, "TURN_TOKENS", 800)
     b = compute_budget(window=128000, **DEFAULTS)
-    assert (b.system, b.summary) == (1900, 400)
-    assert b.avail == 103808
+    assert (b.system, b.summary) == (2400, 400)
+    assert b.avail == 103308
     assert (b.history, b.layer1, b.layer2) == (24000, 16800, 7200)
 
 
@@ -50,7 +50,7 @@ def test_budget_from_settings_reads_env(monkeypatch):
         "TOOL_RESULT_MAX_TOKENS": "1200", "RERANK_TOP_K": "5",
     }.items():
         monkeypatch.setenv(key, value)
-    assert budget_from_settings(Settings()).history == 5650
+    assert budget_from_settings(Settings()).history == 5150
 
 
 def test_startup_check_warns_when_budget_is_short(caplog):
@@ -63,7 +63,7 @@ def test_startup_check_warns_when_budget_is_short(caplog):
 def test_startup_check_warns_when_system_reserve_exceeded(caplog):
     caplog.set_level(logging.INFO)
     startup_check(compute_budget(**DEMO), measured_system=2500)
-    assert "system_reserve_exceeded measured=2500 reserve=1900" in caplog.text
+    assert "system_reserve_exceeded measured=2500 reserve=2400" in caplog.text
     assert "上下文预算不足" not in caplog.text
 
 
@@ -77,11 +77,11 @@ def test_current_system_prompt_and_tools_fit_reserve(caplog):
     assert "system_reserve_exceeded" not in caplog.text
 
 
-@pytest.mark.parametrize("window, warns", [(19178, True), (19179, False)])
+@pytest.mark.parametrize("window, warns", [(19705, True), (19706, False)])
 def test_startup_check_layer1_must_fit_one_turn(window, warns, caplog):
     caplog.set_level(logging.INFO)
     budget = compute_budget(window=window, **DEFAULTS)
     assert budget.history > 0
-    startup_check(budget, measured_system=1900)
+    startup_check(budget, measured_system=2400)
     assert ("上下文预算不足" in caplog.text) is warns
     assert "system_reserve_exceeded" not in caplog.text

@@ -4,7 +4,7 @@ import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
 from app.graph.nodes import agent as agent_mod
-from app.graph.nodes.agent import AGENT_TOOLS, AgentOutputError, agent_model, agent_tools
+from app.graph.nodes.agent import AgentOutputError, agent_model, agent_tools
 from app.tools.executor import ToolOutcome
 from tests.fakes import Recorder, ScriptedChatModel, rt, text, tools
 
@@ -26,8 +26,7 @@ def state(**kw):
 async def test_binds_agent_tools_and_streams_answer(emitted):
     m, rec = model(text("您好"))
     out = await agent_model(state(), rt(model=m))
-    assert rec[0]["tools"] == list(AGENT_TOOLS) and rec[0]["tool_choice"] == "auto"
-    assert AGENT_TOOLS == ("query_order", "query_logistics", "query_product", "offer_human_options")
+    assert rec[0]["tools"] == ["query_order", "query_product", "offer_human_options"] and rec[0]["tool_choice"] == "auto"
     assert out["reply"] == "您好" and out["agent_messages"][-1].content == "您好"
     assert emitted == [("token", {"text": "您"}), ("token", {"text": "好"})]
     sent = rec[0]["messages"]
@@ -36,10 +35,10 @@ async def test_binds_agent_tools_and_streams_answer(emitted):
 
 
 async def test_tool_call_has_no_reply():
-    m, _ = model(tools(("c1", "query_logistics", {"order_id": "1001"})))
+    m, _ = model(tools(("c1", "query_order", {"order_id": "1001"})))
     out = await agent_model(state(), rt(model=m))
     assert "reply" not in out
-    assert out["agent_messages"][-1].tool_calls[0]["name"] == "query_logistics"
+    assert out["agent_messages"][-1].tool_calls[0]["name"] == "query_order"
 
 
 async def test_history_and_turn_messages_are_sent_in_order():
@@ -123,20 +122,21 @@ def call_state(*calls, **kw):
 async def test_agent_tools_executes_and_counts_step(emitted):
     seen = []
 
-    async def execute(calls, *, conversation_id, toolset):
-        seen.append((calls, conversation_id, toolset))
-        return [ToolOutcome("c1", "query_logistics", True,
-                            ToolMessage(content='{"ok": true}', tool_call_id="c1", name="query_logistics"),
+    async def execute(calls, *, conversation_id, toolset, approvals):
+        seen.append((calls, conversation_id, toolset, approvals))
+        return [ToolOutcome("c1", "query_order", True,
+                            ToolMessage(content='{"ok": true}', tool_call_id="c1", name="query_order"),
                             data={})]
 
-    out = await agent_tools(call_state(("c1", "query_logistics", {"order_id": "1001"})),
+    out = await agent_tools(call_state(("c1", "query_order", {"order_id": "1001"})),
                             rt(conversation_id=5, execute=execute))
-    assert set(seen[0][2].entries) == set(AGENT_TOOLS)
+    assert set(seen[0][2].entries) == {"query_order", "query_product", "offer_human_options"}
+    assert seen[0][3] == {}
     assert seen[0][1] == 5 and out["steps"] == 1 and "force_final" not in out
     assert isinstance(out["agent_messages"][-1], ToolMessage)
     assert emitted == [
-        ("tool_start", {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}),
-        ("tool_end", {"tools": [{"id": "c1", "name": "query_logistics", "ok": True}]}),
+        ("tool_start", {"tools": [{"id": "c1", "name": "query_order", "args": {"order_id": "1001"}}]}),
+        ("tool_end", {"tools": [{"id": "c1", "name": "query_order", "ok": True}]}),
     ]
 
 
@@ -206,13 +206,15 @@ def test_turn_toolset():
     from app.tools.toolset import builtin_toolset
 
     base = builtin_toolset()
-    assert set(turn_toolset(aftersales_state(), base).entries) == {*AGENT_TOOLS, "offer_refund_form"}
+    assert set(turn_toolset(aftersales_state(), base).entries) == {"query_order", "query_product", "offer_human_options", "offer_refund_form"}
+    assert turn_toolset(aftersales_state(), base).get("offer_refund_form").parameters["properties"]["order_id"]["enum"] == ["1001"]
+    assert "enum" not in base.get("offer_refund_form").parameters["properties"]["order_id"]
     for current in (aftersales_state(order_id=None), {"route": "business", "order_id": "1001"}):
         narrowed = turn_toolset(current, base)
-        assert set(narrowed.entries) == set(AGENT_TOOLS)
+        assert set(narrowed.entries) == {"query_order", "query_product", "offer_human_options"}
         assert narrowed.closed == {
             "create_ticket": "工具未开放", "query_faq": "工具未开放", "offer_refund_form": "工具未开放"}
-    assert len(base.entries) == 7
+    assert len(base.entries) == 6
 
 
 async def test_aftersales_prompt_has_order_and_refund_tool(emitted):
@@ -254,7 +256,9 @@ async def test_refund_form_with_other_order_fails(emitted):
     out = await agent_mod.agent_tools(aftersales_state(agent_messages=[msg]), rt())
     assert "actions" not in out
     assert not any(name == "actions" for name, _ in emitted)
-    assert json.loads(out["agent_messages"][-1].content)["error"] == "invalid_order"
+    payload = json.loads(out["agent_messages"][-1].content)
+    assert payload["error"] == "invalid_arguments"
+    assert "order_id 只能是 1001" in payload["message"]
 
 
 async def test_refund_form_not_allowed_outside_aftersales(emitted):
@@ -284,3 +288,33 @@ async def test_force_final_logs_tokens_for_entire_prompt(caplog):
     sent = rec[0]["messages"]
     assert all("第1段：订单 1001" not in msg.content for msg in sent if isinstance(msg, SystemMessage))
     assert f"tokens≈{count_tokens(sent)} summary=第1段：订单 1001" in caplog.text
+
+
+@pytest.mark.parametrize("requested", [False, True])
+async def test_ticket_binding_requires_ticket_request(requested):
+    m, rec = model(text("好"))
+    await agent_model(state(ticket_request=requested), rt(model=m))
+    assert ("create_ticket" in rec[0]["tools"]) is requested
+
+
+async def test_system_reserve_warning(monkeypatch, caplog):
+    monkeypatch.setattr(agent_mod, "SYSTEM_RESERVE_TOKENS", 10, raising=False)
+    m, _ = model(text("好"))
+    await agent_model(state(), rt(model=m))
+    assert "system_reserve_exceeded measured=" in caplog.text
+    assert "reserve=10 conversation=1" in caplog.text
+
+
+async def test_agent_passes_write_approvals():
+    from dataclasses import replace
+    from app.tools.registry import builtin_registry
+    from app.tools.toolset import Toolset
+
+    async def runner(args, call_id):
+        return {"ticket_no": "T1", "conversation_id": args["conversation_id"]}
+
+    entry = replace(builtin_registry()["create_ticket"], runner=runner)
+    out = await agent_tools(call_state(("c1", "create_ticket", {"description": "坏了", "ticket_type": "售后"}),
+                                      ticket_request=True, approvals={"c1": "approved"}),
+                            rt(base_toolset=Toolset({"create_ticket": entry})))
+    assert json.loads(out["agent_messages"][-1].content)["data"]["ticket_no"] == "T1"

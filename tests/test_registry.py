@@ -7,7 +7,7 @@ from app.tools import registry
 
 def test_builtin_scan_registers_production_tools():
     names = list(registry.builtin_registry())
-    assert set(names) == {"query_order", "query_product", "query_logistics", "query_faq", "create_ticket",
+    assert set(names) == {"query_order", "query_product", "query_faq", "create_ticket",
                           "offer_human_options", "offer_refund_form"}
 
 

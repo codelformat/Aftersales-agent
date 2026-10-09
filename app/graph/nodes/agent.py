@@ -3,10 +3,11 @@
 import json
 import logging
 import math
+from dataclasses import replace
 
 from langchain_core.messages import AIMessage, SystemMessage
 
-from app.config import AGENT_TOKEN_BUDGET, TOOL_SCHEMA_CHARS_PER_TOKEN, get_settings
+from app.config import AGENT_TOKEN_BUDGET, SYSTEM_RESERVE_TOKENS, TOOL_SCHEMA_CHARS_PER_TOKEN, get_settings
 from app.context import count_tokens
 from app.context.assemble import build_agent_prompt, log_model_ctx
 from app.graph import events
@@ -16,13 +17,13 @@ from app.prompts import (
     render_reference,
 )
 from app.services.grounding import Citation, format_evidence, parse_citations
-from app.tools.executor import failure_outcome
+from app.tools.mcp import ensure_toolset
 from app.tools.toolset import Toolset, builtin_toolset
 
 logger = logging.getLogger(__name__)
 
-AGENT_TOOLS = ("query_order", "query_logistics", "query_product", "offer_human_options")
 REFUND_FORM_TOOL = "offer_refund_form"
+TICKET_TOOL = "create_ticket"
 TOOL_MARKUP_PREFIX = "<｜"
 TOOL_MARKUP_MARKERS = ("<｜", "｜DSML｜", "invoke name=")
 
@@ -30,8 +31,7 @@ TOOL_MARKUP_MARKERS = ("<｜", "｜DSML｜", "invoke name=")
 def measure_system_tokens() -> int:
     """估算 System Prompt 和全部 Agent 工具定义的 token。"""
     base = builtin_toolset()
-    schema = json.dumps([base.get(name).openai_tool() for name in (*AGENT_TOOLS, REFUND_FORM_TOOL)],
-                        ensure_ascii=False)
+    schema = json.dumps(base.agent_tools(), ensure_ascii=False)
     return count_tokens([SystemMessage(render_agent_system())]) + math.ceil(len(schema) / TOOL_SCHEMA_CHARS_PER_TOKEN)
 
 
@@ -41,17 +41,26 @@ class AgentOutputError(RuntimeError):
 
 def turn_toolset(state, base: Toolset) -> Toolset:
     """按本轮状态收窄工具集。"""
-    entries = dict(base.entries)
-    closed = dict(base.closed)
-    for name, entry in list(entries.items()):
-        if not entry.agent or name not in (*AGENT_TOOLS, REFUND_FORM_TOOL):
-            closed[name] = "工具未开放"
+    entries, closed = dict(base.entries), dict(base.closed)
+
+    def close(name):
+        if name in entries:
             del entries[name]
-    if not (state.get("route") == "aftersales" and state.get("order_id")):
-        if REFUND_FORM_TOOL in entries:
-            closed[REFUND_FORM_TOOL] = "工具未开放"
-            del entries[REFUND_FORM_TOOL]
-    entries = {name: entries[name] for name in (*AGENT_TOOLS, REFUND_FORM_TOOL) if name in entries}
+            closed[name] = "工具未开放"
+
+    for name, entry in list(entries.items()):
+        if not entry.agent:
+            close(name)
+    order_id = state.get("order_id")
+    if state.get("route") == "aftersales" and order_id and REFUND_FORM_TOOL in entries:
+        entry = entries[REFUND_FORM_TOOL]
+        params = {**entry.parameters, "properties": {**entry.parameters["properties"],
+                  "order_id": {**entry.parameters["properties"]["order_id"], "enum": [order_id]}}}
+        entries[REFUND_FORM_TOOL] = replace(entry, parameters=params)
+    else:
+        close(REFUND_FORM_TOOL)
+    if not state.get("ticket_request"):
+        close(TICKET_TOOL)
     return Toolset(entries, closed, base.unavailable)
 
 
@@ -88,9 +97,14 @@ async def agent_model(state, runtime):
         runnable = ctx.model
         prompt.append(SystemMessage(TOOL_ROUND_CLOSING))
     else:
-        runnable = ctx.model.bind_tools(
-            turn_toolset(state, ctx.base_toolset if ctx.base_toolset is not None else builtin_toolset()).agent_tools(),
-            tool_choice="auto")
+        ts = turn_toolset(state, await ensure_toolset(ctx))
+        definitions = ts.agent_tools()
+        measured = count_tokens([SystemMessage(render_agent_system())]) + math.ceil(
+            len(json.dumps(definitions, ensure_ascii=False)) / TOOL_SCHEMA_CHARS_PER_TOKEN)
+        if measured > SYSTEM_RESERVE_TOKENS:
+            logger.warning("system_reserve_exceeded measured=%s reserve=%s conversation=%s",
+                           measured, SYSTEM_RESERVE_TOKENS, ctx.conversation_id)
+        runnable = ctx.model.bind_tools(definitions, tool_choice="auto")
     log_model_ctx(ctx.conversation_id, state.get("steps", 0), built)
 
     text = ""
@@ -149,20 +163,9 @@ async def agent_tools(state, runtime):
     ctx = runtime.context
     calls = state["agent_messages"][-1].tool_calls
     events.emit("tool_start", {"tools": [{"id": c["id"], "name": c["name"], "args": c["args"]} for c in calls]})
-    toolset = turn_toolset(state, ctx.base_toolset if ctx.base_toolset is not None else builtin_toolset())
-    outcomes_by_id = {}
-    runnable_calls = []
-    for call in calls:
-        if (call["name"] == REFUND_FORM_TOOL and toolset.get(REFUND_FORM_TOOL) is not None
-                and call["args"].get("order_id") != state.get("order_id")):
-            logger.warning("退款单订单号不符：%s 会话=%s", call["args"].get("order_id"), ctx.conversation_id)
-            outcomes_by_id[call["id"]] = failure_outcome(call["id"], call["name"], "invalid_order")
-        else:
-            runnable_calls.append(call)
-    if runnable_calls:
-        for outcome in await ctx.execute(runnable_calls, conversation_id=ctx.conversation_id, toolset=toolset):
-            outcomes_by_id[outcome.call_id] = outcome
-    outcomes = [outcomes_by_id[c["id"]] for c in calls]
+    toolset = turn_toolset(state, await ensure_toolset(ctx))
+    outcomes = await ctx.execute(calls, conversation_id=ctx.conversation_id, toolset=toolset,
+                                 approvals=state.get("approvals") or {})
     events.emit("tool_end", {"tools": [{"id": o.call_id, "name": o.name, "ok": o.ok} for o in outcomes]})
     steps = state.get("steps", 0) + 1
     update = {

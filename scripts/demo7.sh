@@ -64,7 +64,7 @@ echo '✅ [2/4] 只改窗口时报上下文预算不足'
 
 echo '=== [3/4] 演示配置：完整级联，靠梗概答对最早的订单 ==='
 start demo "${DEMO_ENV[@]}"
-section | grep -q 'history=5650 layer1=3954 layer2=1695' || fail '[3/4] 预算不是 5650/3954/1695'
+section | grep -q 'history=5150 layer1=3604 layer2=1545' || fail '[3/4] 预算不是 5150/3604/1545'
 USER_C="demo7-c-$RANDOM"
 out=$(uv run python scripts/demo7_chat.py --user "$USER_C" --dialog scripts/demo7_dialog.json) \
     || fail '[3/4] 有轮次没有正常结束'

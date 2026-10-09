@@ -141,7 +141,7 @@ MCP 工具的 runner 用 ToolCall 形式调用转换后的工具，取 `artifact
 - `offer_refund_form` 保持 ch06 条件（aftersales 出口且有订单号）。本轮 Schema 把 `order_id` 收窄为 `{"enum": [本轮订单号]}`，订单号不符由校验拦下；删除 `agent_tools` 中的 `invalid_order` 分支。
 - `create_ticket` 只在 `ticket_request` 为真时绑定。
 - `agent_tools` 不再自己维护允许列表，统一由执行引擎判定。
-- ch07 预算不变：`SYSTEM_RESERVE_TOKENS=1800` 仍是常量。每轮绑定时实测 System + 工具定义的 token，超出预留时打 `system_reserve_exceeded`。演示配置仍得 5650/3954/1695。
+- 预算（实现阶段用户裁定，2026-10-09）：接入 MCP 后每轮 System + 工具定义实测 2047–2360 token，超过 ch07 的 1900。`SYSTEM_RESERVE_TOKENS` 改为 2400，演示配置变为 5150/3604/1545。每轮绑定时仍实测，超出预留时打 `system_reserve_exceeded`。
 
 ## 5. 建工单确认流
 

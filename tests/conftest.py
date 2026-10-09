@@ -420,3 +420,95 @@ def db_audit(db, audit_log):
     from app.tools import audit
     audit.set_audit_writer(None)
     yield
+
+
+from app.tools.mcp import discover as REAL_DISCOVER
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "mcp: 使用测试 MCP Server")
+
+
+@pytest.fixture(autouse=True)
+def _block_mcp(monkeypatch):
+    """默认不连 MCP Server。需要时用 fixture mcp_servers。"""
+    from app.tools import mcp
+
+    async def none(policy):
+        return {}, {}
+
+    monkeypatch.setattr(mcp, "discover", none)
+
+
+class MCPServers:
+    """管理测试 Server 子进程。"""
+
+    def __init__(self, policy_path, tmp_path):
+        self.policy_path = policy_path
+        self.tmp_path = tmp_path
+        self.processes = {}
+        self.ports = {"logistics": 18101, "aftersales": 18102}
+
+    def stop(self, name):
+        import os
+        import signal
+        import subprocess
+
+        proc = self.processes.pop(name, None)
+        if proc is None or proc.poll() is not None:
+            return
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait(timeout=5)
+
+    def restart(self, name, env=None, extra_tool_file=None):
+        import os
+        import socket
+        import subprocess
+        import sys
+        import time
+
+        self.stop(name)
+        with (self.tmp_path / f"{name}.log").open("ab") as log:
+            proc = subprocess.Popen(
+                [sys.executable, "-m", f"mcp_servers.{name}", "--port", str(self.ports[name])],
+                start_new_session=True, stdout=log, stderr=log,
+                env={**os.environ, "MOCK_DELAY_SECONDS": "0", **(env or {})},
+            )
+        self.processes[name] = proc
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                pytest.fail((self.tmp_path / f"{name}.log").read_text())
+            try:
+                with socket.create_connection(("127.0.0.1", self.ports[name]), timeout=0.1):
+                    return
+            except OSError:
+                time.sleep(0.05)
+        pytest.fail(f"{name} 未在 10 秒内启动")
+
+
+@pytest.fixture
+def mcp_servers(monkeypatch, tmp_path, _block_mcp):
+    """启动两个 MCP Server，并使用测试策略。"""
+    import json
+    from app.tools import mcp, policy
+
+    monkeypatch.setattr(mcp, "discover", REAL_DISCOVER)
+    data = json.loads((ROOT / "config/tools.json").read_text())
+    for name, port in (("logistics", 18101), ("aftersales", 18102)):
+        data["servers"][name]["url"] = f"http://127.0.0.1:{port}/mcp"
+    policy_path = tmp_path / "tools.json"
+    policy_path.write_text(json.dumps(data))
+    monkeypatch.setattr(policy, "TOOL_POLICY_PATH", policy_path)
+    servers = MCPServers(policy_path, tmp_path)
+    try:
+        servers.restart("logistics")
+        servers.restart("aftersales")
+        yield servers
+    finally:
+        for name in list(servers.processes):
+            servers.stop(name)
