@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
@@ -21,6 +22,7 @@ from app.prompts import (
     query_rewrite_prompt,
     resolve_prompt,
     self_check_prompt,
+    summary_prompt,
 )
 from app.schemas import AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, QaPairs, QueryExpansion, QueryPlan, ResolvedQuery, SelfCheck
 
@@ -139,3 +141,8 @@ def get_small_intent_classifier() -> Runnable:
     return intent_prompt | model.with_structured_output(
         IntentResult, method="json_mode", include_raw=True
     )
+
+
+@lru_cache
+def get_summarizer() -> Runnable:
+    return summary_prompt | build_extract_model(get_settings()) | StrOutputParser()

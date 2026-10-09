@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation
@@ -45,3 +45,21 @@ async def set_status(
         .where(Conversation.id == conversation_id)
         .values(status=status)
     )
+
+
+async def set_summary(session: AsyncSession, conversation_id: int, upto: int, projection: str) -> bool:
+    result = await session.execute(
+        update(Conversation)
+        .where(Conversation.id == conversation_id,
+               or_(Conversation.summary_upto_msg_id.is_(None), Conversation.summary_upto_msg_id < upto))
+        .values(summary_upto_msg_id=upto, summary=projection))
+    return result.rowcount > 0
+
+
+async def advance_layer1(session: AsyncSession, conversation_id: int, new_from: int) -> bool:
+    result = await session.execute(
+        update(Conversation)
+        .where(Conversation.id == conversation_id,
+               or_(Conversation.layer1_from_msg_id.is_(None), Conversation.layer1_from_msg_id < new_from))
+        .values(layer1_from_msg_id=new_from))
+    return result.rowcount > 0

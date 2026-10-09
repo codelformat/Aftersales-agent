@@ -348,3 +348,35 @@ def memory_graph():
     set_graph(graph)
     yield graph
     set_graph(None)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_summarizer(monkeypatch):
+    from app.context import summarizer
+    monkeypatch.setattr(summarizer, "get_summarizer", _blocked_factory("get_summarizer"))
+    summarizer.set_runner(summarizer.SummaryRunner())
+
+
+@pytest.fixture
+def use_summarizer(monkeypatch):
+    """用法：use_summarizer("梗概", TimeoutError(), asyncio.Event(), "梗概2")。Event 表示先等待再消费下一个值。"""
+    from langchain_core.runnables import RunnableLambda
+    from app.context import summarizer
+
+    def _use(*values):
+        queue, calls = list(values), []
+
+        async def run(inputs):
+            calls.append(inputs)
+            value = queue.pop(0)
+            if isinstance(value, asyncio.Event):
+                await value.wait()
+                value = queue.pop(0) if queue else "完成"
+            if isinstance(value, BaseException):
+                raise value
+            return value
+
+        monkeypatch.setattr(summarizer, "get_summarizer", lambda: RunnableLambda(run))
+        return calls
+
+    return _use

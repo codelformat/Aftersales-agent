@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.api import chat, extract, faith_cases, health, knowledge, refunds, tickets, web
 from app.context.budget import get_budget, startup_check
+from app.context.summarizer import get_runner
 from app.graph.builder import open_graph
 from app.graph.nodes.agent import measure_system_tokens
 from app.knowledge.milvus import close_milvus
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
         async with open_graph():
             yield
     finally:
+        await get_runner().cancel_all()
         try:
             await close_milvus()
         finally:

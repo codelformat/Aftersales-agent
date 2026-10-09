@@ -138,3 +138,44 @@ async def test_get_context_returns_empty_for_missing_conversation(db):
     async with db() as s:
         anchors = await conversations.get_context(s, 99999999)
     assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == (None, None, None)
+
+
+async def test_summaries_append_in_order_per_conversation(db):
+    from app.repositories import summaries
+
+    cid = await _new_conversation(db)
+    other = await _new_conversation(db, "u2")
+    async with db() as s:
+        assert await summaries.list_for_conversation(s, cid) == []
+        assert await summaries.append(s, cid, 1, 2, "第一批") == 1
+        assert await summaries.append(s, other, 5, 6, "另一会话") == 1
+        assert await summaries.append(s, cid, 3, 4, "第二批") == 2
+        await s.commit()
+    async with db() as s:
+        rows = await summaries.list_for_conversation(s, cid)
+    assert [(r.seq, r.from_msg_id, r.upto_msg_id, r.content) for r in rows] == [
+        (1, 1, 2, "第一批"), (2, 3, 4, "第二批"),
+    ]
+
+
+async def test_context_anchors_only_advance(db):
+    cid = await _new_conversation(db)
+    async with db() as s:
+        assert await conversations.set_summary(s, cid, 4, "第一段") is True
+        assert await conversations.advance_layer1(s, cid, 8) is True
+        for upto in (2, 4):
+            assert await conversations.set_summary(s, cid, upto, "不应写入") is False
+        for new_from in (6, 8):
+            assert await conversations.advance_layer1(s, cid, new_from) is False
+        await s.commit()
+    async with db() as s:
+        anchors = await conversations.get_context(s, cid)
+        assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == ("第一段", 4, 8)
+        assert await conversations.set_summary(s, cid, 6, "第二段") is True
+        assert await conversations.advance_layer1(s, cid, 10) is True
+        assert await conversations.set_summary(s, 99999999, 6, "无会话") is False
+        assert await conversations.advance_layer1(s, 99999999, 10) is False
+        await s.commit()
+    async with db() as s:
+        anchors = await conversations.get_context(s, cid)
+    assert (anchors.summary, anchors.summary_upto, anchors.layer1_from) == ("第二段", 6, 10)
