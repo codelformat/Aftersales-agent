@@ -241,6 +241,60 @@ async def test_finalize_db_failure_raises_and_keeps_history(db, memory_graph, us
     assert (await memory_graph.aget_state(thread_config(cid))).values.get("messages", []) == []
 
 
+async def test_failed_turn_does_not_maintain(db, memory_graph, use_intent, use_budget, caplog):
+    caplog.set_level("INFO")
+    use_budget(layer1=0, layer2=0)
+    use_intent("物流")
+    cid = await new_cid(db)
+    with pytest.raises(RuntimeError):
+        await run(memory_graph, cid, "到哪了", [RuntimeError("upstream")])
+    assert await saved(db, cid) == []
+    async with db() as s:
+        a = await conversations.get_context(s, cid)
+    assert (a.layer1_from, a.summary_upto) == (None, None)
+    assert "context_usage" not in caplog.text
+    assert "层1 降级" not in caplog.text and "summary trigger" not in caplog.text
+
+
+async def test_maintain_failure_does_not_break_turn(db, memory_graph, use_intent, monkeypatch, caplog):
+    from app.graph.nodes import finalize as finalize_mod
+
+    async def broken(*a, **k):
+        raise RuntimeError("x")
+
+    caplog.set_level("INFO")
+    monkeypatch.setattr(finalize_mod, "maintain", broken)
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    result, _ = await run(memory_graph, cid, "你好")
+    assert result.state.values["reply"] == CHITCHAT_REPLY
+    assert await saved(db, cid) == [("user", "你好"), ("assistant", CHITCHAT_REPLY)]
+    assert f"context_maintain_failed conversation={cid}" in caplog.text
+
+
+async def test_summary_does_not_block_reply(db, memory_graph, use_intent, use_budget, use_summarizer):
+    import asyncio
+    from app.context.summarizer import get_runner
+
+    gate = asyncio.Event()
+    use_summarizer(gate, "用户打招呼")
+    use_budget(layer1=0, layer2=0)
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    try:
+        result, _ = await asyncio.wait_for(run(memory_graph, cid, "你好"), timeout=5)
+        assert result.state.values["reply"] == CHITCHAT_REPLY
+        assert ("token", {"text": CHITCHAT_REPLY}) in result.events
+        assert get_runner().running(cid) is True
+    finally:
+        gate.set()
+        await get_runner().drain()
+    async with db() as s:
+        a = await conversations.get_context(s, cid)
+    assert a.summary_upto == a.layer1_from
+    assert a.summary == "第1段：用户打招呼"
+
+
 async def test_turn_log_line(db, memory_graph, use_intent, caplog):
     caplog.set_level("INFO")
     use_intent("闲聊")

@@ -380,3 +380,18 @@ def use_summarizer(monkeypatch):
         return calls
 
     return _use
+
+
+@pytest.fixture
+def use_budget():
+    """只替换层 1 和层 2 预算，测试结束后恢复默认预算。"""
+    from dataclasses import replace
+    from app.context import budget as budget_mod
+
+    def _use(layer1: int, layer2: int):
+        budget_mod.set_budget(replace(budget_mod.compute_budget(
+            window=128000, max_output=8192, max_user_input=1000, max_agent_steps=4,
+            tool_result_max=750, top_k=10), layer1=layer1, layer2=layer2))
+
+    yield _use
+    budget_mod.set_budget(None)

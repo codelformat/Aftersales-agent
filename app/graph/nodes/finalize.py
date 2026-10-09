@@ -4,6 +4,7 @@ import logging
 
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.context.maintain import maintain
 from app.db.engine import get_sessionmaker
 from app.graph import events
 from app.repositories import messages
@@ -32,4 +33,8 @@ async def finalize(state, runtime):
         state.get("steps", 0), state.get("tokens_used", 0),
         ",".join(a["type"] for a in state.get("actions", [])) or "-",
     )
+    try:
+        await maintain(cid, [*state.get("messages", []), *new])
+    except Exception:
+        logger.exception("context_maintain_failed conversation=%s", cid)
     return {"messages": new, "trace": trace}
