@@ -16,6 +16,7 @@ async def start_turn(state, runtime):
         "summary": anchors.summary, "summary_upto": anchors.summary_upto, "layer1_from": anchors.layer1_from,
         "resolved_input": "", "standard_query": "", "product_category": None, "order_scoped": False,
         "order_id": None, "history_recall": False, "ticket_request": False, "order": None, "queries": [],
+        "approvals": {}, "write_decision": None, "write_outcome": None,
         "intent": None, "intent_confidence": None,
         "route": "", "evidence": [], "gate": None, "agent_messages": [], "steps": 0, "tokens_used": 0,
         "force_final": False, "reply": "", "actions": [], "trace": events.enter("start_turn", {}, runtime),

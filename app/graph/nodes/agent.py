@@ -175,6 +175,13 @@ async def agent_tools(state, runtime):
     }
     actions = []
     for outcome, call in zip(outcomes, calls):
+        if outcome.name == TICKET_TOOL and state.get("write_decision") and "write_outcome" not in update:
+            # 后续工单会被拒绝，只保留预览工单的结果。
+            update["write_outcome"] = {
+                "status": outcome.status,
+                "ticket_no": (outcome.data or {}).get("ticket_no") if outcome.ok else None,
+                "ticket_type": call["args"].get("ticket_type"),
+            }
         if not outcome.ok:
             continue
         if outcome.name == "offer_human_options":

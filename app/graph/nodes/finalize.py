@@ -26,12 +26,13 @@ async def finalize(state, runtime):
     gate = state.get("gate") or {}
     logger.info(
         "turn conversation=%s intent=%s confidence=%s route=%s resolved=%s order=%s queries=%s trace=%s gate=%s "
-        "steps=%s tokens=%s actions=%s",
+        "steps=%s tokens=%s actions=%s ticket_request=%s write=%s",
         cid, state.get("intent"), state.get("intent_confidence"), state.get("route"), state.get("resolved_input"),
         state.get("order_id") or "-", len(state.get("queries") or []), ",".join(trace),
         f"{gate.get('passed')}/{gate.get('top_score')}/{gate.get('source')}" if gate else "-",
         state.get("steps", 0), state.get("tokens_used", 0),
         ",".join(a["type"] for a in state.get("actions", [])) or "-",
+        state.get("ticket_request", False), state.get("write_decision") or "-",
     )
     try:
         await maintain(cid, [*state.get("messages", []), *new])

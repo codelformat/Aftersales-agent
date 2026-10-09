@@ -19,7 +19,7 @@ class CreateTicketArgs(BaseModel):
 @register(permission="write", inject_conversation_id=True)
 @tool("create_ticket", args_schema=CreateTicketArgs)
 async def create_ticket(description: str, ticket_type: str, conversation_id: Annotated[int, InjectedToolArg]) -> dict:
-    """创建人工工单。用户明确要求人工，或投诉需要人工跟进时调用。"""
+    """创建人工工单。只在用户明确要求建工单时调用。调用后系统会请用户确认，确认后才创建。"""
     ticket = await tickets.create_ticket_record(
         get_sessionmaker(), conversation_id, description, ticket_type, date.today()
     )

@@ -1,5 +1,7 @@
 """分流规则写死在代码中。「其他」走 business，由 Agent 做需求澄清。"""
 
+from app.graph.nodes.agent import TICKET_TOOL
+
 INTENT_ROUTES = {
     "商品咨询": "knowledge",
     "退款退货": "aftersales",
@@ -35,6 +37,13 @@ def after_gate(state: dict) -> str:
 
 def after_agent(state: dict) -> str:
     last = state["agent_messages"][-1]
-    if getattr(last, "tool_calls", None) and not state.get("force_final"):
-        return "agent_tools"
-    return "finalize"
+    calls = getattr(last, "tool_calls", None)
+    if state.get("force_final") or not calls:
+        return "finalize"
+    if state.get("ticket_request") and any(c["name"] == TICKET_TOOL for c in calls):
+        return "confirm_write"
+    return "agent_tools"
+
+
+def after_tools(state: dict) -> str:
+    return "ticket_reply" if state.get("write_decision") is not None else "agent_model"

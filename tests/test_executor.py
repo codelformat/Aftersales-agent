@@ -156,6 +156,15 @@ async def test_tool_exception_not_retried(audit_log):
     assert o.error == "ToolException" and audit_log[0].error_message == "ToolException"
 
 
+async def test_write_tool_invalid_args_are_blocked_before_approval(audit_log):
+    ts, counts = make(permission="write")
+    [o] = await run(ts, [call(args={})])
+    assert not o.ok and o.status == "校验拦下"
+    assert payload(o)["error"] == "invalid_arguments"
+    assert counts["n"] == 0
+    assert len(audit_log) == 1 and audit_log[0].status == "校验拦下"
+
+
 async def test_write_without_approval(audit_log):
     ts, counts = make(permission="write")
     [o] = await run(ts)

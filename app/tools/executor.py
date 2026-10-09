@@ -170,13 +170,13 @@ async def execute_tool_calls(
                 return await reject("tool_unavailable", "失败", _ERROR_MESSAGES["tool_unavailable"])
             if entry is None:
                 return await reject("unknown_tool", "失败", _ERROR_MESSAGES["unknown_tool"])
+            errors = validate_args(entry.parameters, args)
+            if errors:
+                return await invalid(errors)
             if entry.permission == "write":
                 approval = approvals.get(call_id, "未经用户确认")
                 if approval != APPROVED:
                     return await reject("permission_denied", "权限拒绝", approval)
-            errors = validate_args(entry.parameters, args)
-            if errors:
-                return await invalid(errors)
             if entry.inject_conversation_id:
                 args = {**args, "conversation_id": conversation_id}
 

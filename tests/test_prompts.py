@@ -83,11 +83,25 @@ def test_agent_system_prompt():
     from app.prompts import render_agent_system
     plain = render_agent_system()
     assert "示例商城" in plain and "今天是" not in plain
-    assert "offer_human_options" in plain and "create_ticket" not in plain and "query_faq" not in plain
+    assert "offer_human_options" in plain and "create_ticket" in plain and "query_faq" not in plain
     assert "## 知识库证据" not in plain and "{" not in plain
     assert "要不要查取决于前一个的结果时" in plain
     assert '只根据参考资料中"知识库证据"一节回答' in plain
     assert '只引用本轮参考资料中"知识库证据"一节的编号' in plain
+
+
+def test_agent_ticket_confirmation_rules():
+    from app.prompts import render_agent_system
+    from app.tools.registry import builtin_registry
+
+    plain = render_agent_system()
+    assert "## 建工单" in plain
+    assert "只有用户明确要求建工单时，才调用 create_ticket" in plain
+    assert "先追问，不调用" in plain and "不编造用户没说过的细节" in plain
+    assert "工单只能在用户确认或点击按钮后创建" in plain
+    assert "工单只能由用户点击按钮创建" not in plain
+    assert builtin_registry()["create_ticket"].openai_tool()["function"]["description"] == (
+        "创建人工工单。只在用户明确要求建工单时调用。调用后系统会请用户确认，确认后才创建。")
 
 
 def test_intent_prompt_four_parts():
