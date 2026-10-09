@@ -3,6 +3,12 @@
 # 用法：bash scripts/demo7.sh <日志目录>
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# 物流问题需要 logistics MCP Server。
+if ! (exec 3<>/dev/tcp/127.0.0.1/8101) 2>/dev/null; then
+    echo '请先启动物流服务：uv run python -m mcp_servers.logistics' >&2
+    exit 1
+fi
 DIR="${1:?用法：bash scripts/demo7.sh <日志目录>}"
 mkdir -p "$DIR" log
 APP_LOG=log/app.log

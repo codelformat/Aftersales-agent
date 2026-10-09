@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch05：LangGraph Workflow 骨架 + 主力 ReAct Agent。`start_turn → resolve_reference`（透传）`→ classify_intent`（7 类）`→` 写死分流 4 出口：knowledge（强制检索 → 置信度闸 → Agent 或兜底话术）、business（直接进 Agent）、complaint（安抚话术 + 按钮）、chitchat（固定话术）`→ finalize`（日志记录、写库）。State + `AsyncSqliteSaver`（`data/checkpoints.sqlite`）。「转人工」「建工单」由用户在前端自选，`POST /tickets` 才建单。热身裸循环 `app/agent/bare_loop.py`。
 - ch06：正式版分流器。`resolve_reference` 用 LLM 结合历史补全指代并改写（`resolved_input` 给意图和 Agent，`standard_query` 给检索，另出 `order_scoped`、`order_id`），生产链路不再调 `understand()`；意图 8 类四件套（选择题、json_mode `{intent, confidence}`、边界 few-shot、「其他」兜底，降级路默认关闭）；退款退货、售后走 aftersales 出口：`ensure_order`（缺订单号时 `interrupt` 弹订单选择器）→ `fetch_order` → `expand_query`（`{queries}`）→ `retrieve_multi`（多查询召回、只重排一次）→ 置信度闸（只看分数）→ Agent（订单段 + 任务指令，可给「提交退款单」按钮）；`POST /chat/resume` 恢复、`POST /refunds` mock 不落库；聊天页订单卡片、退款单表单、`understood` 灰字。
 - ch07：会话上下文管理。三层：层 1 原文、层 2 规则截短（用户原话不动、答复留 60 字、长工具结果换一行标识）、层 3 后台异步分段梗概（`conversation_summaries`，只追加）；`conversations.summary_upto_msg_id`、`layer1_from_msg_id` 两个锚点划边界，只增不减。预算从模型窗口倒推（`app/context/budget.py`，启动自检），层 1 七成、层 2 三成；`finalize` 末尾层 1 超预算按 0.6 水位降级、层 2 超预算起后台摘要。Agent 上下文：固定 System → 层 2 → 层 1 → 用户这句 → 参考资料消息（日期、梗概、订单段、任务段、证据）。回顾本次对话的问题（`history_recall`）直达 Agent。日志 `model_ctx`、`history_ctx`、`context_usage`、`层1 降级`、`summary trigger/done/...` 写 `log/app.log`。聊天页会话侧栏 + `GET /api/conversations`、`GET /api/conversations/{id}/messages`。
+- ch08：即插即用的工具系统。内置工具放 `app/tools/builtin/`，启动时扫描登记；MCP 工具每轮从 `config/tools.json` 列出的 Server 动态发现（`MultiServerMCPClient`，Streamable HTTP），与内置工具合成一份本轮工具集。所有调用只走执行引擎 `execute_tool_calls`：查找 → JSON Schema 校验 → 写工具确认 → 超时/重试（只读工具、暂时性故障）→ 分诊（参数不合法、查询落空、真故障）→ 格式化 → 审计（`tool_audit_logs`）。自建两个 MCP Server：物流 8101（`query_logistics`，内置版下线）、售后 8102（`query_warranty`、`query_return_progress`）。用户明确要求建工单时，解析器设 `ticket_request`，Agent 补齐信息后发起 `create_ticket`，`confirm_write` 用 interrupt 推预览卡片，`/chat/resume`（`ticket_confirm`）确认或取消。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
@@ -34,6 +35,9 @@ uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（�
 uv run python evals/run_extract_eval.py              # 提取 Prompt 样例集（真实上游）
 uv run python evals/run_intent_eval.py               # 意图识别样例集（60 条，真实上游；准确率 ≥ 90%、JSON 解析率 100%、「其他」召回 100% 才退出码 0）
 uv run python evals/run_multiturn_eval.py            # 多轮指代消解 + 意图 + 回顾标记（7 组 24 轮，真实上游；全部通过才退出码 0）
+uv run python -m mcp_servers.logistics              # 物流 MCP Server（端口 8101；--port 可改；MOCK_DELAY_SECONDS 注入延迟）
+uv run python -m mcp_servers.aftersales             # 售后 MCP Server（端口 8102；启动时导入 mcp_servers/aftersales/tools/ 下全部模块）
+uv run python evals/run_ticket_eval.py               # 工单 Prompt（12 条，真实上游，只做第 1 次调用；全部通过才退出码 0）
 uv run python evals/run_summary_eval.py              # 摘要 Prompt（10 条，真实上游；必留事实、无编造数字、不复述、长度全部通过才退出码 0）
 uv run python evals/run_token_calibration.py         # 字符/token 口径校准（真实上游，只打印建议值）
 uv run python evals/run_expand_eval.py               # Query 扩写（15 条，真实上游；解析、条数、型号数字保留全部通过才退出码 0）
@@ -45,6 +49,7 @@ uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurren
 uv run python evals/run_faith_judge_eval.py          # 忠实度裁判自检（30 条，准确率 < 90% 退出码 1）
 uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
 uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
+bash scripts/demo8.sh /tmp/ch08-demo                 # ch08 六项验收（脚本自己启停两个 MCP Server 和服务，端口 8000、8101、8102 须空闲；需 MySQL、Milvus，已 build_kb）
 bash scripts/demo7.sh /tmp/ch07-demo                 # ch07 四项验收（脚本自己按 3 种配置启停服务，端口 8000 须空闲；需 MySQL、Milvus，已 build_kb；约 12 分钟）
 bash scripts/demo6.sh /tmp/ch06-server.log           # ch06 四项验收（参数为服务日志路径；需先启动服务、MySQL 和 Milvus，已 build_kb）
 bash scripts/demo5.sh /tmp/ch05-server.log           # ch05 五项验收（参数为服务日志路径；需先启动服务、MySQL 和 Milvus，已 build_kb）
@@ -60,11 +65,12 @@ bash scripts/demo.sh                                 # ch01 三项验收
 
 ```
 api.chat → graph (builder, nodes) → repositories → db
-               ↘ tools (registry, executor) → repositories
+               ↘ tools (registry, toolset, policy, mcp, executor, validation, formatters, audit) → repositories
+               ↘ tools.mcp → MultiServerMCPClient → mcp_servers (logistics 8101, aftersales 8102，独立进程)
                ↘ knowledge.retrieval → knowledge.query, knowledge.embeddings, knowledge.milvus, knowledge.rerank
                ↘ services.grounding → repositories.low_confidence
                ↘ llm, prompts, services.history, context
-api.chat (/chat/resume) → graph (Command(resume=order_id))
+api.chat (/chat/resume) → graph (Command(resume=order_id 或 {"confirmed": bool}))
 api.tickets, api.refunds → tools.executor (create_ticket) / mock, graph.aupdate_state, repositories.messages
 graph.nodes (turn, intent, aftersales) → services.understanding → llm, knowledge.query
 api.knowledge, api.faith_cases → repositories
@@ -82,7 +88,9 @@ api.conversations → repositories.conversations, repositories.messages
 | `app/db/` | 异步引擎（`get_sessionmaker` / `set_sessionmaker` / `dispose_engine`）与 9 张表的 ORM 映射 |
 | `app/repositories/` | 只负责 SQL：会话、消息、工单（指数回退重试主键冲突）、知识块 `knowledge`、挖掘暂存 `staging`、问题池 `low_confidence`、编造台账 `faith_cases`、分段梗概 `summaries` |
 | `app/knowledge/` | `milvus`（客户端 get/set、集合定义、经 `retry_async` 重试）、`embeddings`（`OpenAIEmbeddings` 工厂）、`chunking`（Markdown 切分、`knowledge_text`）、`ingest`（文档和 faq 表入库）、`vectorize`（`vectorize_pending`、状态）、`query`（改写、型号归一、同义词，词表 `knowledge/lexicon.json`）、`rerank`（硅基流动 `/rerank`）、`retrieval`（4 种策略、门槛、首尾排列、`source_key`）、`mining`（抽取、去重）、`history_seed` |
-| `app/tools/` | 5 个业务 `@tool` + 控制工具 `offer_human_options`（`app/graph/control.py`）、`CH04_CHAT_TOOLS`、`mock_data`（确定性 mock）、注册表、执行器（校验、超时、重试、错误转换、截断、并行） |
+| `app/tools/` | `builtin/`（内置工具，`@register` 登记，启动时扫描）、`legacy/`（ch04 基线用的 `query_logistics`）、`registry`（`ToolEntry`、`CH04_CHAT_TOOLS`）、`toolset`（本轮工具集）、`policy`（`config/tools.json`，mtime 变化即重读）、`mcp`（发现与合并）、`validation`（jsonschema → 中文）、`formatters`（MCP 结果挑字段、翻译编码）、`executor`（执行引擎）、`audit`（审计写入，失败只记日志）、`mock_data` |
+| `mcp_servers/` | 两个独立进程的 MCP Server（FastMCP 1.x，无状态 Streamable HTTP），不导入 `app`、不连数据库 |
+| `app/graph/nodes/confirm.py` | `confirm_write`（interrupt 工单预览）、`ticket_reply`（固定话术） |
 | `app/agent/bare_loop.py` | 热身裸循环（openai SDK + 手写 schema，不用框架） |
 | `app/graph/` | `state`（`ChatState`、`GraphContext`）、`events`（`emit`、`enter`）、`routing`（分流表、条件边）、`nodes/`（turn、intent、knowledge、agent、replies、finalize）、`builder`（`build_graph`、`get_graph`/`set_graph`、`thread_config`、`open_graph`） |
 | `app/api/chat.py` | 预检、会话锁；`graph.astream(stream_mode="custom")` 转 SSE |
@@ -102,7 +110,11 @@ api.conversations → repositories.conversations, repositories.messages
 - **容器初始化 SQL 必须用 utf8mb4 读取**（`db/mysql-client.cnf` 挂到 `/etc/mysql/conf.d/`），否则中文双重编码。校验存储字节要用 `HEX()`，字符串比较会被 latin1 客户端"还原"而漏检。
 - **执行 `.sql` 文件用 `exec_driver_sql`，不用 `text()`。** 异步 ORM 提交后读数据库默认值列前先 `await session.refresh()`。测试引擎用 `NullPool`（pytest 每个异步测试一个事件循环）。
 - **不绑定工具的调用（Agent 强制收尾、ch04 评估的第 2 次调用）在末尾追加 `SystemMessage(TOOL_ROUND_CLOSING)`**（不写库）。去掉它，模型会把工具调用标记 `<｜｜DSML｜｜ ...>` 写进正文。`agent_model` 另有标记防线（缓冲前 2 个字符）：命中时抛 `AgentOutputError` → `error` 事件、不写库。
-- **`create_ticket` 不重试**（非幂等）；`conversation_id` 由执行器用 `InjectedToolArg` 注入，模型看不到。
+- **`create_ticket` 不重试**（非幂等）；`conversation_id` 由执行器用 `InjectedToolArg` 注入，模型看不到。写工具一律不重试。
+- **`db/schema_ch08.sql` 是用户 DDL，逐字保存。** `tool_audit_logs` 不挂外键；状态只有 成功、失败、超时、校验拦下、权限拒绝；查询落空记 成功 + `error_message=查询落空`。
+- **所有工具调用只走 `execute_tool_calls`。** 顺序：查找（`closed` → 权限拒绝，`unavailable` → 失败）→ JSON Schema 校验（发给模型的 Schema，不含注入字段）→ 写工具查 `approvals`（只来自 `confirm_write` 和 `POST /tickets`）→ 注入 → 执行 → 分诊 → 格式化 → 审计。写审计失败不影响工具结果。
+- **MCP 工具权限只看 `config/tools.json`**：`read` 放行；`write`、`deny`、未列出一律拒绝；不读 Server 的 annotations。本机地址的 MCP Server 用 `trust_env=False` 的 httpx 客户端（本机 shell 有 `HTTP_PROXY`，没有 `NO_PROXY`）。
+- **测试默认拦截 MCP 发现（`_block_mcp`），审计默认写内存列表（`audit_log`）**；需要时用 fixture `mcp_servers`（子进程起测试端口 18101、18102）和 `db_audit`。
 - **ch05 起 Agent 不绑定 `query_faq`；知识检索只走 `retrieve` 节点**，证据全局编号后渲染进参考资料消息的"知识库证据"段（模型看不到 `chunk_id` 和分数），不伪造 `query_faq` 调用（DeepSeek 思考模式下当前轮自造 tool_call id 返回 400）。`query_faq` 契约保留给 ch04 评估：入参 `question`（≤ 200 字），返回 `{"evidence": [...]}`，不重试，超时 20 秒。
 - **Milvus 集合 6 个字段：`id`（= MySQL 主键）、`vector`、`text`（BM25 源文本，`chinese` analyzer）、`sparse`（BM25 Function 输出）、`product_category`、`content_type`，集合级 `Strong` 一致性。** 正文和元数据的权威来源是 MySQL；结构变化后用 `build_kb.py --rebuild` 整体重建集合。
 - **`chinese` analyzer 区分大小写、不拆连写型号**：文档只用规范型号写法（`X3 Pro`），查询侧用词表归一（`x3pro` → `X3 Pro`）；问题中出现型号时，品类由型号决定。
@@ -126,7 +138,7 @@ api.conversations → repositories.conversations, repositories.messages
 - **`history_recall` 为真时 `after_intent` 直接走 business**，不检索、不过置信度闸（spec 5.5，用户裁定）。
 - **State `messages` 只由 `finalize` 和 `POST /tickets` 追加；本轮字段由 `start_turn` 重置。** 一轮失败时历史不变，checkpoint 的 `next` 停在失败节点，下一轮新输入从 START 重新开始。
 - **节点用 `events.emit(name, data)` 发 SSE 事件，API 用 `stream_mode="custom"`；每轮依赖（会话 ID、日期、聊天模型、执行函数）走 `context=GraphContext(...)`，不进 State。** 每个节点进入时打 `node=<名> conversation=<id>`，`finalize` 打一行 `turn ...` 汇总日志。
-- **Agent 只绑定 `AGENT_TOOLS`（查订单、查物流、查商品、`offer_human_options`）。`create_ticket` 只由 `POST /tickets` 调用；`offer_human_options` 只写 `actions`，不做业务动作。** 停止条件：无工具调用收敛；`AGENT_MAX_STEPS=4` 或 `AGENT_TOKEN_BUDGET=16000` 触发强制收尾；`GRAPH_RECURSION_LIMIT=25` 兜底。
+- **Agent 绑定本轮工具集（`turn_toolset`）：内置按 `BUILTIN_AGENT_ORDER` 在前，MCP 按策略文件顺序在后。`offer_refund_form` 只在 aftersales 且有订单号时开放，`order_id` 用 `enum` 收窄；`create_ticket` 只在 `ticket_request` 为真时开放，执行前必须经 `confirm_write` 确认（或 `POST /tickets` 点击）。`confirm_write` 在 `interrupt()` 之前不发事件、不写库；确认或取消后由 `ticket_reply` 用固定话术收尾，不再调模型。`offer_human_options` 只写 `actions`，不做业务动作。** 停止条件：无工具调用收敛；`AGENT_MAX_STEPS=4` 或 `AGENT_TOKEN_BUDGET=16000` 触发强制收尾；`GRAPH_RECURSION_LIMIT=25` 兜底。
 - **`ensure_order` 在 `interrupt()` 之前不发事件、不写库、不调上游**（恢复时节点从头重新执行）；订单卡片由 API 从 `stream_mode=["custom","updates"]` 的 `__interrupt__` 中取出发 `order_picker`。
 - **`/chat/resume` 必须预检待处理的 `order_picker`**：没有待处理 interrupt 时 `Command(resume=)` 静默不执行（设计阶段实测）→ 409 `no_pending_selection`；订单不在卡片列表 → 422 `invalid_order`。有待处理 interrupt 时新消息直接从 START 开始，原 interrupt 作废（实测）。
 - **指代消解丢弃不在原文和历史中的订单号**（整词匹配，前后不能是字母或数字）；`order_id` 有值时 `order_scoped` 为真；历史为空时 `resolved_input` 等于原话。

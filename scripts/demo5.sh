@@ -4,6 +4,12 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# 物流问题需要 logistics MCP Server。
+if ! (exec 3<>/dev/tcp/127.0.0.1/8101) 2>/dev/null; then
+    echo '请先启动物流服务：uv run python -m mcp_servers.logistics' >&2
+    exit 1
+fi
 BASE="${BASE_URL:-http://127.0.0.1:8000}"
 LOG="${1:?用法：bash scripts/demo5.sh <服务日志路径>}"
 USER_ID="demo5-$(date +%s)-$RANDOM"
