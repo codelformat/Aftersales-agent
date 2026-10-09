@@ -1,6 +1,7 @@
 import pytest
 from langchain_core.runnables import RunnableLambda
 
+from app.graph.builder import thread_config
 from app.graph.nodes import aftersales as aftersales_nodes
 from app.knowledge.retrieval import EvidenceItem, Retrieval
 from app.prompts import TICKET_CANCELLED_REPLY, TICKET_CREATED_NOTE
@@ -74,6 +75,39 @@ async def test_resume_finishes_subflow(client, db, use_script, use_intent, use_r
     assert names[0] == "session" and "citations" in names and names[-1] == "done"
     assert ev2[-1][1] == {"finish_reason": "stop", "message_id": (await rows(db))[-1].id}
     assert [(m.role, m.content) for m in await rows(db)] == [("user", "我要退货"), ("assistant", "可以退[1]")]
+
+
+@pytest.mark.parametrize("kind, expected_intent", [("order", "退款退货"), ("ticket", "售后")])
+async def test_resume_stream_config_carries_state_intent(
+    client, db, memory_graph, use_script, use_intent, use_resolver, use_expander, monkeypatch,
+    kind, expected_intent,
+):
+    if kind == "order":
+        use_script(text("可以退[1]"))
+        use_expander(["退货运费"])
+        kb_multi(monkeypatch)
+        sid, events = await start_picker(client, use_resolver, use_intent)
+    else:
+        sid, events = await start_ticket(client, use_script, use_resolver, use_intent)
+    state = await memory_graph.aget_state(thread_config(int(sid)))
+    assert state.values["intent"] == expected_intent
+    configs = []
+    real_astream = memory_graph.astream
+
+    async def capture(graph_input, config, **kwargs):
+        configs.append(config)
+        async for event in real_astream(graph_input, config, **kwargs):
+            yield event
+
+    monkeypatch.setattr(memory_graph, "astream", capture)
+    if kind == "order":
+        response, resumed = await resume(client, sid, events[2][1]["orders"][0]["order_id"])
+    else:
+        response, resumed = await resume_ticket(client, sid, True)
+    assert response.status_code == 200
+    assert resumed[-1][0] == "done"
+    assert len(configs) == 1
+    assert configs[0]["metadata"].get("intent") == expected_intent
 
 
 async def test_resume_twice_is_409(client, db, use_script, use_intent, use_resolver, use_expander, monkeypatch):

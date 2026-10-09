@@ -21,9 +21,11 @@ async def get(s: AsyncSession, lcq_id: int) -> LowConfidenceQuestion | None:
     return await s.get(LowConfidenceQuestion, lcq_id)
 
 
-async def set_matched(s: AsyncSession, lcq_id: int, review_id: int) -> None:
-    await s.execute(update(LowConfidenceQuestion).where(LowConfidenceQuestion.id == lcq_id)
-                    .values(matched_review_id=review_id))
+async def set_matched(s: AsyncSession, lcq_id: int, review_id: int) -> bool:
+    result = await s.execute(update(LowConfidenceQuestion).where(
+        LowConfidenceQuestion.id == lcq_id, LowConfidenceQuestion.matched_review_id.is_(None))
+        .values(matched_review_id=review_id))
+    return result.rowcount == 1
 
 
 async def list_unmatched_ids(s: AsyncSession, limit: int | None = None) -> list[int]:

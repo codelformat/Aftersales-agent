@@ -70,10 +70,12 @@ def set_graph(graph) -> None:
     _graph = graph
 
 
-def thread_config(conversation_id: int, user_id: str | None = None) -> dict:
+def thread_config(conversation_id: int, user_id: str | None = None, intent: str | None = None) -> dict:
     metadata = {"langfuse_session_id": str(conversation_id), "langfuse_trace_name": TRACE_NAME}
     if user_id:
         metadata["langfuse_user_id"] = user_id
+    if intent is not None:
+        metadata["intent"] = intent
     return {"configurable": {"thread_id": str(conversation_id)}, "recursion_limit": GRAPH_RECURSION_LIMIT,
             "metadata": metadata}
 

@@ -38,6 +38,7 @@ class ChatTurn:
     today: date
     user_id: str
     resume_value: Any = None
+    intent: str | None = None
 
 
 def sse(name: str, data: dict) -> ServerSentEvent:
@@ -51,7 +52,7 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
     saved_id = None
     try:
         async for mode, chunk in graph.astream(
-            graph_input, thread_config(turn.conversation_id, turn.user_id),
+            graph_input, thread_config(turn.conversation_id, turn.user_id, intent=turn.intent),
             context=ctx, stream_mode=["custom", "updates"],
         ):
             if mode == "custom":
@@ -173,7 +174,7 @@ async def prepare_resume(
                 raise HTTPException(409, detail=NO_PENDING_CONFIRMATION)
             resume_value = {"confirmed": req.ticket_confirm}
         yield ChatTurn(conversation_id=cid, user_input="", today=today, user_id=req.user_id,
-                       resume_value=resume_value)
+                       resume_value=resume_value, intent=state.values.get("intent"))
     finally:
         lock.release()
 

@@ -32,6 +32,13 @@ def test_thread_config_metadata():
     assert "langfuse_user_id" not in thread_config(7)["metadata"]
 
 
+def test_thread_config_carries_resume_intent():
+    cfg = thread_config(7, "u1", intent="售后")
+    assert cfg["metadata"]["intent"] == "售后"
+    assert cfg["metadata"]["langfuse_user_id"] == "u1"
+    assert "intent" not in thread_config(7, "u1")["metadata"]
+
+
 def test_build_graph_attaches_callbacks():
     from langgraph.checkpoint.memory import InMemorySaver
     marker = object()

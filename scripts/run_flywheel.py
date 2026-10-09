@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.engine import dispose_engine, get_sessionmaker
-from app.flywheel.pipeline import process
+from app.flywheel.pipeline import SKIPPED, process
 from app.repositories import low_confidence, review_queue
 
 
@@ -29,11 +29,16 @@ async def run(limit: int | None, status_only: bool) -> int:
         print(f"待处理落池问题：{pending}；待审缺口：{waiting}")
         if status_only:
             return 0
-        failed = 0
+        processed = skipped = failed = 0
         for lcq_id in ids:
-            if await process(lcq_id) is None:
+            result = await process(lcq_id)
+            if result is None:
                 failed += 1
-        print(f"本次处理：{len(ids)}；失败：{failed}")
+            elif result is SKIPPED:
+                skipped += 1
+            else:
+                processed += 1
+        print(f"本次处理：{processed}；跳过：{skipped}；失败：{failed}")
         return 1 if failed else 0
     finally:
         await dispose_engine()

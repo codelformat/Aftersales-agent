@@ -1,11 +1,13 @@
 import logging
 
 import pytest
+from langchain_core.runnables import RunnableLambda
 
 from app.flywheel import pipeline
 from app.flywheel.runner import FlywheelRunner
 from app.repositories import conversations, low_confidence, review_queue
 from app.services import grounding
+from app.schemas import NormalizedQuestion
 from tests.fakes import FakeEmbeddings
 
 pytestmark = pytest.mark.anyio
@@ -55,8 +57,92 @@ async def test_already_matched_is_skipped(db, use_flywheel):
     calls = use_flywheel(normalized=[("Q？", "（待核实）a")], dedup=[])
     lcq = await _lcq(db, "q")
     await pipeline.process(lcq)
-    assert await pipeline.process(lcq) is None
+    result = await pipeline.process(lcq)
+    assert result is not None and not isinstance(result, pipeline.ProcessResult)
+    assert result is pipeline.SKIPPED
     assert len(calls["normalize"]) == 1
+
+
+async def test_set_matched_does_not_overwrite_existing_match(db):
+    lcq = await _lcq(db, "q")
+    async with db() as s:
+        first = await review_queue.add(s, normalized_question="第一行？", suggested_answer=None)
+        second = await review_queue.add(s, normalized_question="第二行？", suggested_answer=None)
+        claimed = await low_confidence.set_matched(s, lcq, first.id)
+        reclaimed = await low_confidence.set_matched(s, lcq, second.id)
+        await s.commit()
+    async with db() as s:
+        assert (await low_confidence.get(s, lcq)).matched_review_id == first.id
+    assert claimed is True and reclaimed is False
+
+
+@pytest.mark.parametrize("duplicate_of", [None, 1])
+async def test_match_after_load_is_skipped_without_review_changes(
+    db, use_flywheel, monkeypatch, caplog, duplicate_of,
+):
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(pipeline, "get_embeddings", lambda: FakeEmbeddings(
+        rules=[("洗碗机", [1.0] + [0.0] * 1023)]))
+    use_flywheel(normalized=[], dedup=[duplicate_of])
+    lcq = await _lcq(db, "杯子能机洗吗")
+    async with db() as s:
+        winner = await review_queue.add(s, normalized_question="保温杯洗碗机？", suggested_answer=None)
+        await s.commit()
+
+    async def normalize(_):
+        # 独立 session 模拟另一进程在本次加载后、保存前提交匹配。
+        async with db() as s:
+            await low_confidence.set_matched(s, lcq, winner.id)
+            await s.commit()
+        return {"parsed": NormalizedQuestion(normalized_question="杯子洗碗机？", suggested_answer="（待核实）a"),
+                "raw": None}
+
+    monkeypatch.setattr(pipeline, "get_question_normalizer", lambda: RunnableLambda(normalize))
+    result = await pipeline.process(lcq)
+    async with db() as s:
+        items = await review_queue.list_items(s, None)
+        assert [(i.id, i.occurrence_count) for i in items] == [(winner.id, 1)]
+        assert (await low_confidence.get(s, lcq)).matched_review_id == winner.id
+    assert result is not None and not isinstance(result, pipeline.ProcessResult)
+    assert result is pipeline.SKIPPED
+    assert f"flywheel skip lcq={lcq} reason=already_matched" in caplog.text
+
+
+@pytest.mark.parametrize("include_failure", [False, True])
+async def test_run_flywheel_counts_success_skip_and_failure(db, use_flywheel, monkeypatch, capsys, include_failure):
+    from scripts import run_flywheel
+
+    use_flywheel(normalized=[], dedup=[None])
+    success = await _lcq(db, "成功")
+    skipped = await _lcq(db, "跳过")
+    if include_failure:
+        await _lcq(db, "失败")
+    async with db() as s:
+        winner = await review_queue.add(s, normalized_question="已有缺口？", suggested_answer=None)
+        await s.commit()
+
+    async def normalize(inputs):
+        if inputs["question"] == "失败":
+            return {"parsed": None, "raw": None}
+        return {"parsed": NormalizedQuestion(normalized_question="新缺口？", suggested_answer="（待核实）a"),
+                "raw": None}
+
+    real_process = pipeline.process
+
+    async def process(lcq_id):
+        # 补跑脚本已读取未匹配 ID，但另一进程在 process 加载前提交。
+        if lcq_id == skipped:
+            async with db() as s:
+                await low_confidence.set_matched(s, lcq_id, winner.id)
+                await s.commit()
+        return await real_process(lcq_id)
+
+    monkeypatch.setattr(pipeline, "get_question_normalizer", lambda: RunnableLambda(normalize))
+    monkeypatch.setattr(run_flywheel, "process", process)
+    assert await run_flywheel.run(None, False) == (1 if include_failure else 0)
+    assert f"本次处理：1；跳过：1；失败：{1 if include_failure else 0}" in capsys.readouterr().out
+    async with db() as s:
+        assert (await low_confidence.get(s, success)).matched_review_id is not None
 
 
 async def test_normalize_failure_keeps_null(db, use_flywheel, caplog):

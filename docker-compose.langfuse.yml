@@ -1,6 +1,7 @@
 # 本项目自部署的 Langfuse v4。与 docker-compose.yml 分开启停：
 #   docker compose -f docker-compose.langfuse.yml up -d --wait
 # 本机已有 mewhelp 的 Langfuse v3，端口全部错开。密码只用于本机开发。
+# 链路数据含用户对话，暴露端口仅绑定本机 127.0.0.1。
 name: aftersales-langfuse
 services:
   langfuse-worker:
@@ -46,7 +47,7 @@ services:
     restart: always
     depends_on: *langfuse-depends-on
     ports:
-      - 3100:3000
+      - 127.0.0.1:3100:3000
     environment:
       <<: *langfuse-worker-env
       NEXTAUTH_SECRET: aftersales-local-nextauth
@@ -90,7 +91,7 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: miniosecret
     ports:
-      - 9092:9000
+      - 127.0.0.1:9092:9000
       - 127.0.0.1:9192:9001
     volumes:
       - aftersales-langfuse-minio-data:/data

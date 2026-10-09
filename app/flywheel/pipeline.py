@@ -5,6 +5,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass
+from enum import Enum
 
 from app.config import FLYWHEEL_LLM_TIMEOUT_SECONDS, REVIEW_DEDUP_MIN_SCORE, REVIEW_DEDUP_TOP_K
 from app.db.engine import get_sessionmaker
@@ -22,6 +23,13 @@ class ProcessResult:
     review_id: int
     merged: bool
     candidates: int
+
+
+class ProcessSkipReason(Enum):
+    ALREADY_MATCHED = "already_matched"
+
+
+SKIPPED = ProcessSkipReason.ALREADY_MATCHED
 
 
 class StepFailed(Exception):
@@ -80,13 +88,17 @@ async def _candidates(question: str) -> tuple[list[float], list[tuple[int, str]]
     return vectors[0], [(i, q) for _, i, q in top[:REVIEW_DEDUP_TOP_K]]
 
 
-async def process(lcq_id: int) -> ProcessResult | None:
+async def process(lcq_id: int) -> ProcessResult | ProcessSkipReason | None:
+    """成功返回 ProcessResult，已匹配返回 SKIPPED，失败返回 None。"""
     step = "load"
     try:
         async with get_sessionmaker()() as s:
             row = await low_confidence.get(s, lcq_id)
-        if row is None or row.matched_review_id is not None:
+        if row is None:
             return None
+        if row.matched_review_id is not None:
+            logger.info("flywheel skip lcq=%s reason=already_matched", lcq_id)
+            return SKIPPED
         step = "normalize"
         norm = await _call(get_question_normalizer(),
                            {"question": row.raw_question, "chunks": format_chunks(row.retrieved_chunks)}, step)
@@ -111,13 +123,18 @@ async def process(lcq_id: int) -> ProcessResult | None:
         step = "save"
         async with get_sessionmaker()() as s:
             if dup_id is not None:
-                await review_queue.increment(s, dup_id)
                 review_id = dup_id
             else:
+                # 外键要求先取得新行 ID；条件回填失败时整笔事务回滚。
                 item = await review_queue.add(s, normalized_question=norm.normalized_question,
                                               suggested_answer=norm.suggested_answer)
                 review_id = item.id
-            await low_confidence.set_matched(s, lcq_id, review_id)
+            if not await low_confidence.set_matched(s, lcq_id, review_id):
+                await s.rollback()
+                logger.info("flywheel skip lcq=%s reason=already_matched", lcq_id)
+                return SKIPPED
+            if dup_id is not None:
+                await review_queue.increment(s, dup_id)
             await s.commit()
     except StepFailed as exc:
         logger.exception("flywheel_failed lcq=%s step=%s", lcq_id, exc.step)
