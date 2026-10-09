@@ -12,13 +12,12 @@ from sqlalchemy.exc import OperationalError
 
 from app.config import (
     CHARS_PER_TOKEN,
-    TOOL_MAX_ATTEMPTS,
     TOOL_RETRY_BASE_DELAY,
     TOOL_RETRY_MAX_DELAY,
     get_settings,
 )
 from app.retry import retry_async
-from app.tools.registry import ToolRegistry, get_registry
+from app.tools.toolset import Toolset, builtin_toolset
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +74,14 @@ def failure_outcome(call_id: str, name: str, code: str) -> ToolOutcome:
 async def execute_tool_calls(
     tool_calls: list[dict],
     *,
-    conversation_id: int,
-    registry: ToolRegistry | None = None,
+    conversation_id: int | None,
+    toolset: Toolset | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     rand: Callable[[], float] = random.random,
 ) -> list[ToolOutcome]:
     """并行执行工具调用，并按输入顺序返回结果。"""
-    if registry is None:
-        registry = get_registry()
+    if toolset is None:
+        toolset = builtin_toolset()
 
     async def execute_call(call: dict) -> ToolOutcome:
         call_id = name = ""
@@ -92,27 +91,27 @@ async def execute_tool_calls(
             args = call.get("args")
             if not isinstance(args, dict):
                 return _failure(call_id, name, "invalid_arguments")
-            spec = registry.get(name)
-            if spec is None:
+            entry = toolset.get(name)
+            if entry is None:
                 return _failure(call_id, name, "unknown_tool")
-            if spec.inject_conversation_id:
+            if entry.inject_conversation_id:
                 args = {**args, "conversation_id": conversation_id}
 
             # 调用前校验参数，工具内部的校验异常由执行失败分支处理。
             try:
-                spec.tool.args_schema.model_validate(args)
+                entry.tool.args_schema.model_validate(args)
             except ValidationError:
                 logger.exception("工具参数校验失败")
                 return _failure(call_id, name, "invalid_arguments")
 
             async def attempt():
-                return await asyncio.wait_for(spec.tool.ainvoke(args), spec.timeout)
+                return await asyncio.wait_for(entry.runner(args, call_id), entry.timeout)
 
             try:
-                if spec.retryable:
+                if entry.max_retries > 0:
                     result = await retry_async(
                         attempt,
-                        attempts=TOOL_MAX_ATTEMPTS,
+                        attempts=entry.max_retries + 1,
                         base_delay=TOOL_RETRY_BASE_DELAY,
                         max_delay=TOOL_RETRY_MAX_DELAY,
                         retry_on=(TimeoutError, OperationalError),

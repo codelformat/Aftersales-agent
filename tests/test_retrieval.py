@@ -159,19 +159,19 @@ async def test_retrieve_calls_understand_without_plan(db, milvus, monkeypatch):
 
 
 async def test_query_faq_returns_interleaved_evidence(monkeypatch):
-    from app.tools.faq import query_faq
+    from app.tools.builtin.faq import query_faq
     item = r.EvidenceItem(7, "退货政策 > 运费 > A", "A", "运费 8 元", 0.9)
 
     async def fake_retrieve(question, *a, **k):
         assert question == "邮费多少"
         return r.Retrieval(plan("运费"), [item], [item])
 
-    monkeypatch.setattr("app.tools.faq.retrieve", fake_retrieve)
+    monkeypatch.setattr("app.tools.builtin.faq.retrieve", fake_retrieve)
     assert await query_faq.ainvoke({"question": "邮费多少"}) == {"evidence": [asdict(item)]}
 
 
 def test_query_faq_contract():
-    from app.tools.faq import query_faq
+    from app.tools.builtin.faq import query_faq
     schema = query_faq.args_schema.model_json_schema()
     assert list(schema["properties"]) == ["question"]
     assert schema["properties"]["question"]["maxLength"] == 200

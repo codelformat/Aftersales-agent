@@ -94,7 +94,7 @@ class ScriptedChatModel(BaseChatModel):
         if self.recorder is not None:
             self.recorder.append({
                 "messages": list(messages),
-                "tools": [t.name for t in self.bound_tools],
+                "tools": [t["function"]["name"] if isinstance(t, dict) else t.name for t in self.bound_tools],
                 "tool_choice": self.bound_kwargs.get("tool_choice"),
             })
         for item in self.scripts.pop(0):
@@ -125,12 +125,12 @@ def entity(id: int, vector: list[float], text: str = "t", category: str = "通�
     return Entity(id=id, vector=vector, text=text, product_category=category, content_type=content_type)
 
 
-def rt(conversation_id=1, model=None, execute=None, today=None, user_id="u1"):
+def rt(conversation_id=1, model=None, execute=None, today=None, user_id="u1", base_toolset=None):
     """直接调用节点时使用的假 runtime。"""
     from datetime import date
     from types import SimpleNamespace
     from app.graph.state import GraphContext
     from app.tools.executor import execute_tool_calls
     ctx = GraphContext(conversation_id=conversation_id, today=today or date(2026, 10, 6),
-                       model=model, execute=execute or execute_tool_calls, user_id=user_id)
+                       model=model, execute=execute or execute_tool_calls, user_id=user_id, base_toolset=base_toolset)
     return SimpleNamespace(context=ctx)

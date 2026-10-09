@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 
 from app.tools import mock_data
 
+from app.tools.registry import register
+
 
 class QueryProductArgs(BaseModel):
     product_id: str = Field(
@@ -11,6 +13,7 @@ class QueryProductArgs(BaseModel):
     )
 
 
+@register()
 @tool("query_product", args_schema=QueryProductArgs)
 async def query_product(product_id: str) -> dict:
     """按商品号（例如 P001）查询价格、库存、保修天数和是否支持 7 天无理由退货。不能按型号查询。"""

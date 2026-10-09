@@ -9,6 +9,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from app.tools.executor import execute_tool_calls
+from app.tools.toolset import Toolset
 
 
 class Action(TypedDict, total=False):
@@ -57,3 +58,4 @@ class GraphContext:
     model: BaseChatModel
     execute: Callable[..., Any] = execute_tool_calls
     user_id: str = "guest"
+    base_toolset: Toolset | None = None

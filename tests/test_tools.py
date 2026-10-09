@@ -12,7 +12,7 @@ from app.graph.control import (
 )
 from app.repositories import conversations
 from app.tools import mock_data
-from app.tools.registry import CH04_CHAT_TOOLS, build_default_registry, get_registry
+from app.tools.registry import CH04_CHAT_TOOLS, builtin_registry
 
 TODAY = date(2026, 10, 6)
 
@@ -53,28 +53,28 @@ def test_catalog_product():
 
 
 def test_registry_lists_seven_tools_and_flags():
-    reg = get_registry()
-    assert sorted(reg.names()) == ["create_ticket", "offer_human_options", "offer_refund_form", "query_faq", "query_logistics", "query_order", "query_product"]
-    assert reg.get("create_ticket").retryable is False
+    reg = builtin_registry()
+    assert sorted(reg) == ["create_ticket", "offer_human_options", "offer_refund_form", "query_faq", "query_logistics", "query_order", "query_product"]
+    assert reg.get("create_ticket").max_retries == 0
     assert reg.get("create_ticket").inject_conversation_id is True
     refund = reg.get("offer_refund_form")
-    assert refund.retryable is False and refund.timeout == 5
+    assert refund.max_retries == 0 and refund.timeout == 5
     assert refund.inject_conversation_id is False
     faq = reg.get("query_faq")
-    assert faq.retryable is False and faq.timeout == 20
-    assert reg.get("query_order").retryable is True and reg.get("query_order").timeout == 5
+    assert faq.max_retries == 0 and faq.timeout == 20
+    assert reg.get("query_order").max_retries == 2 and reg.get("query_order").timeout == 5
     assert reg.get("nope") is None
 
 
 def test_create_ticket_hides_conversation_id_from_model():
-    schema = convert_to_openai_tool(get_registry().get("create_ticket").tool)
+    schema = convert_to_openai_tool(builtin_registry().get("create_ticket").tool)
     assert set(schema["function"]["parameters"]["properties"]) == {"description", "ticket_type"}
 
 
 @pytest.mark.anyio
 async def test_order_id_pattern_rejected():
     with pytest.raises(ValidationError):
-        await get_registry().get("query_order").tool.ainvoke({"order_id": "1001; DROP TABLE"})
+        await builtin_registry().get("query_order").tool.ainvoke({"order_id": "1001; DROP TABLE"})
 
 
 @pytest.mark.anyio
@@ -82,7 +82,7 @@ async def test_create_ticket_tool_writes_row(db):
     async with db() as s:
         conv = await conversations.create(s, "u1")
         await s.commit()
-    tool = get_registry().get("create_ticket").tool
+    tool = builtin_registry().get("create_ticket").tool
     out = await tool.ainvoke({"description": "耳机坏了要人工", "ticket_type": "售后", "conversation_id": conv.id})
     assert out["ticket_no"].startswith("T") and out["status"] == "待处理"
     async with db() as s:
@@ -138,7 +138,7 @@ async def test_tool_selection_eval_requires_terms_in_one_question(monkeypatch, t
 
 
 def test_query_product_accepts_product_id_only():
-    from app.tools.product import query_product
+    from app.tools.builtin.product import query_product
 
     schema = query_product.args_schema
     for ok in ("P001", "P12345678"):
@@ -149,7 +149,7 @@ def test_query_product_accepts_product_id_only():
 
 
 def test_query_product_description_rejects_model_lookup():
-    from app.tools.product import query_product
+    from app.tools.builtin.product import query_product
 
     assert "不能按型号查询" in query_product.description
 
@@ -167,13 +167,15 @@ async def test_query_product_model_name_is_invalid_arguments():
     assert json.loads(out[0].message.content)["error"] == "invalid_arguments"
 
 
-def test_tools_for_model_filters_by_name_in_given_order():
-    reg = get_registry()
-    names = [t.name for t in reg.tools_for_model(("query_logistics", "offer_human_options"))]
+def test_toolset_filters_by_name_in_given_order():
+    from app.tools.toolset import Toolset, builtin_toolset
+
+    reg = builtin_registry()
+    ts = Toolset({name: reg[name] for name in ("query_logistics", "offer_human_options")})
+    names = [t["function"]["name"] for t in ts.agent_tools()]
     assert names == ["query_logistics", "offer_human_options"]
-    assert "offer_human_options" in [t.name for t in reg.tools_for_model()]
-    with pytest.raises(KeyError):
-        reg.tools_for_model(("nope",))
+    assert "offer_human_options" in [t["function"]["name"] for t in builtin_toolset().agent_tools()]
+    assert ts.get("nope") is None
 
 
 def test_ch04_tool_set_is_unchanged():
@@ -201,8 +203,8 @@ def test_actions_from_args():
 
 @pytest.mark.anyio
 async def test_offer_tool_has_no_side_effect():
-    spec = get_registry().get("offer_human_options")
-    assert spec.retryable is False and spec.inject_conversation_id is False
+    spec = builtin_registry().get("offer_human_options")
+    assert spec.max_retries == 0 and spec.inject_conversation_id is False
     assert await spec.tool.ainvoke({"options": ["handoff"]}) == {"shown": ["handoff"]}
 
 
@@ -235,9 +237,9 @@ def test_order_card_title_counts_items():
 async def test_offer_refund_form_only_shows_button():
     assert await offer_refund_form.ainvoke({"order_id": "1001"}) == {"shown": "refund"}
     assert refund_action("1001") == {"type": "refund", "order_id": "1001"}
-    assert "offer_refund_form" in build_default_registry().names()
-    spec = build_default_registry().get("offer_refund_form")
-    assert spec.retryable is False
+    assert "offer_refund_form" in builtin_registry()
+    spec = builtin_registry().get("offer_refund_form")
+    assert spec.max_retries == 0
 
 
 def test_offer_refund_form_rejects_bad_order_id():

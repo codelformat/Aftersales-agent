@@ -14,7 +14,7 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from app.llm import get_chat_model
 from app.prompts import chat_prompt, chat_prompt_vars
-from app.tools.registry import CH04_CHAT_TOOLS, get_registry
+from app.tools.registry import ch04_tools
 
 logger = logging.getLogger(__name__)
 SAMPLES_PATH = SCRIPT_DIR / "tool_selection_samples.jsonl"
@@ -30,7 +30,7 @@ async def evaluate_sample(
             response = await (
                 chat_prompt
                 | get_chat_model().bind_tools(
-                    get_registry().tools_for_model(CH04_CHAT_TOOLS), tool_choice="auto"
+                    ch04_tools(), tool_choice="auto"
                 )
             ).ainvoke({
                 **chat_prompt_vars(date.today()),

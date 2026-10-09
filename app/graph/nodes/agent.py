@@ -5,7 +5,6 @@ import logging
 import math
 
 from langchain_core.messages import AIMessage, SystemMessage
-from langchain_core.utils.function_calling import convert_to_openai_tool
 
 from app.config import AGENT_TOKEN_BUDGET, TOOL_SCHEMA_CHARS_PER_TOKEN, get_settings
 from app.context import count_tokens
@@ -18,7 +17,7 @@ from app.prompts import (
 )
 from app.services.grounding import Citation, format_evidence, parse_citations
 from app.tools.executor import failure_outcome
-from app.tools.registry import get_registry
+from app.tools.toolset import Toolset, builtin_toolset
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +29,9 @@ TOOL_MARKUP_MARKERS = ("<｜", "｜DSML｜", "invoke name=")
 
 def measure_system_tokens() -> int:
     """估算 System Prompt 和全部 Agent 工具定义的 token。"""
-    tools = get_registry().tools_for_model((*AGENT_TOOLS, REFUND_FORM_TOOL))
-    schema = json.dumps([convert_to_openai_tool(tool) for tool in tools], ensure_ascii=False)
+    base = builtin_toolset()
+    schema = json.dumps([base.get(name).openai_tool() for name in (*AGENT_TOOLS, REFUND_FORM_TOOL)],
+                        ensure_ascii=False)
     return count_tokens([SystemMessage(render_agent_system())]) + math.ceil(len(schema) / TOOL_SCHEMA_CHARS_PER_TOKEN)
 
 
@@ -39,10 +39,20 @@ class AgentOutputError(RuntimeError):
     """模型输出为空，或含工具调用标记。"""
 
 
-def agent_tool_names(state) -> tuple[str, ...]:
-    if state.get("route") == "aftersales" and state.get("order_id"):
-        return (*AGENT_TOOLS, REFUND_FORM_TOOL)
-    return AGENT_TOOLS
+def turn_toolset(state, base: Toolset) -> Toolset:
+    """按本轮状态收窄工具集。"""
+    entries = dict(base.entries)
+    closed = dict(base.closed)
+    for name, entry in list(entries.items()):
+        if not entry.agent or name not in (*AGENT_TOOLS, REFUND_FORM_TOOL):
+            closed[name] = "工具未开放"
+            del entries[name]
+    if not (state.get("route") == "aftersales" and state.get("order_id")):
+        if REFUND_FORM_TOOL in entries:
+            closed[REFUND_FORM_TOOL] = "工具未开放"
+            del entries[REFUND_FORM_TOOL]
+    entries = {name: entries[name] for name in (*AGENT_TOOLS, REFUND_FORM_TOOL) if name in entries}
+    return Toolset(entries, closed, base.unavailable)
 
 
 def _aftersales_sections(state) -> tuple[str, str]:
@@ -78,7 +88,9 @@ async def agent_model(state, runtime):
         runnable = ctx.model
         prompt.append(SystemMessage(TOOL_ROUND_CLOSING))
     else:
-        runnable = ctx.model.bind_tools(get_registry().tools_for_model(agent_tool_names(state)), tool_choice="auto")
+        runnable = ctx.model.bind_tools(
+            turn_toolset(state, ctx.base_toolset if ctx.base_toolset is not None else builtin_toolset()).agent_tools(),
+            tool_choice="auto")
     log_model_ctx(ctx.conversation_id, state.get("steps", 0), built)
 
     text = ""
@@ -137,20 +149,18 @@ async def agent_tools(state, runtime):
     ctx = runtime.context
     calls = state["agent_messages"][-1].tool_calls
     events.emit("tool_start", {"tools": [{"id": c["id"], "name": c["name"], "args": c["args"]} for c in calls]})
-    allowed = agent_tool_names(state)
+    toolset = turn_toolset(state, ctx.base_toolset if ctx.base_toolset is not None else builtin_toolset())
     outcomes_by_id = {}
     runnable_calls = []
     for call in calls:
-        if call["name"] not in allowed:
-            logger.warning("工具不在允许列表：%s 会话=%s", call["name"], ctx.conversation_id)
-            outcomes_by_id[call["id"]] = failure_outcome(call["id"], call["name"], "unknown_tool")
-        elif call["name"] == REFUND_FORM_TOOL and call["args"].get("order_id") != state.get("order_id"):
+        if (call["name"] == REFUND_FORM_TOOL and toolset.get(REFUND_FORM_TOOL) is not None
+                and call["args"].get("order_id") != state.get("order_id")):
             logger.warning("退款单订单号不符：%s 会话=%s", call["args"].get("order_id"), ctx.conversation_id)
             outcomes_by_id[call["id"]] = failure_outcome(call["id"], call["name"], "invalid_order")
         else:
             runnable_calls.append(call)
     if runnable_calls:
-        for outcome in await ctx.execute(runnable_calls, conversation_id=ctx.conversation_id):
+        for outcome in await ctx.execute(runnable_calls, conversation_id=ctx.conversation_id, toolset=toolset):
             outcomes_by_id[outcome.call_id] = outcome
     outcomes = [outcomes_by_id[c["id"]] for c in calls]
     events.emit("tool_end", {"tools": [{"id": o.call_id, "name": o.name, "ok": o.ok} for o in outcomes]})

@@ -123,14 +123,15 @@ def call_state(*calls, **kw):
 async def test_agent_tools_executes_and_counts_step(emitted):
     seen = []
 
-    async def execute(calls, *, conversation_id):
-        seen.append((calls, conversation_id))
+    async def execute(calls, *, conversation_id, toolset):
+        seen.append((calls, conversation_id, toolset))
         return [ToolOutcome("c1", "query_logistics", True,
                             ToolMessage(content='{"ok": true}', tool_call_id="c1", name="query_logistics"),
                             data={})]
 
     out = await agent_tools(call_state(("c1", "query_logistics", {"order_id": "1001"})),
                             rt(conversation_id=5, execute=execute))
+    assert set(seen[0][2].entries) == set(AGENT_TOOLS)
     assert seen[0][1] == 5 and out["steps"] == 1 and "force_final" not in out
     assert isinstance(out["agent_messages"][-1], ToolMessage)
     assert emitted == [
@@ -139,34 +140,21 @@ async def test_agent_tools_executes_and_counts_step(emitted):
     ]
 
 
-async def test_agent_tools_rejects_unbound_tool(emitted, caplog):
-    seen = []
-
-    async def execute(calls, *, conversation_id):
-        seen.append((list(calls), conversation_id))
-        return [ToolOutcome(c["id"], c["name"], True,
-                            ToolMessage(content='{"ok": true}', tool_call_id=c["id"], name=c["name"]))
-                for c in calls]
-
+async def test_agent_tools_rejects_unbound_tool(emitted):
     out = await agent_tools(
         call_state(("c1", "query_order", {"order_id": "1001"}),
                    ("c2", "create_ticket", {"description": "x", "ticket_type": "投诉"})),
-        rt(conversation_id=5, execute=execute),
+        rt(conversation_id=5),
     )
-    assert len(seen) == 1 and seen[0][1] == 5
-    assert seen[0][0] == [{"id": "c1", "name": "query_order", "args": {"order_id": "1001"},
-                          "type": "tool_call"}]
     messages = out["agent_messages"][1:]
     assert [m.tool_call_id for m in messages] == ["c1", "c2"]
+    assert json.loads(messages[0].content)["ok"] is True
     assert json.loads(messages[1].content) == {
         "ok": False, "error": "unknown_tool", "message": "工具不存在"}
     assert emitted[-1] == ("tool_end", {"tools": [
         {"id": "c1", "name": "query_order", "ok": True},
         {"id": "c2", "name": "create_ticket", "ok": False},
     ]})
-    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert len(warnings) == 1
-    assert "create_ticket" in warnings[0].getMessage() and "5" in warnings[0].getMessage()
 
 
 async def test_offer_human_options_emits_actions(emitted):
@@ -213,12 +201,18 @@ def aftersales_state(**kw):
     return state
 
 
-def test_agent_tool_names():
-    from app.graph.nodes.agent import agent_tool_names
+def test_turn_toolset():
+    from app.graph.nodes.agent import turn_toolset
+    from app.tools.toolset import builtin_toolset
 
-    assert agent_tool_names(aftersales_state()) == (*AGENT_TOOLS, "offer_refund_form")
-    assert agent_tool_names(aftersales_state(order_id=None)) == AGENT_TOOLS
-    assert agent_tool_names({"route": "business", "order_id": "1001"}) == AGENT_TOOLS
+    base = builtin_toolset()
+    assert set(turn_toolset(aftersales_state(), base).entries) == {*AGENT_TOOLS, "offer_refund_form"}
+    for current in (aftersales_state(order_id=None), {"route": "business", "order_id": "1001"}):
+        narrowed = turn_toolset(current, base)
+        assert set(narrowed.entries) == set(AGENT_TOOLS)
+        assert narrowed.closed == {
+            "create_ticket": "工具未开放", "query_faq": "工具未开放", "offer_refund_form": "工具未开放"}
+    assert len(base.entries) == 7
 
 
 async def test_aftersales_prompt_has_order_and_refund_tool(emitted):
