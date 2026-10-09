@@ -77,8 +77,13 @@ USER_ORDER_COUNT = 3
 # 一轮中 Agent 累计 token（输入 + 输出，含思考）。
 AGENT_TOKEN_BUDGET = 16000
 GRAPH_RECURSION_LIMIT = 25
-# 置信度闸的 Top-1 重排分门槛。与检索门槛分开设置。
-GATE_MIN_SCORE = 0.20
+# 召回快照条数。不小于 GATE_EFFECTIVE_N 的搜索上限 5。
+SNAPSHOT_TOP_N = 5
+# evidence_confidence = w1·Top-1 + w2·有效证据占比 + w3·Top-1 与 Top-2 的分差。
+# 校准前的初值等价于旧规则（Top-1 ≥ 0.20）。校准报告：evals/reports/gate_calibration_*.md。
+GATE_WEIGHTS: tuple[float, float, float] = (1.0, 0.0, 0.0)
+GATE_EFFECTIVE_N = 3
+GATE_CONF_THRESHOLD = 0.20
 # ch08 接入 MCP 后，System + 工具定义实测 2047–2360 token（全部内置 Agent 工具 + 3 个 MCP 工具时最大）。
 SYSTEM_RESERVE_TOKENS = 2400
 EVIDENCE_ITEM_TOKENS = 250

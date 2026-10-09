@@ -2,7 +2,8 @@
 
 from dataclasses import asdict
 
-from app.config import GATE_MIN_SCORE, get_settings
+from app.config import GATE_CONF_THRESHOLD as GATE_MIN_SCORE
+from app.config import get_settings
 from app.graph import events
 from app.knowledge.retrieval import Retrieval, retrieve
 from app.schemas import QueryPlan
