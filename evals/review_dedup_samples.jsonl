@@ -1,0 +1,15 @@
+{"question": "保温杯可以放进洗碗机清洗吗？", "candidates": ["保温杯能用洗碗机洗吗？"], "expected": 1, "kind": "同义"}
+{"question": "X3 Pro 耳机可以戴着游泳吗？", "candidates": ["X3 Pro 耳机防水等级是多少？", "X3 Pro 耳机支持游泳时佩戴吗？"], "expected": 2, "kind": "同义"}
+{"question": "退款多久到账？", "candidates": ["退款一般几天能退回来？"], "expected": 1, "kind": "同义"}
+{"question": "可以开增值税专用发票吗？", "candidates": ["能开专票吗？"], "expected": 1, "kind": "同义"}
+{"question": "S10 Max 扫地机器人能接入米家 App 吗？", "candidates": ["S10 Max 支持小米米家联动吗？"], "expected": 1, "kind": "同义"}
+{"question": "签收超过 7 天还能无理由退货吗？", "candidates": ["签收 7 天内可以无理由退货吗？"], "expected": null, "kind": "近义不同"}
+{"question": "拆封后的手机壳能退吗？", "candidates": ["未拆封的手机壳能退吗？"], "expected": null, "kind": "近义不同"}
+{"question": "退款多久到账？", "candidates": ["怎么申请退款？"], "expected": null, "kind": "近义不同"}
+{"question": "C8 保温杯保温时间多长？", "candidates": ["C8 保温杯容量多大？"], "expected": null, "kind": "近义不同"}
+{"question": "T3 Pro 牙刷头多久更换一次？", "candidates": ["T3 Pro 牙刷充一次电能用多久？"], "expected": null, "kind": "近义不同"}
+{"question": "W1 羊毛衫可以机洗吗？", "candidates": ["R1 运动鞋可以机洗吗？"], "expected": null, "kind": "不同品类"}
+{"question": "X5 耳机能同时连接两台手机吗？", "candidates": ["X3 耳机能同时连接两台手机吗？"], "expected": null, "kind": "不同品类"}
+{"question": "L2 台灯有蓝光危害吗？", "candidates": ["L1 Pro 台灯有蓝光危害吗？", "L2 台灯的蓝光对眼睛有害吗？"], "expected": 2, "kind": "不同品类"}
+{"question": "K1 手机壳适配哪些机型？", "candidates": ["K2 手机壳适配哪些机型？"], "expected": null, "kind": "不同品类"}
+{"question": "支持货到付款吗？", "candidates": ["可以货到付款吗？", "支持分期付款吗？"], "expected": 1, "kind": "同义"}

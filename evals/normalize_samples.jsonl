@@ -1,0 +1,15 @@
+{"question": "我那个 X3 Pro 耳机能不能戴着游泳啊？？急急急", "chunks": null, "must_keep": ["X3 Pro", "游泳"], "must_drop": ["急", "？？"]}
+{"question": "订单 20261001 的保温杯能扔洗碗机里洗吗", "chunks": [{"chunk_id": 1, "section_path": "商品手册 > 保温杯 > 清洗", "question": "保温杯怎么清洗", "answer": "建议用软毛刷手洗。", "score": 0.31}], "must_keep": ["保温杯", "洗碗机"], "must_drop": ["20261001", "订单"]}
+{"question": "你们客服太慢了！！S10 Max 扫地机能不能连小米米家", "chunks": null, "must_keep": ["S10 Max", "米家"], "must_drop": ["太慢", "！！"]}
+{"question": "签收第 8 天了还能七天无理由退吗 气死了", "chunks": null, "must_keep": ["第 8 天", "无理由"], "must_drop": ["气死"]}
+{"question": "羊毛衫 W1 Plus 能不能机洗，手机号 13800138000", "chunks": null, "must_keep": ["W1 Plus", "机洗"], "must_drop": ["13800138000"]}
+{"question": "T3 Pro 牙刷头多久换一次 顺便问下有没有替换装卖", "chunks": null, "must_keep": ["T3 Pro"], "must_drop": []}
+{"question": "台灯 L2 晚上开着会不会伤眼睛啊 我家孩子用", "chunks": null, "must_keep": ["L2"], "must_drop": ["我家孩子"]}
+{"question": "拆封后的手机壳 K1 还能退吗", "chunks": [{"chunk_id": 2, "section_path": "退货政策 > 无理由退货", "question": "无理由退货的条件", "answer": "签收 7 天内、商品完好可退。", "score": 0.42}], "must_keep": ["拆封后", "K1"], "must_drop": []}
+{"question": "R2 跑鞋 42 码偏大还是偏小，张三收", "chunks": null, "must_keep": ["R2", "42 码"], "must_drop": ["张三"]}
+{"question": "C8 杯子装热水能保温几个小时？？", "chunks": null, "must_keep": ["C8", "保温"], "must_drop": ["？？"]}
+{"question": "退款都三天了还没到 你们是不是骗子", "chunks": [{"chunk_id": 3, "section_path": "退货政策 > 退款时效", "question": "退款多久到账", "answer": "商家确认收货后 1 到 3 个工作日原路退款。", "score": 0.55}], "must_keep": ["退款"], "must_drop": ["骗子"]}
+{"question": "X5 耳机能连两台手机吗 地址北京市朝阳区xx路", "chunks": null, "must_keep": ["X5"], "must_drop": ["朝阳区"]}
+{"question": "能开专票吗 公司报销要用", "chunks": null, "must_keep": ["专票"], "must_drop": []}
+{"question": "S20 扫地机器人能爬多高的门槛", "chunks": null, "must_keep": ["S20", "门槛"], "must_drop": []}
+{"question": "唉 能不能货到付款啊", "chunks": null, "must_keep": ["货到付款"], "must_drop": ["唉"]}

@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import math
+import re
 from dataclasses import dataclass
 
 from app.config import FLYWHEEL_LLM_TIMEOUT_SECONDS, REVIEW_DEDUP_MIN_SCORE, REVIEW_DEDUP_TOP_K
@@ -31,6 +32,12 @@ class StepFailed(Exception):
 
 def clear_vector_cache() -> None:
     _vectors.clear()
+
+
+def ensure_question_mark(question: str) -> str:
+    """清理末尾问号、句号和空白，保证以中文问号结尾。"""
+    question = re.sub(r"[?。.\s]+$", "", question)
+    return question if question.endswith("？") else question + "？"
 
 
 def format_chunks(chunks: list[dict] | None) -> str:
@@ -83,6 +90,7 @@ async def process(lcq_id: int) -> ProcessResult | None:
         step = "normalize"
         norm = await _call(get_question_normalizer(),
                            {"question": row.raw_question, "chunks": format_chunks(row.retrieved_chunks)}, step)
+        norm.normalized_question = ensure_question_mark(norm.normalized_question)
         step = "candidates"
         try:
             _, cands = await _candidates(norm.normalized_question)

@@ -22,8 +22,11 @@ async def _lcq(db, raw, snap=SNAP, source="retrieval_low_conf"):
         return row.id
 
 
-async def test_new_gap_creates_review_row(db, use_flywheel):
-    calls = use_flywheel(normalized=[("保温杯可以用洗碗机清洗吗？", "（待核实）不建议。")], dedup=[])
+@pytest.mark.parametrize("normalized_question", [
+    "保温杯可以用洗碗机清洗吗？", "保温杯可以用洗碗机清洗吗", "保温杯可以用洗碗机清洗吗?",
+])
+async def test_new_gap_creates_review_row(db, use_flywheel, normalized_question):
+    calls = use_flywheel(normalized=[(normalized_question, "（待核实）不建议。")], dedup=[])
     lcq = await _lcq(db, "杯子能扔洗碗机吗？？急")
     res = await pipeline.process(lcq)
     assert res.merged is False and res.candidates == 0
@@ -74,6 +77,19 @@ async def test_dedup_out_of_range_keeps_null(db, use_flywheel, monkeypatch):
     assert await pipeline.process(lcq) is None
     async with db() as s:
         assert (await low_confidence.get(s, lcq)).matched_review_id is None
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("能开专票吗", "能开专票吗？"),
+    ("能开专票吗?", "能开专票吗？"),
+    ("能开专票吗？", "能开专票吗？"),
+    ("能开专票吗.", "能开专票吗？"),
+    ("能开专票吗。", "能开专票吗？"),
+    ("能开专票吗?。 \t\n", "能开专票吗？"),
+    ("能开专票吗？ \t\n", "能开专票吗？"),
+])
+def test_ensure_question_mark(question, expected):
+    assert pipeline.ensure_question_mark(question) == expected
 
 
 def test_format_chunks():
