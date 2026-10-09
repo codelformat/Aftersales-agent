@@ -5,8 +5,10 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
-# 实测 DeepSeek：55 个中文字符约 30 token。取 2.0 字符/token。
-CHARS_PER_TOKEN = 2.0
+# 实测 DeepSeek（2026-10-09，evals/run_token_calibration.py）：中文正文 1.54–1.67 字符/token，取 1.5，估算略高于真实值。
+CHARS_PER_TOKEN = 1.5
+# 工具定义和工具结果是 JSON，实测 2.36–2.38 字符/token。
+TOOL_SCHEMA_CHARS_PER_TOKEN = 2.3
 SHOP_NAME = "示例商城"
 UPSTREAM_TIMEOUT_SECONDS = 60
 UPSTREAM_MAX_RETRIES = 1
@@ -72,13 +74,14 @@ AGENT_TOKEN_BUDGET = 16000
 GRAPH_RECURSION_LIMIT = 25
 # 置信度闸的 Top-1 重排分门槛。与检索门槛分开设置。
 GATE_MIN_SCORE = 0.20
-SYSTEM_RESERVE_TOKENS = 1800
+SYSTEM_RESERVE_TOKENS = 1900
 EVIDENCE_ITEM_TOKENS = 250
-SUMMARY_RESERVE_TOKENS = 500
+SUMMARY_RESERVE_TOKENS = 400
 SAFETY_MARGIN_RATIO = 0.05
 STEP_OVERHEAD_TOKENS = 100
 KEEP_TURNS = 30
-TURN_TOKENS = 800
+# 默认配置 22 轮实测（2026-10-09）层 1 每轮平均增量约 250 token，向上取整到 50 再乘 1.2。
+TURN_TOKENS = 300
 LAYER1_RATIO = 0.7
 LAYER2_RATIO = 0.3
 LAYER1_LOW_WATER = 0.6

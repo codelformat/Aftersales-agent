@@ -49,7 +49,7 @@ def test_unknown_env_file_keys_are_ignored(monkeypatch, tmp_path):
 
 
 def test_constants():
-    assert config.CHARS_PER_TOKEN == 2.0
+    assert config.CHARS_PER_TOKEN == 1.5
     assert config.SHOP_NAME == "示例商城"
     assert config.UPSTREAM_TIMEOUT_SECONDS == 60
     assert config.UPSTREAM_MAX_RETRIES == 1

@@ -7,7 +7,7 @@ import math
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
-from app.config import AGENT_TOKEN_BUDGET, CHARS_PER_TOKEN, get_settings
+from app.config import AGENT_TOKEN_BUDGET, TOOL_SCHEMA_CHARS_PER_TOKEN, get_settings
 from app.context import count_tokens
 from app.context.assemble import build_agent_prompt, log_model_ctx
 from app.graph import events
@@ -32,7 +32,7 @@ def measure_system_tokens() -> int:
     """估算 System Prompt 和全部 Agent 工具定义的 token。"""
     tools = get_registry().tools_for_model((*AGENT_TOOLS, REFUND_FORM_TOOL))
     schema = json.dumps([convert_to_openai_tool(tool) for tool in tools], ensure_ascii=False)
-    return count_tokens([SystemMessage(render_agent_system())]) + math.ceil(len(schema) / CHARS_PER_TOKEN)
+    return count_tokens([SystemMessage(render_agent_system())]) + math.ceil(len(schema) / TOOL_SCHEMA_CHARS_PER_TOKEN)
 
 
 class AgentOutputError(RuntimeError):

@@ -137,7 +137,7 @@ async def test_long_result_truncated():
                                    conversation_id=7, registry=reg, sleep=no_sleep)
     content = out[0].message.content
     assert content.endswith("…(结果过长，已截断)")
-    assert len(content) == 1500 + len("…(结果过长，已截断)")
+    assert len(content) == 1125 + len("…(结果过长，已截断)")
 
 
 async def test_calls_run_in_parallel():
@@ -194,9 +194,9 @@ async def test_failure_outcome_has_no_data():
 
 
 @pytest.mark.parametrize("size, expected", [
-    (20, "字" * 20),
-    (21, "字" * 20 + "…(结果过长，已截断)"),
-    (100, "字" * 20 + "…(结果过长，已截断)"),
+    (15, "字" * 15),
+    (16, "字" * 15 + "…(结果过长，已截断)"),
+    (100, "字" * 15 + "…(结果过长，已截断)"),
 ])
 async def test_truncation_uses_tool_result_max_tokens(monkeypatch, size, expected):
     from app.config import get_settings

@@ -275,7 +275,7 @@ async def test_input_precheck_does_not_read_checkpoint(client, db, use_script, u
     assert not locks.get(int(sid)).locked()
 
 
-@pytest.mark.parametrize("message", ["字" * 2, "字" * 10])
+@pytest.mark.parametrize("message", ["字" * 2, "字" * 6])
 async def test_message_within_input_limit_is_accepted(client, db, use_script, use_intent, locks, message):
     use_intent("闲聊")
     use_script()
