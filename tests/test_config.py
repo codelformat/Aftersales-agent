@@ -79,7 +79,6 @@ def test_tool_constants():
     assert config.TOOL_MAX_ATTEMPTS == 3
     assert config.TOOL_RETRY_BASE_DELAY == 0.2
     assert config.TOOL_RETRY_MAX_DELAY == 2.0
-    assert config.TOOL_RESULT_MAX_CHARS == 1500
 
 
 def test_reads_knowledge_variables(monkeypatch):

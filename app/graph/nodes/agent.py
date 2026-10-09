@@ -8,7 +8,7 @@ from datetime import date
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
-from app.config import AGENT_MAX_STEPS, AGENT_TOKEN_BUDGET, CHARS_PER_TOKEN, TOKEN_BUDGET
+from app.config import AGENT_TOKEN_BUDGET, CHARS_PER_TOKEN, TOKEN_BUDGET, get_settings
 from app.context import build_history, count_tokens
 from app.graph import events
 from app.graph.control import actions_from_args, refund_action
@@ -170,7 +170,7 @@ async def agent_tools(state, runtime):
         update["actions"] = actions
         events.emit("actions", {"options": actions})
     reason = None
-    if steps >= AGENT_MAX_STEPS:
+    if steps >= get_settings().max_agent_steps:
         reason = "steps"
     elif state.get("tokens_used", 0) >= AGENT_TOKEN_BUDGET:
         reason = "tokens"

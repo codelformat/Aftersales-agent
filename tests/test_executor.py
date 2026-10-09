@@ -191,3 +191,18 @@ async def test_failure_outcome_has_no_data():
     [out] = await execute_tool_calls([{"id": "a", "name": "echo", "args": {"order_id": "1"}}],
                                      conversation_id=7, registry=reg, sleep=no_sleep)
     assert out.ok is False and out.data is None
+
+
+@pytest.mark.parametrize("size, expected", [
+    (20, "字" * 20),
+    (21, "字" * 20 + "…(结果过长，已截断)"),
+    (100, "字" * 20 + "…(结果过长，已截断)"),
+])
+async def test_truncation_uses_tool_result_max_tokens(monkeypatch, size, expected):
+    from app.config import get_settings
+    from app.tools import executor
+
+    monkeypatch.setattr(executor, "get_settings",
+                        lambda: get_settings().model_copy(update={"tool_result_max_tokens": 10}), raising=False)
+    outcome = executor._make_outcome("c1", "query_order", ok=True, content="字" * size)
+    assert outcome.message.content == expected

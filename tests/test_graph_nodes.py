@@ -150,7 +150,7 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
     caplog.set_level("INFO")
     seen = []
 
-    async def fake(question, plan=None):
+    async def fake(question, plan=None, top_n=None):
         seen.append((question, plan))
         return fake_retrieval([0.9, 0.5, 0.1])
 
@@ -167,7 +167,7 @@ async def test_retrieve_numbers_evidence_and_records_top_score(monkeypatch, capl
 async def test_retrieve_with_no_hits(monkeypatch):
     seen = []
 
-    async def fake(question, plan=None):
+    async def fake(question, plan=None, top_n=None):
         seen.append((question, plan))
         return Retrieval(QueryPlan(standard_query="q"), [], [])
 

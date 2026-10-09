@@ -5,6 +5,7 @@ import uuid
 
 from langgraph.types import interrupt
 
+from app.config import get_settings
 from app.graph import events
 from app.graph.nodes.knowledge import evidence_update
 from app.knowledge.retrieval import retrieve_multi
@@ -50,5 +51,5 @@ async def expand_query(state, runtime):
 async def retrieve_multi_evidence(state, runtime):
     trace = events.enter("retrieve_multi", state, runtime)
     plan = QueryPlan(standard_query=state["standard_query"], product_category=state.get("product_category"))
-    result = await retrieve_multi(state["queries"], plan)
+    result = await retrieve_multi(state["queries"], plan, top_n=get_settings().rerank_top_k)
     return evidence_update(state["resolved_input"], result, trace)

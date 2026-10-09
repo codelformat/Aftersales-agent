@@ -183,7 +183,10 @@ async def test_invalid_offer_args_emit_no_actions(emitted):
 
 async def test_step_limit_sets_force_final(monkeypatch, caplog):
     caplog.set_level("INFO")
-    monkeypatch.setattr(agent_mod, "AGENT_MAX_STEPS", 2)
+    from app.config import get_settings
+
+    monkeypatch.setattr(agent_mod, "get_settings",
+                        lambda: get_settings().model_copy(update={"max_agent_steps": 2}), raising=False)
     out = await agent_tools(call_state(("c1", "query_order", {"order_id": "1"}), steps=1), rt())
     assert out["steps"] == 2 and out["force_final"] is True
     assert "agent_limit reason=steps" in caplog.text

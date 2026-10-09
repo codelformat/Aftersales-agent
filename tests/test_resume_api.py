@@ -12,7 +12,7 @@ pytestmark = pytest.mark.anyio
 
 
 def kb_multi(monkeypatch):
-    async def fake(queries, plan):
+    async def fake(queries, plan, top_n=None):
         item = EvidenceItem(7, "退货政策 > 条件", "能退吗", "签收 7 天内可退", 0.9)
         return Retrieval(plan, [item], [item])
 

@@ -244,3 +244,30 @@ async def test_retrieve_multi_respects_threshold_and_limit(db, milvus, monkeypat
 async def test_retrieve_multi_rejects_empty_queries():
     with pytest.raises(ValueError):
         await r.retrieve_multi([], plan("q"))
+
+
+async def test_retrieve_multi_uses_top_n(db, milvus, monkeypatch):
+    await seed(db, [spec(f"退货政策 > 条件 > 第{i}条", f"退货条件 {i}", "policy") for i in range(5)])
+    seen = []
+
+    async def fake_rerank(query, documents, top_n, **kw):
+        seen.append(top_n)
+        return [(i, 0.9) for i in range(len(documents))][:top_n]
+
+    monkeypatch.setattr(rr, "rerank", fake_rerank)
+    res = await r.retrieve_multi(["退货条件", "退货运费"], plan("退货条件"), top_n=3)
+    assert seen == [3]
+    assert len(res.ranked) == len(res.evidence) == 3
+
+
+@pytest.mark.parametrize("strategy", r.STRATEGIES)
+async def test_retrieve_uses_top_n(db, milvus, monkeypatch, strategy):
+    await seed(db, [spec(f"退货政策 > 条件 > 第{i}条", f"退货条件 {i}", "policy") for i in range(5)])
+
+    async def fake_rerank(query, documents, top_n, **kw):
+        assert top_n == 3
+        return [(i, 0.9) for i in range(len(documents))][:top_n]
+
+    monkeypatch.setattr(rr, "rerank", fake_rerank)
+    res = await r.retrieve("退货条件", strategy, plan=plan("退货条件"), top_n=3)
+    assert len(res.ranked) == len(res.evidence) == 3

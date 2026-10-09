@@ -8,16 +8,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-from app.config import TOKEN_BUDGET
-from app.context import BudgetExceeded, build_history
+from app.config import get_settings
+from app.context import count_tokens
 from app.db.engine import get_sessionmaker
 from app.graph.builder import get_graph, thread_config
 from app.graph.state import GraphContext
 from app.llm import get_chat_model
 from app.locks import LockRegistry, get_lock_registry
-from app.prompts import render_agent_system
 from app.repositories import conversations
 from app.schemas import ChatRequest, ResumeRequest
 
@@ -65,8 +65,8 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
     yield sse("done", {"finish_reason": "interrupted" if interrupted else "stop"})
 
 
-def get_token_budget() -> int:
-    return TOKEN_BUDGET
+def get_input_token_limit() -> int:
+    return get_settings().max_user_input_tokens
 
 
 def get_today() -> date:
@@ -76,20 +76,14 @@ def get_today() -> date:
 async def prepare_chat_turn(
     req: ChatRequest,
     locks: Annotated[LockRegistry, Depends(get_lock_registry)],
-    budget: Annotated[int, Depends(get_token_budget)],
+    limit: Annotated[int, Depends(get_input_token_limit)],
     today: Annotated[date, Depends(get_today)],
     graph: Annotated[object, Depends(get_graph)],
 ) -> AsyncIterator[ChatTurn]:
-    def check_budget(previous) -> None:
-        try:
-            build_history(previous, render_agent_system(today), req.message, budget)
-        except BudgetExceeded:
-            raise HTTPException(422, detail={"code": "budget_exceeded", "message": "消息过长，请缩短后重试"})
+    if count_tokens([HumanMessage(req.message)]) > limit:
+        raise HTTPException(422, detail={"code": "budget_exceeded", "message": "消息过长，请缩短后重试"})
 
     sm = get_sessionmaker()
-    # 新会话先校验预算，避免拒绝请求时留下空会话。
-    if req.session_id is None:
-        check_budget([])
     async with sm() as s:
         if req.session_id is not None:
             conversation = await conversations.get_for_user(s, int(req.session_id), req.user_id)
@@ -106,10 +100,6 @@ async def prepare_chat_turn(
     await lock.acquire()
     # 使用 yield 依赖在响应结束或后续依赖出错时释放锁。
     try:
-        if req.session_id is not None:
-            # 历史从 checkpoint 读取。老会话没有 checkpoint，按空历史处理。
-            state = await graph.aget_state(thread_config(conversation_id))
-            check_budget(state.values.get("messages", []))
         yield ChatTurn(conversation_id=conversation_id, user_input=req.message, today=today, user_id=req.user_id)
     finally:
         lock.release()

@@ -2,7 +2,7 @@
 
 from dataclasses import asdict
 
-from app.config import GATE_MIN_SCORE
+from app.config import GATE_MIN_SCORE, get_settings
 from app.graph import events
 from app.knowledge.retrieval import Retrieval, retrieve
 from app.schemas import QueryPlan
@@ -28,7 +28,7 @@ def evidence_update(question: str, result: Retrieval, trace: list[str]) -> dict:
 async def retrieve_evidence(state, runtime):
     trace = events.enter("retrieve", state, runtime)
     plan = QueryPlan(standard_query=state["standard_query"], product_category=state.get("product_category"))
-    result = await retrieve(state["resolved_input"], plan=plan)
+    result = await retrieve(state["resolved_input"], plan=plan, top_n=get_settings().rerank_top_k)
     return evidence_update(state["resolved_input"], result, trace)
 
 

@@ -57,7 +57,7 @@ async def saved(db, cid):
 
 
 def kb(monkeypatch, scores=(0.9,), useful=True):
-    async def fake(question, plan=None):
+    async def fake(question, plan=None, top_n=None):
         items = [EvidenceItem(100 + i, "退换货 > 运费", "退货运费谁出", "质量问题商家承担", s)
                  for i, s in enumerate(scores)]
         return Retrieval(QueryPlan(standard_query=question), items, [e for e in items if e.score >= 0.2])
@@ -150,7 +150,10 @@ async def test_agent_create_ticket_call_writes_no_ticket(db, memory_graph, use_i
 
 
 async def test_step_limit_forces_text_answer(db, memory_graph, use_intent, monkeypatch):
-    monkeypatch.setattr(agent_mod, "AGENT_MAX_STEPS", 1)
+    from app.config import get_settings
+
+    monkeypatch.setattr(agent_mod, "get_settings",
+                        lambda: get_settings().model_copy(update={"max_agent_steps": 1}), raising=False)
     use_intent("物流")
     cid = await new_cid(db)
     turn, rec = await run(memory_graph, cid, "到哪了",
@@ -243,7 +246,7 @@ async def test_sqlite_checkpointer_concurrent_conversations(db, tmp_path, use_in
 def kb_multi(monkeypatch, scores=(0.9,), useful=True):
     seen = []
 
-    async def fake(queries, plan):
+    async def fake(queries, plan, top_n=None):
         seen.append((queries, plan))
         items = [EvidenceItem(200 + i, "退货政策 > 条件", f"问{i}", f"答{i}", s) for i, s in enumerate(scores)]
         return Retrieval(plan, items, [e for e in items if e.score >= 0.20])
@@ -332,3 +335,40 @@ async def test_new_input_while_interrupted_restarts(db, memory_graph, use_intent
     assert turn.trace[-2:] == ["chitchat_reply", "finalize"]
     state = await memory_graph.aget_state(thread_config(cid))
     assert state.interrupts == () and [m.content for m in state.values["messages"]] == ["你好", CHITCHAT_REPLY]
+
+
+async def test_retrieve_nodes_pass_rerank_top_k(db, memory_graph, use_intent, monkeypatch):
+    from app.config import get_settings
+    seen = {}
+
+    async def fake(question, plan=None, top_n=None):
+        seen["top_n"] = top_n
+        return Retrieval(QueryPlan(standard_query=question), [], [])
+
+    monkeypatch.setattr(knowledge_nodes, "retrieve", fake)
+    monkeypatch.setattr(knowledge_nodes, "get_settings",
+                        lambda: get_settings().model_copy(update={"rerank_top_k": 5}), raising=False)
+    use_intent("商品咨询")
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "X3 Pro 续航多久")
+    assert seen["top_n"] == 5
+
+
+async def test_aftersales_retrieve_passes_rerank_top_k(db, memory_graph, use_intent, use_resolver,
+                                                    use_expander, monkeypatch):
+    from app.config import get_settings
+    seen = {}
+
+    async def fake(queries, plan, top_n=None):
+        seen["top_n"] = top_n
+        return Retrieval(plan, [], [])
+
+    monkeypatch.setattr(aftersales_nodes, "retrieve_multi", fake)
+    monkeypatch.setattr(aftersales_nodes, "get_settings",
+                        lambda: get_settings().model_copy(update={"rerank_top_k": 5}), raising=False)
+    use_resolver({"order_scoped": False})
+    use_intent("退款退货")
+    use_expander(["退货运费"])
+    cid = await new_cid(db)
+    await run(memory_graph, cid, "拆封了还能退吗")
+    assert seen["top_n"] == 5

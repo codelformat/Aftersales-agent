@@ -11,10 +11,11 @@ from pydantic import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from app.config import (
+    CHARS_PER_TOKEN,
     TOOL_MAX_ATTEMPTS,
-    TOOL_RESULT_MAX_CHARS,
     TOOL_RETRY_BASE_DELAY,
     TOOL_RETRY_MAX_DELAY,
+    get_settings,
 )
 from app.retry import retry_async
 from app.tools.registry import ToolRegistry, get_registry
@@ -39,11 +40,16 @@ class ToolOutcome:
     data: Any = None
 
 
+def tool_result_max_chars() -> int:
+    return int(get_settings().tool_result_max_tokens * CHARS_PER_TOKEN)
+
+
 def _make_outcome(
     call_id: str, name: str, *, ok: bool, content: str, data: Any = None
 ) -> ToolOutcome:
-    if len(content) > TOOL_RESULT_MAX_CHARS:
-        content = content[:TOOL_RESULT_MAX_CHARS] + "…(结果过长，已截断)"
+    limit = tool_result_max_chars()
+    if len(content) > limit:
+        content = content[:limit] + "…(结果过长，已截断)"
     return ToolOutcome(
         call_id=call_id,
         name=name,

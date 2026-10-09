@@ -75,7 +75,7 @@ async def test_expand_query_passes_product_names(use_expander):
 async def test_retrieve_multi_evidence(monkeypatch):
     seen = {}
 
-    async def fake(queries, plan):
+    async def fake(queries, plan, top_n=None):
         seen["queries"], seen["plan"] = queries, plan
         item = EvidenceItem(7, "退货政策 > 条件", "拆封能退吗", "不影响二次销售可退", 0.8)
         return Retrieval(plan, [item], [item])
