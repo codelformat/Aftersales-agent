@@ -39,6 +39,24 @@ class ConversationSummary(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
 
+class ToolAuditLog(Base):
+    __tablename__ = "tool_audit_logs"
+
+    id: Mapped[int] = mapped_column(ID, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int | None] = mapped_column(ID, nullable=True)
+    tool_call_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tool_name: Mapped[str] = mapped_column(String(128))
+    tool_source: Mapped[str] = mapped_column(Enum("builtin", "mcp"))
+    mcp_server: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    arguments: Mapped[Any] = mapped_column(JSON, nullable=True)
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Enum("成功", "失败", "超时", "校验拦下", "权限拒绝"))
+    error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+
 class Message(Base):
     __tablename__ = "messages"
 

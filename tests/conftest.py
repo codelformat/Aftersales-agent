@@ -90,12 +90,14 @@ async def _reset_schema(url: str) -> None:
     try:
         async with engine.begin() as conn:
             for table in (
+                "tool_audit_logs",
                 "conversation_summaries",
                 "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations", "faq",
             ):
                 await conn.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
-            for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql", "schema_ch07.sql"):
+            for name in ("schema.sql", "schema_ch03.sql", "schema_ch04.sql", "seed.sql", "schema_ch07.sql",
+                         "schema_ch08.sql"):
                 for stmt in split_sql((ROOT / "db" / name).read_text(encoding="utf-8")):
                     await conn.exec_driver_sql(stmt)
     finally:
@@ -110,6 +112,7 @@ async def _clear_runtime_tables(url: str) -> None:
                 "UPDATE knowledge_chunks SET prev_chunk_id = NULL, next_chunk_id = NULL"
             )
             for table in (
+                "tool_audit_logs",
                 "conversation_summaries",
                 "faith_cases", "low_confidence_questions", "qa_extraction_staging", "knowledge_chunks",
                 "messages", "tickets", "conversations",
@@ -395,3 +398,25 @@ def use_budget():
 
     yield _use
     budget_mod.set_budget(None)
+
+
+@pytest.fixture(autouse=True)
+def audit_log():
+    """默认把审计写进内存列表，不连数据库。"""
+    from app.tools import audit
+    rows = []
+
+    async def capture(rec):
+        rows.append(rec)
+
+    audit.set_audit_writer(capture)
+    yield rows
+    audit.set_audit_writer(None)
+
+
+@pytest.fixture
+def db_audit(db, audit_log):
+    """审计写进测试库。"""
+    from app.tools import audit
+    audit.set_audit_writer(None)
+    yield
