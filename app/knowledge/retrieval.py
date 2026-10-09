@@ -38,7 +38,8 @@ def build_filter(category: str | None, exclude_mined: bool) -> str:
         # 通用政策也必须能召回。
         parts.append(f'product_category in ["{category}", "{GENERAL_CATEGORY}"]')
     if exclude_mined:
-        parts.append('content_type != "mined"')
+        # 评估集只标注文档来源，挖掘块和飞轮块不参与评估。
+        parts.append('content_type not in ["mined", "flywheel"]')
     return " and ".join(parts)
 
 

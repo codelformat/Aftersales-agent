@@ -13,6 +13,8 @@ from app.repositories.knowledge import NewChunk
 DOCS_DIR = Path(__file__).resolve().parents[2] / "knowledge" / "docs"
 FAQ_SOURCE = "常见问答"
 MINED_SOURCE = "对话挖掘"
+FLYWHEEL_SOURCE = "飞轮补充"
+FLYWHEEL_CONTENT_TYPE = "flywheel"
 CONTENT_TYPES = ("policy", "faq", "manual")
 
 
@@ -35,7 +37,7 @@ def load_doc_sources(docs_dir: Path = DOCS_DIR) -> list[SourceDoc]:
             doc = parse_markdown(path.read_text(encoding="utf-8"))
         except ValueError as exc:
             raise ValueError(f"{path.name}：{exc}") from exc
-        if doc.title in (FAQ_SOURCE, MINED_SOURCE):
+        if doc.title in (FAQ_SOURCE, MINED_SOURCE, FLYWHEEL_SOURCE):
             raise ValueError(f"{path.name}：文档标题为保留标题：{doc.title}")
         if PATH_SEP in doc.title:
             raise ValueError(f"{path.name}：标题不能包含路径分隔符：{PATH_SEP!r}")
@@ -91,7 +93,8 @@ async def ingest_all(docs_dir: Path = DOCS_DIR, *, rebuild: bool = False) -> dic
         for src in sources:
             await rebuild_source(src.title)
         async with get_sessionmaker()() as s:
-            # 集合已整体重建。挖掘块保留 MySQL 行，置回 pending，由同一次向量化重新写入。
+            # 集合已整体重建。挖掘块和飞轮块保留 MySQL 行，置回 pending，由同一次向量化重新写入。
             await knowledge.mark_pending_by_content_type(s, "mined")
+            await knowledge.mark_pending_by_content_type(s, FLYWHEEL_CONTENT_TYPE)
             await s.commit()
     return {src.title: await ingest_source(src) for src in sources}

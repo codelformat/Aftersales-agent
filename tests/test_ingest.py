@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.db.models import KnowledgeChunk
 from app.knowledge import ingest
 from app.knowledge import milvus as m
+from app.knowledge.vectorize import vectorize_pending
 from app.repositories import knowledge
 from app.repositories.knowledge import NewChunk
 from tests.fakes import entity, unit
@@ -92,16 +93,30 @@ async def test_ingest_all_rebuild_keeps_mined_chunks(db, milvus, tmp_path):
     from app.repositories import knowledge
 
     async with db() as s:
-        await knowledge.insert_chunks(s, [knowledge.NewChunk("其他", "能开专票吗", "可以。", "对话挖掘 > 其他", "mined", False)])
+        added = await knowledge.insert_chunks(s, [
+            knowledge.NewChunk("其他", "能开专票吗", "可以。", "对话挖掘 > 其他", "mined", False),
+            knowledge.NewChunk("保温杯", "保温杯能进洗碗机吗", "不能。", "飞轮补充 > 保温杯", "flywheel", False),
+        ])
+        preserved_ids = [r.id for r in added]
         await s.commit()
     docs = _write_docs(tmp_path)
     first = await ingest.ingest_all(docs)
     assert first == {"退货政策": 3, "常见问答": 12}
     assert await ingest.ingest_all(docs) == {"退货政策": 0, "常见问答": 0}
+    assert await vectorize_pending() == 17
+    await m.recreate_collection()
     assert await ingest.ingest_all(docs, rebuild=True) == {"退货政策": 3, "常见问答": 12}
     rows = await _rows(db)
     assert sum(r.content_type == "mined" for r in rows) == 1
-    assert len(rows) == 16
+    assert sum(r.content_type == "flywheel" for r in rows) == 1
+    preserved = [r for r in rows if r.content_type in ("mined", "flywheel")]
+    assert [r.id for r in preserved] == preserved_ids
+    assert [(r.vectorize_status, r.vector_id) for r in preserved] == [("pending", None)] * 2
+    assert len(rows) == 17
+    assert await vectorize_pending() == 17
+    preserved = [r for r in await _rows(db) if r.content_type in ("mined", "flywheel")]
+    assert [(r.vectorize_status, r.vector_id) for r in preserved] == [("done", str(i)) for i in preserved_ids]
+    assert await m.count_vectors() == 17
 
 
 def test_duplicate_titles_rejected(tmp_path):
@@ -111,7 +126,7 @@ def test_duplicate_titles_rejected(tmp_path):
         ingest.load_doc_sources(tmp_path)
 
 
-@pytest.mark.parametrize("title", ["对话挖掘", "常见问答"])
+@pytest.mark.parametrize("title", ["对话挖掘", "常见问答", "飞轮补充"])
 def test_reserved_titles_rejected(tmp_path, title):
     _write_docs(tmp_path, name="保留标题.md", text=f"# {title}\n\n正文。\n")
     with pytest.raises(ValueError, match="保留标题") as exc:
