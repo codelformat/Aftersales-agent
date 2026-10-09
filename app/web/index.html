@@ -40,16 +40,55 @@
       outline: 3px solid var(--focus);
       outline-offset: 3px;
     }
-    .chat {
+    .chat-layout {
+      position: relative;
       display: flex;
-      flex-direction: column;
-      width: min(100%, 900px);
+      width: min(100%, 1140px);
       height: 100vh;
       height: 100dvh;
       margin: 0 auto;
       background: var(--surface);
       box-shadow: 0 0 40px var(--shadow);
     }
+    .chat {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .conversation-sidebar {
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 240px;
+      width: 240px;
+      min-height: 0;
+      padding: 16px 12px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+    .sidebar-heading h2 { margin: 0; padding-left: 8px; font-size: 16px; }
+    .conversation-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px; }
+    .conversation-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 12px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      text-align: left;
+    }
+    .conversation-item:hover:enabled { background: var(--assistant); }
+    .conversation-item.active { border-color: var(--primary); background: var(--assistant); }
+    .conversation-preview { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+    .conversation-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .conversation-summary { padding: 2px 6px; border-radius: 6px; background: var(--tool-pending-bg); color: var(--tool-pending-text); }
+    .header-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .sidebar-toggle, .sidebar-close { display: none; }
     .header {
       display: flex;
       align-items: center;
@@ -266,6 +305,15 @@
     }
     .send:hover:enabled { background: var(--primary-hover); }
     .hint { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+    @media (max-width: 719px) {
+      .conversation-sidebar { display: none; position: absolute; inset: 0 auto 0 0; z-index: 2; box-shadow: 8px 0 24px var(--shadow); }
+      .chat-layout.sidebar-open .conversation-sidebar { display: flex; }
+      .sidebar-toggle, .sidebar-close { display: inline-block; }
+      .header { gap: 8px; }
+      .header-title { gap: 8px; }
+      .header-title h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .sidebar-toggle { padding: 8px; }
+    }
     @media (max-width: 600px) {
       .header { padding: 18px 16px; }
       h1 { font-size: 16px; }
@@ -282,9 +330,20 @@
   </style>
 </head>
 <body>
+  <div id="chat-layout" class="chat-layout">
+  <aside id="conversation-sidebar" class="conversation-sidebar" aria-labelledby="sidebar-title">
+    <div class="sidebar-heading">
+      <h2 id="sidebar-title">历史会话</h2>
+      <button id="sidebar-close" class="new-chat sidebar-close" type="button" aria-label="收起会话侧栏">关闭</button>
+    </div>
+    <nav id="conversation-list" class="conversation-list" aria-label="会话列表"></nav>
+  </aside>
   <main class="chat">
     <header class="header">
-      <h1>示例商城 · 售后客服</h1>
+      <div class="header-title">
+        <button id="sidebar-toggle" class="new-chat sidebar-toggle" type="button" aria-controls="conversation-sidebar" aria-expanded="false" aria-label="展开会话侧栏">☰</button>
+        <h1>示例商城 · 售后客服</h1>
+      </div>
       <button id="new-chat" class="new-chat" type="button">新对话</button>
     </header>
     <section id="messages" class="messages" role="log" aria-label="对话消息" aria-live="polite"></section>
@@ -296,6 +355,7 @@
       <p id="hint" class="hint">Enter 发送 · Shift+Enter 换行 · 最多 2000 字符</p>
     </form>
   </main>
+  </div>
   <dialog id="citation-card" class="citation-card" aria-labelledby="citation-title">
     <div class="citation-heading">
       <h2 id="citation-title"></h2>
@@ -347,6 +407,12 @@
     const sendButton = document.getElementById('send');
     const newChatButton = document.getElementById('new-chat');
     const composer = document.getElementById('composer');
+    const chatLayout = document.getElementById('chat-layout');
+    const conversationList = document.getElementById('conversation-list');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebarClose = document.getElementById('sidebar-close');
+    let conversationRequest = 0;
+    let historyRequest = 0;
     const welcome = '您好，我是示例商城的售后客服助手。请问有什么可以帮您？';
     let userId = null;
     let sessionId = null;
@@ -658,6 +724,112 @@
       return userId;
     }
 
+    function setSidebarOpen(open) {
+      chatLayout.classList.toggle('sidebar-open', open);
+      sidebarToggle.setAttribute('aria-expanded', String(open));
+      sidebarToggle.setAttribute('aria-label', open ? '收起会话侧栏' : '展开会话侧栏');
+    }
+
+    sidebarToggle.addEventListener('click', () => {
+      setSidebarOpen(!chatLayout.classList.contains('sidebar-open'));
+    });
+    sidebarClose.addEventListener('click', () => {
+      setSidebarOpen(false);
+      sidebarToggle.focus();
+    });
+    chatLayout.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && chatLayout.classList.contains('sidebar-open')) {
+        setSidebarOpen(false);
+        sidebarToggle.focus();
+      }
+    });
+
+    function updateConversationSelection() {
+      for (const item of conversationList.children) {
+        const active = item.dataset.sessionId === sessionId;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-current', String(active));
+        item.disabled = streaming;
+      }
+    }
+
+    function formatConversationTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const pad = number => String(number).padStart(2, '0');
+      return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    async function loadConversations() {
+      const request = ++conversationRequest;
+      updateConversationSelection();
+      try {
+        const response = await fetch(`/api/conversations?user_id=${encodeURIComponent(getUserId())}`);
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        const conversations = await response.json();
+        if (!Array.isArray(conversations)) throw new Error('会话列表格式错误');
+        if (request !== conversationRequest) return;
+        const items = document.createDocumentFragment();
+        for (const conversation of conversations) {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'conversation-item';
+          item.dataset.sessionId = conversation.session_id;
+          const preview = document.createElement('span');
+          preview.className = 'conversation-preview';
+          preview.textContent = conversation.preview || '新会话';
+          const meta = document.createElement('span');
+          meta.className = 'conversation-meta';
+          const time = document.createElement('time');
+          time.dateTime = conversation.updated_at;
+          time.textContent = formatConversationTime(conversation.updated_at);
+          meta.append(time);
+          if (conversation.summarized) {
+            const summary = document.createElement('span');
+            summary.className = 'conversation-summary';
+            summary.textContent = '已摘要';
+            meta.append(summary);
+          }
+          item.append(preview, meta);
+          item.addEventListener('click', () => loadConversation(conversation.session_id));
+          items.append(item);
+        }
+        conversationList.replaceChildren(items);
+        updateConversationSelection();
+      } catch (error) {
+        console.warn('加载会话列表失败', error);
+      }
+    }
+
+    async function loadConversation(id) {
+      if (streaming) return;
+      const request = ++historyRequest;
+      try {
+        const response = await fetch(`/api/conversations/${encodeURIComponent(id)}/messages?user_id=${encodeURIComponent(getUserId())}`);
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        const history = await response.json();
+        if (!Array.isArray(history) || history.some(message =>
+          !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string')) {
+          throw new Error('会话消息格式错误');
+        }
+        // Ignore old responses after another selection, a new chat, or a sent message.
+        if (request !== historyRequest || streaming) return;
+        if (citationCard.open) citationCard.close();
+        if (actionDialog.open) actionDialog.close();
+        actionContext = null;
+        messages.replaceChildren();
+        followBottom = true;
+        for (const message of history) addMessage(message.role, message.content);
+        sessionId = id;
+        answerIndex = history.filter(message => message.role === 'assistant').length;
+        updateControls();
+        setSidebarOpen(false);
+        input.focus();
+      } catch (error) {
+        console.warn('加载会话消息失败', error);
+      }
+    }
+
     const toolNames = new Map([
       ['query_order', '查订单'],
       ['query_product', '查商品'],
@@ -691,6 +863,8 @@
     }
 
     function updateControls() {
+      if (streaming) historyRequest++;
+      updateConversationSelection();
       input.disabled = streaming;
       sendButton.disabled = streaming || !input.value.trim();
       newChatButton.disabled = streaming;
@@ -750,6 +924,7 @@
     function resetChat() {
       if (streaming && !stopTyping) return;
       if (stopTyping) stopTyping();
+      historyRequest++;
       sessionId = null;
       answerIndex = 0;
       if (citationCard.open) citationCard.close();
@@ -760,6 +935,7 @@
       addMessage('assistant', welcome);
       input.value = '';
       updateControls();
+      setSidebarOpen(false);
       input.focus();
     }
 
@@ -918,6 +1094,7 @@
           sessionId = data.session_id;
           answer.sessionId = sessionId;
           actions.sessionId = sessionId;
+          loadConversations();
         } else if (event === 'understood') {
           if (understoodHint) understoodHint.remove();
           understoodHint = null;
@@ -953,6 +1130,7 @@
           } else {
             addFeedback(bubble, answer);
           }
+          loadConversations();
         } else if (event === 'error') {
           showError(data.message || '服务暂时不可用，请稍后重试');
           terminal = true;
@@ -1034,6 +1212,7 @@
     newChatButton.addEventListener('click', resetChat);
     getUserId();
     resetChat();
+    loadConversations();
   </script>
 </body>
 </html>
