@@ -27,16 +27,17 @@ async def list_for_conversation(
 
 async def add_turn(
     session: AsyncSession, conversation_id: int, rows: list[NewMessage]
-) -> None:
-    session.add_all(
-        [
-            Message(
-                conversation_id=conversation_id,
-                role=row.role,
-                content=row.content,
-                tool_calls=row.tool_calls,
-                tool_call_id=row.tool_call_id,
-            )
-            for row in rows
-        ]
-    )
+) -> list[Message]:
+    objs = [
+        Message(
+            conversation_id=conversation_id,
+            role=row.role,
+            content=row.content,
+            tool_calls=row.tool_calls,
+            tool_call_id=row.tool_call_id,
+        )
+        for row in rows
+    ]
+    session.add_all(objs)
+    await session.flush()
+    return objs

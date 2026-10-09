@@ -16,6 +16,7 @@ from app.prompts import REFUND_CREATED_NOTE
 from app.repositories import conversations, messages
 from app.repositories.messages import NewMessage
 from app.schemas import RefundRequest
+from app.services.history import msg_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,14 +46,17 @@ async def create_refund(
                     refund_no, req.order_id, req.reason, cid)
         note = REFUND_CREATED_NOTE.format(refund_no=refund_no, order_id=req.order_id, reason=req.reason)
         # 退款单已提交，不回滚。下面两步失败只记日志。
+        note_id = None
         try:
             async with get_sessionmaker()() as s:
-                await messages.add_turn(s, cid, [NewMessage(role="assistant", content=note)])
+                (row,) = await messages.add_turn(s, cid, [NewMessage(role="assistant", content=note)])
                 await s.commit()
+                note_id = msg_id(row.id)
         except Exception:
             logger.exception("退款提示写入 messages 表失败")
         try:
-            await graph.aupdate_state(thread_config(cid), {"messages": [AIMessage(content=note)]}, as_node="finalize")
+            await graph.aupdate_state(thread_config(cid), {"messages": [AIMessage(content=note, id=note_id)]},
+                                      as_node="finalize")
         except Exception:
             logger.exception("退款提示写入 State 失败")
     return {"refund_no": refund_no, "status": "待审核"}

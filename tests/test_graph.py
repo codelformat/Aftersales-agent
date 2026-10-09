@@ -130,8 +130,35 @@ async def test_business_route_multi_step_react(db, memory_graph, use_intent, cap
     assert turn.trace[3:] == ["agent_model", "agent_tools", "agent_model", "agent_tools", "agent_model", "finalize"]
     assert turn.state.values["steps"] == 2
     assert [e[0] for e in turn.events].count("tool_start") == 2
-    assert [r for r, _ in await saved(db, cid)] == ["user", "assistant", "tool", "assistant", "tool", "tool", "assistant"]
+    assert [r for r, _ in await saved(db, cid)] == ["user", "assistant"]
+    assert [type(m).__name__ for m in turn.state.values["messages"]] == [
+        "HumanMessage", "AIMessage", "ToolMessage", "AIMessage", "ToolMessage", "ToolMessage", "AIMessage"]
     assert "steps=2" in caplog.text and "route=business" in caplog.text
+
+
+async def test_finalize_stamps_db_ids_on_state_messages(db, memory_graph, use_intent):
+    use_intent("订单")
+    cid = await new_cid(db)
+    turn, _ = await run(memory_graph, cid, "订单 1001 到哪了",
+                        tools(("c1", "query_order", {"order_id": "1001"})), text("已发货"))
+    async with db() as s:
+        rows = (await s.scalars(select(Message).where(Message.conversation_id == cid).order_by(Message.id))).all()
+    msgs = turn.state.values["messages"]
+    assert [type(m).__name__ for m in msgs] == ["HumanMessage", "AIMessage", "ToolMessage", "AIMessage"]
+    assert [(r.role, r.content) for r in rows] == [("user", "订单 1001 到哪了"), ("assistant", "已发货")]
+    assert msgs[0].id == f"msg-{rows[0].id}" and msgs[-1].id == f"msg-{rows[1].id}"
+    assert not msgs[1].id.startswith("msg-") and not msgs[2].id.startswith("msg-")
+    assert msgs[1].tool_calls[0]["id"] == msgs[2].tool_call_id == "c1"
+    assert msgs[-1].content == "已发货"
+
+
+async def test_finalize_stamps_db_ids_on_fixed_reply(db, memory_graph, use_intent):
+    use_intent("闲聊")
+    cid = await new_cid(db)
+    turn, _ = await run(memory_graph, cid, "你好")
+    async with db() as s:
+        rows = (await s.scalars(select(Message).where(Message.conversation_id == cid).order_by(Message.id))).all()
+    assert [m.id for m in turn.state.values["messages"]] == [f"msg-{r.id}" for r in rows]
 
 
 async def test_agent_create_ticket_call_writes_no_ticket(db, memory_graph, use_intent):

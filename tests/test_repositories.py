@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from app.db.models import Message
 from app.repositories import conversations, low_confidence, messages, tickets
 from app.repositories.messages import NewMessage
 
@@ -25,20 +26,20 @@ async def test_get_for_user_checks_owner(db):
 
 async def test_add_turn_and_list_in_order(db):
     cid = await _new_conversation(db)
-    calls = [{"id": "c1", "name": "query_order", "args": {"order_id": "1001"}}]
     async with db() as s:
-        await messages.add_turn(s, cid, [
+        written = await messages.add_turn(s, cid, [
             NewMessage(role="user", content="订单 1001"),
-            NewMessage(role="assistant", content=None, tool_calls=calls),
-            NewMessage(role="tool", content='{"ok": true}', tool_call_id="c1"),
             NewMessage(role="assistant", content="已发货"),
         ])
+        assert len(written) == 2
+        assert all(isinstance(row, Message) and row.id > 0 for row in written)
+        assert written[0].id < written[1].id
         await s.commit()
     async with db() as s:
         rows = await messages.list_for_conversation(s, cid)
-    assert [r.role for r in rows] == ["user", "assistant", "tool", "assistant"]
-    assert rows[1].tool_calls == calls
-    assert rows[2].tool_call_id == "c1"
+    assert [(r.role, r.content) for r in rows] == [("user", "订单 1001"), ("assistant", "已发货")]
+    assert [r.id for r in rows] == [r.id for r in written]
+    assert all(r.tool_calls is None and r.tool_call_id is None for r in rows)
 
 
 async def test_ticket_numbers_increment(db):

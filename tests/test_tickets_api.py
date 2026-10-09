@@ -44,6 +44,38 @@ async def test_other_user_is_404(client, db, locks):
     assert r.status_code == 404 and r.json()["detail"]["code"] == "conversation_not_found"
 
 
+async def test_ticket_note_state_message_has_db_id(client, db, locks, memory_graph):
+    cid = await new_cid(db)
+    r = await client.post("/tickets", json=body(cid))
+    assert r.status_code == 200
+    async with db() as s:
+        row = (await s.scalars(select(Message).where(Message.conversation_id == cid))).one()
+    state = await memory_graph.aget_state(thread_config(cid))
+    assert state.values["messages"][-1].id == f"msg-{row.id}"
+
+
+async def test_ticket_note_without_db_id_inherits_previous(client, db, locks, memory_graph, monkeypatch):
+    from app.api import tickets
+
+    async def broken(*a, **k):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(tickets.messages, "add_turn", broken)
+    cid = await new_cid(db)
+    await memory_graph.aupdate_state(thread_config(cid), {"messages": [AIMessage("上一条", id="msg-42")]},
+                                    as_node="finalize")
+    r = await client.post("/tickets", json=body(cid))
+    assert r.status_code == 200
+    state = await memory_graph.aget_state(thread_config(cid))
+    msgs = state.values["messages"]
+    assert len(msgs) == 2 and msgs[0].id == "msg-42"
+    assert msgs[-1].id and not msgs[-1].id.startswith("msg-")
+    assert r.json()["ticket_no"] in msgs[-1].content
+    async with db() as s:
+        assert (await s.scalars(select(Message).where(Message.conversation_id == cid))).all() == []
+        assert (await s.scalars(select(Ticket).where(Ticket.conversation_id == cid))).one()
+
+
 @pytest.mark.parametrize("patch", [{"ticket_type": "退款"}, {"description": ""}, {"description": "x" * 501},
                                    {"session_id": "abc"}])
 async def test_validation(client, db, locks, patch):

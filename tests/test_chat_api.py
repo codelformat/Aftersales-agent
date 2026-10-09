@@ -69,7 +69,8 @@ async def test_business_tool_round_events(client, db, use_script, use_intent):
     assert [e for e, _ in ev] == ["session", "understood", "tool_start", "tool_end", "token", "token", "token", "done"]
     assert ev[2][1] == {"tools": [{"id": "c1", "name": "query_logistics", "args": {"order_id": "1001"}}]}
     assert rec[1]["tools"] == ["query_order", "query_logistics", "query_product", "offer_human_options"]
-    assert [m.role for m in await rows(db)] == ["user", "assistant", "tool", "assistant"]
+    assert [(m.role, m.content) for m in await rows(db)] == [("user", "订单 1001 的物流到哪了"),
+                                                          ("assistant", "运输中")]
 
 
 async def test_knowledge_events(client, db, use_script, use_intent, monkeypatch):

@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from langchain_core.messages import AIMessage
 from sqlalchemy import select
 
 from app.db.models import Message
@@ -40,6 +41,37 @@ async def test_refund_other_users_session_is_404(client, db, locks):
     r = await client.post("/refunds", json=body(cid))
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "conversation_not_found"
+
+
+async def test_refund_note_state_message_has_db_id(client, db, locks, memory_graph):
+    cid = await new_cid(db)
+    r = await client.post("/refunds", json=body(cid))
+    assert r.status_code == 200
+    async with db() as s:
+        row = (await s.scalars(select(Message).where(Message.conversation_id == cid))).one()
+    state = await memory_graph.aget_state(thread_config(cid))
+    assert state.values["messages"][-1].id == f"msg-{row.id}"
+
+
+async def test_refund_note_without_db_id_inherits_previous(client, db, locks, memory_graph, monkeypatch):
+    from app.api import refunds
+
+    async def broken(*a, **k):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(refunds.messages, "add_turn", broken)
+    cid = await new_cid(db)
+    await memory_graph.aupdate_state(thread_config(cid), {"messages": [AIMessage("上一条", id="msg-42")]},
+                                    as_node="finalize")
+    r = await client.post("/refunds", json=body(cid))
+    assert r.status_code == 200
+    state = await memory_graph.aget_state(thread_config(cid))
+    msgs = state.values["messages"]
+    assert len(msgs) == 2 and msgs[0].id == "msg-42"
+    assert msgs[-1].id and not msgs[-1].id.startswith("msg-")
+    assert r.json()["refund_no"] in msgs[-1].content
+    async with db() as s:
+        assert (await s.scalars(select(Message).where(Message.conversation_id == cid))).all() == []
 
 
 async def test_refund_while_busy_is_409(client, db, locks):
