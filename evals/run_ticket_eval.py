@@ -87,15 +87,15 @@ async def evaluate_sample(sample: dict, semaphore: asyncio.Semaphore) -> tuple[b
 
 async def run_eval() -> int:
     samples = [json.loads(line) for line in SAMPLES_PATH.read_text(encoding="utf-8").splitlines() if line.strip()]
-    if len(samples) != 12:
-        raise ValueError("工单评估集必须包含 12 条样例")
+    if len(samples) != 13:
+        raise ValueError("工单评估集必须包含 13 条样例")
     semaphore = asyncio.Semaphore(3)
     results = await asyncio.gather(*(evaluate_sample(sample, semaphore) for sample in samples))
     for _, line in results:
         print(line)
     correct = sum(ok for ok, _ in results)
-    print(f"\n通过 {correct}/12")
-    return 0 if correct == 12 else 1
+    print(f"\n通过 {correct}/13")
+    return 0 if correct == 13 else 1
 
 
 def main() -> int:

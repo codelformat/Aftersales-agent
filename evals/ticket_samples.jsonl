@@ -10,3 +10,4 @@
 {"id": "t10", "history": [["user", "帮我建个工单"], ["assistant", "请描述一下遇到的问题。"], ["user", "是我买的打印机"], ["assistant", "打印机出现了什么故障？"], ["user", "打印机每次进纸都卡纸，还会把纸撕破"], ["assistant", "收到，是进纸卡纸并撕破纸张。"]], "user": "就按刚才说的问题帮我提交工单", "expect": "call", "ticket_type": "售后", "must_include": ["打印机", "卡纸", "撕破"]}
 {"id": "t11", "history": [], "user": "耳机实付1299元，退货后只退了1200元，还差99元，帮我建个售后工单跟进", "expect": "call", "ticket_type": "售后", "must_include": ["耳机", "1299", "1200", "99"]}
 {"id": "t12", "history": [], "user": "建工单，快点", "expect": "ask"}
+{"id": "t13", "history": [["user", "帮我建个工单"], ["assistant", "好的，我来帮您建工单。请先告诉我您遇到的具体问题，以及涉及的订单号是多少？"]], "user": "蓝牙耳机左耳没声音，买了一周", "expect": "call", "ticket_type": "售后", "must_include": ["左耳"]}

@@ -105,7 +105,8 @@ def test_agent_ticket_confirmation_rules():
     assert ticket_section.strip().splitlines()[2] == (
         "3. 用户讲清问题后，直接调用 create_ticket，不先查询订单或物流。用户给出的订单号原样写进 description。")
     assert "只有用户明确要求建工单时，才调用 create_ticket" in plain
-    assert "先追问，不调用" in plain and "不编造用户没说过的细节" in plain
+    assert "工单只需要两项" in ticket_section and "不追问订单号" in ticket_section
+    assert "只追问问题，不调用" in plain and "不编造用户没说过的细节" in plain
     assert "工单只能在用户确认或点击按钮后创建" in plain
     assert "工单只能由用户点击按钮创建" not in plain
     assert builtin_registry()["create_ticket"].openai_tool()["function"]["description"] == (

@@ -9,8 +9,8 @@ SAMPLES_PATH = Path(__file__).resolve().parent.parent / "evals" / "ticket_sample
 
 def test_ticket_samples_shape():
     samples = [json.loads(line) for line in SAMPLES_PATH.read_text(encoding="utf-8").splitlines() if line.strip()]
-    assert len(samples) == 12
-    assert len({sample["id"] for sample in samples}) == 12
+    assert len(samples) == 13
+    assert len({sample["id"] for sample in samples}) == 13
     assert {sample["expect"] for sample in samples} == {"ask", "call"}
     for sample in samples:
         assert {"id", "history", "user", "expect"} <= set(sample)
