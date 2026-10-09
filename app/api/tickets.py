@@ -15,7 +15,7 @@ from app.repositories import conversations, messages
 from app.repositories.messages import NewMessage
 from app.schemas import TicketRequest
 from app.services.history import msg_id
-from app.tools.executor import execute_tool_calls
+from app.tools.executor import APPROVED, execute_tool_calls
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -37,7 +37,8 @@ async def create_ticket(
     async with lock:
         call = {"id": f"ticket-{uuid.uuid4().hex[:8]}", "name": "create_ticket",
                 "args": {"description": req.description, "ticket_type": req.ticket_type}}
-        outcome = (await execute_tool_calls([call], conversation_id=cid))[0]
+        outcome = (await execute_tool_calls([call], conversation_id=cid,
+                                           approvals={call["id"]: APPROVED}))[0]
         if not outcome.ok:
             raise HTTPException(502, detail={"code": "ticket_failed", "message": "工单创建失败，请稍后重试"})
         ticket = outcome.data

@@ -21,7 +21,7 @@ def body(cid, **kw):
     return {"session_id": str(cid), "user_id": "u1", "description": "快递员态度差", "ticket_type": "投诉", **kw}
 
 
-async def test_create_ticket_writes_table_message_and_state(client, db, locks, memory_graph):
+async def test_create_ticket_writes_table_message_and_state(client, db, locks, memory_graph, audit_log):
     cid = await new_cid(db)
     r = await client.post("/tickets", json=body(cid))
     assert r.status_code == 200
@@ -36,6 +36,9 @@ async def test_create_ticket_writes_table_message_and_state(client, db, locks, m
     state = await memory_graph.aget_state(thread_config(cid))
     assert [m.content for m in state.values["messages"]] == [note]
     assert isinstance(state.values["messages"][0], AIMessage) and state.next == ()
+    assert len(audit_log) == 1
+    assert audit_log[0].tool_name == "create_ticket" and audit_log[0].status == "成功"
+    assert audit_log[0].conversation_id == cid
 
 
 async def test_other_user_is_404(client, db, locks):
@@ -100,9 +103,10 @@ async def test_tool_failure_is_502(client, db, locks, monkeypatch):
     from app.tools.executor import ToolOutcome
     from langchain_core.messages import ToolMessage
 
-    async def fail(calls, *, conversation_id):
+    async def fail(calls, *, conversation_id, approvals):
+        assert approvals == {calls[0]["id"]: "approved"}
         return [ToolOutcome(calls[0]["id"], "create_ticket", False,
-                            ToolMessage(content="{}", tool_call_id=calls[0]["id"]))]
+                            ToolMessage(content="{}", tool_call_id=calls[0]["id"]), status="失败")]
 
     monkeypatch.setattr(tickets_api, "execute_tool_calls", fail)
     r = await client.post("/tickets", json=body(await new_cid(db)))

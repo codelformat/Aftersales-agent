@@ -150,7 +150,7 @@ async def test_agent_tools_rejects_unbound_tool(emitted):
     assert [m.tool_call_id for m in messages] == ["c1", "c2"]
     assert json.loads(messages[0].content)["ok"] is True
     assert json.loads(messages[1].content) == {
-        "ok": False, "error": "unknown_tool", "message": "工具不存在"}
+        "ok": False, "error": "permission_denied", "message": "工具未开放"}
     assert emitted[-1] == ("tool_end", {"tools": [
         {"id": "c1", "name": "query_order", "ok": True},
         {"id": "c2", "name": "create_ticket", "ok": False},
@@ -261,7 +261,8 @@ async def test_refund_form_not_allowed_outside_aftersales(emitted):
     msg = AIMessage(content="", tool_calls=[{"id": "c1", "name": "offer_refund_form", "args": {"order_id": "1001"}}])
     out = await agent_mod.agent_tools(aftersales_state(route="business", agent_messages=[msg]), rt())
     assert "actions" not in out
-    assert json.loads(out["agent_messages"][-1].content)["error"] == "unknown_tool"
+    assert json.loads(out["agent_messages"][-1].content) == {
+        "ok": False, "error": "permission_denied", "message": "工具未开放"}
 
 
 async def test_refund_and_human_actions_merge(emitted):

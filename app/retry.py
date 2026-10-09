@@ -19,7 +19,9 @@ async def retry_async(
     attempts: int,
     base_delay: float,
     max_delay: float,
-    retry_on: tuple[type[BaseException], ...],
+    retry_on: tuple[type[BaseException], ...] = (),
+    should_retry: Callable[[BaseException], bool] | None = None,
+    on_retry: Callable[[int, BaseException], None] | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     rand: Callable[[], float] = random.random,
 ) -> T:
@@ -31,8 +33,12 @@ async def retry_async(
     while True:
         try:
             return await fn()
-        except retry_on:
+        except (Exception if should_retry is not None else retry_on) as exc:
+            if should_retry is not None and not should_retry(exc):
+                raise
             retry_number += 1
             if retry_number >= attempts:
                 raise
+            if on_retry is not None:
+                on_retry(retry_number, exc)
             await sleep(backoff_delay(retry_number, base_delay, max_delay, rand()))
