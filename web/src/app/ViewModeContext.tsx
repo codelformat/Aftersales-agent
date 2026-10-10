@@ -11,12 +11,13 @@ type ViewModeState = {
 const ViewModeContext = createContext<ViewModeState | undefined>(undefined);
 
 export function ViewModeProvider({ children }: { children: ReactNode }) {
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    localStorage.getItem('view_mode') === 'customer' ? 'customer' : 'eng',
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try { return localStorage.getItem('view_mode') === 'customer' ? 'customer' : 'eng'; }
+    catch { return 'eng'; }
+  });
 
   useEffect(() => {
-    localStorage.setItem('view_mode', viewMode);
+    try { localStorage.setItem('view_mode', viewMode); } catch { /* Preserve the selection in memory. */ }
   }, [viewMode]);
 
   return (

@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": { "node": "^22.22.2 || ^24.15.0 || >=26.0.0" },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode live",
@@ -12,7 +14,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.2.0",
     "@radix-ui/react-toggle-group": "1.1.20",
+    "@radix-ui/react-tooltip": "^1.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

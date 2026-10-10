@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { DATA_SOURCE } from '../config';
+import DeskPage from '../desk/DeskPage';
 
 export type AppRoute = {
   section: 'desk' | 'ops' | 'theater' | 'missing';
@@ -49,6 +50,7 @@ export function useHashRoute(): AppRoute {
 }
 
 export function RoutePage({ route }: { route: AppRoute }) {
+  if (route.section === 'desk') return <DeskPage />;
   return (
     <section>
       <h1>{route.title}</h1>
