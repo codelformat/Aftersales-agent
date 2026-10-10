@@ -1,7 +1,8 @@
 import json
 import logging
+import time
 from collections.abc import AsyncIterable, AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Annotated, Any
 
@@ -39,6 +40,8 @@ class ChatTurn:
     user_id: str
     resume_value: Any = None
     intent: str | None = None
+    debug: bool = False
+    started_at: float = field(default_factory=time.monotonic)
 
 
 def sse(name: str, data: dict) -> ServerSentEvent:
@@ -47,7 +50,8 @@ def sse(name: str, data: dict) -> ServerSentEvent:
 
 async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterator[ServerSentEvent]:
     yield sse("session", {"session_id": str(turn.conversation_id)})
-    ctx = GraphContext(conversation_id=turn.conversation_id, today=turn.today, model=model, user_id=turn.user_id)
+    ctx = GraphContext(conversation_id=turn.conversation_id, today=turn.today, model=model, user_id=turn.user_id,
+                       debug=turn.debug, started_at=turn.started_at)
     interrupted = False
     saved_id = None
     try:
@@ -124,7 +128,8 @@ async def prepare_chat_turn(
                     result_summary=None, status="权限拒绝", error_message="用户未确认，已被新消息取代",
                     retry_count=0, duration_ms=None,
                 ))
-        yield ChatTurn(conversation_id=conversation_id, user_input=req.message, today=today, user_id=req.user_id)
+        yield ChatTurn(conversation_id=conversation_id, user_input=req.message, today=today, user_id=req.user_id,
+                       debug=req.debug)
     finally:
         lock.release()
 
@@ -174,7 +179,7 @@ async def prepare_resume(
                 raise HTTPException(409, detail=NO_PENDING_CONFIRMATION)
             resume_value = {"confirmed": req.ticket_confirm}
         yield ChatTurn(conversation_id=cid, user_input="", today=today, user_id=req.user_id,
-                       resume_value=resume_value, intent=state.values.get("intent"))
+                       resume_value=resume_value, intent=state.values.get("intent"), debug=req.debug)
     finally:
         lock.release()
 

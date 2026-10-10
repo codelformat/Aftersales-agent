@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Aftersales SSE events",
+  "description": "An SSE event name and its parsed JSON data. Internal saved events are excluded.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "session"
+        },
+        "data": {
+          "$ref": "#/$defs/session"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "understood"
+        },
+        "data": {
+          "$ref": "#/$defs/understood"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "token"
+        },
+        "data": {
+          "$ref": "#/$defs/token"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "tool_start"
+        },
+        "data": {
+          "$ref": "#/$defs/tool_start"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "tool_end"
+        },
+        "data": {
+          "$ref": "#/$defs/tool_end"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "citations"
+        },
+        "data": {
+          "$ref": "#/$defs/citations"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "actions"
+        },
+        "data": {
+          "$ref": "#/$defs/actions"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "order_picker"
+        },
+        "data": {
+          "$ref": "#/$defs/order_picker"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "ticket_preview"
+        },
+        "data": {
+          "$ref": "#/$defs/ticket_preview"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "error"
+        },
+        "data": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "done"
+        },
+        "data": {
+          "$ref": "#/$defs/done"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "trace"
+        },
+        "data": {
+          "$ref": "#/$defs/trace"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "citation": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "chunk_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "section_path": {
+          "type": "string"
+        },
+        "question": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "n",
+        "chunk_id",
+        "section_path",
+        "question",
+        "answer"
+      ],
+      "additionalProperties": false
+    },
+    "action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "handoff"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ticket"
+            },
+            "description": {
+              "type": "string"
+            },
+            "ticket_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "description",
+            "ticket_type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "refund"
+            },
+            "order_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "order_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "orderCard": {
+      "type": "object",
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "total": {
+          "type": "number"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_id",
+        "title",
+        "total",
+        "created_at",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "toolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "args"
+      ],
+      "additionalProperties": false
+    },
+    "toolResult": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "ok"
+      ],
+      "additionalProperties": false
+    },
+    "nodeStart": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "node_start"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "nodeEnd": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "node_end"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "interrupted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "trace": {
+      "$comment": "Task 1 defines node_start/node_end. Add resolve, intent, retrieval, gate, tool, llm and context branches in later tasks.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nodeStart"
+        },
+        {
+          "$ref": "#/$defs/nodeEnd"
+        }
+      ]
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "additionalProperties": false
+    },
+    "understood": {
+      "type": "object",
+      "properties": {
+        "resolved_input": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "resolved_input",
+        "intent"
+      ],
+      "additionalProperties": false
+    },
+    "token": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "tool_start": {
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/toolCall"
+          }
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "additionalProperties": false
+    },
+    "tool_end": {
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/toolResult"
+          }
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "additionalProperties": false
+    },
+    "citations": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citation"
+          }
+        },
+        "refused": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "items",
+        "refused"
+      ],
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "additionalProperties": false
+    },
+    "order_picker": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/orderCard"
+          }
+        }
+      },
+      "required": [
+        "orders"
+      ],
+      "additionalProperties": false
+    },
+    "ticket_preview": {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "type": "string"
+        },
+        "ticket_type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "ticket_type",
+        "description"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "done": {
+      "type": "object",
+      "properties": {
+        "finish_reason": {
+          "enum": [
+            "stop",
+            "interrupted"
+          ]
+        },
+        "message_id": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "finish_reason"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
