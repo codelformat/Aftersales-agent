@@ -7,10 +7,11 @@ import Composer from './Composer';
 import MessageBubble from './MessageBubble';
 import styles from './Desk.module.css';
 
-export default function ChatPane({ desk, source, selectedTurnId, onSelect, onCitationHover, onOpenSidebar, sidebarOpen, sidebarId, sidebarToggleRef }: {
+export default function ChatPane({ desk, source, selectedTurnId, onSelect, onCitationHover, onOpenSidebar, sidebarOpen, sidebarId, sidebarToggleRef, readOnly = false }: {
   desk: DeskSession; source: DataSource; selectedTurnId?: string; onSelect: (id: string) => void;
   onCitationHover?: CitationHover; onOpenSidebar: () => void;
   sidebarOpen: boolean; sidebarId: string; sidebarToggleRef: RefObject<HTMLButtonElement | null>;
+  readOnly?: boolean;
 }) {
   const log = useRef<HTMLDivElement>(null);
   const followBottom = useRef(true);
@@ -23,7 +24,7 @@ export default function ChatPane({ desk, source, selectedTurnId, onSelect, onCit
       <button ref={sidebarToggleRef} type="button" className={styles.mobileToggle} aria-label="展开会话侧栏"
         aria-expanded={sidebarOpen} aria-controls={sidebarId} onClick={onOpenSidebar}>会话</button>
       <div><h1>客服工作台</h1><span className={styles.muted}>{desk.state.sessionId ? `会话 #${desk.state.sessionId}` : '新会话'} · 售后服务</span></div>
-      <button type="button" disabled={desk.busy} onClick={desk.newSession}>新对话</button>
+      <button type="button" disabled={desk.busy || readOnly} onClick={desk.newSession}>新对话</button>
     </header>
     {desk.historyError && <div role="alert" className={styles.error}>{desk.historyError}</div>}
     {desk.loadingHistory && <div role="status" className={styles.loading}>正在加载会话…</div>}

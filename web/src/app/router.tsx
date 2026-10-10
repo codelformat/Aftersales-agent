@@ -7,6 +7,9 @@ import ReviewPage from '../ops/ReviewPage';
 import EvalsPage from '../ops/EvalsPage';
 import FaithPage from '../ops/FaithPage';
 import ToolAuditPage from '../ops/ToolAuditPage';
+import GalleryPage from '../theater/GalleryPage';
+import PlayerPage from '../theater/PlayerPage';
+import { parseDeepLink } from '../theater/deepLink';
 
 export type AppRoute = {
   section: 'desk' | 'ops' | 'theater' | 'missing';
@@ -49,7 +52,7 @@ export function useHashRoute(): AppRoute {
   if (Object.hasOwn(opsTitles, path)) {
     return { section: 'ops', title: opsTitles[path]!, showViewMode: false, opsPage: path.slice(5) as OpsPage };
   }
-  const scene = /^\/theater\/([^/]+)$/.exec(path)?.[1];
+  const scene = parseDeepLink(`#${path}`)?.scene;
   if (scene) {
     return { section: 'theater', title: '场景播放器', showViewMode: true, scene };
   }
@@ -58,6 +61,7 @@ export function useHashRoute(): AppRoute {
 
 export function RoutePage({ route }: { route: AppRoute }) {
   if (route.section === 'desk') return <DeskPage />;
+  if (route.section === 'theater') return route.scene ? <PlayerPage key={route.scene} sceneId={route.scene} /> : <GalleryPage />;
   if (route.section === 'ops') {
     const page = route.opsPage ?? 'review';
     const pages = { review: ReviewPage, evals: EvalsPage, faith: FaithPage, tools: ToolAuditPage };

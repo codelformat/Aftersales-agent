@@ -82,3 +82,17 @@ describe('ReplayDataSource', () => {
     for (const call of calls) await expect(call()).rejects.toBeInstanceOf(ReplayReadOnlyError);
   });
 });
+
+it('loads theater assets under the replay deployment base path', async () => {
+  vi.stubEnv('BASE_URL', '/Aftersales-agent/');
+  const urls: string[] = [];
+  vi.stubGlobal('fetch', async (url: string) => {
+    urls.push(url);
+    return new Response(url.endsWith('.jsonl') ? fixture : '{}');
+  });
+  try {
+    await loadScene('refund');
+    await new ReplayDataSource().strategyComparison();
+    expect(urls).toEqual(['/Aftersales-agent/replays/refund.jsonl', '/Aftersales-agent/snapshots/strategy-comparison.json']);
+  } finally { vi.unstubAllEnvs(); }
+});

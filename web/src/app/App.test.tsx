@@ -109,3 +109,18 @@ describe('view mode', () => {
     },
   );
 });
+
+it('routes a theater deep link with time and view to the real player', async () => {
+  localStorage.setItem('theater_auto_hold', 'false');
+  const recordings = import.meta.glob<string>('../../public/replays/*.jsonl', { query: '?raw', import: 'default', eager: true });
+  vi.stubGlobal('fetch', async (url: string) => new Response(recordings[`../../public${url}`] ?? '', { status: recordings[`../../public${url}`] ? 200 : 404 }));
+  try {
+    await mountApp('#/theater/refund?t=2&view=cust');
+    expect(await screen.findByRole('slider', { name: '播放进度' })).toHaveValue('2000');
+    expect(screen.getByRole('radio', { name: '客户视角' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('选择订单 205925')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('radio', { name: '工程视角' }));
+    await waitFor(() => expect(window.location.hash).toBe('#/theater/refund?t=2&view=eng'));
+    expect(screen.getByLabelText('透视面板')).toBeInTheDocument();
+  } finally { vi.unstubAllGlobals(); }
+});

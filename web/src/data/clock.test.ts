@@ -151,3 +151,100 @@ describe('ReplayClock', () => {
     expect(() => new ReplayClock(lines([0, 1000])).setSpeed(speed)).toThrow(RangeError);
   });
 });
+
+it('maps chapter event indices to compressed playback positions', () => {
+  const clock = new ReplayClock(lines([0, 1000, 7000, 7500]));
+  expect(clock.timeAt(0)).toBe(0);
+  expect(clock.timeAt(2)).toBe(2500);
+  expect(clock.timeAt(3)).toBe(3000);
+  expect(() => clock.timeAt(4)).toThrow(RangeError);
+});
+
+describe('narration holds', () => {
+  it('adds 3000 ms at each anchor and keeps the inclusive index still during a hold', () => {
+    const time = timeSource();
+    const clock = new ReplayClock(lines([0, 1000, 1100, 2000]), { ...time, holdIndices: [1, 3] });
+    const ticks: number[][] = [];
+    clock.onTick((i, p) => ticks.push([i, p]));
+    expect(clock.durationMs).toBe(8000);
+    expect(clock.timeAt(2)).toBe(4100);
+    clock.play();
+    time.advance(1000);
+    expect(ticks.at(-1)).toEqual([1, 1000]);
+    time.advance(2999);
+    expect(ticks.at(-1)).toEqual([1, 3999]);
+    time.advance(101);
+    expect(ticks.at(-1)).toEqual([2, 4100]);
+    time.advance(900);
+    expect(ticks.at(-1)).toEqual([3, 5000]);
+    time.advance(2999);
+    expect(time.pending()).toBe(1);
+    time.advance(1);
+    expect(time.pending()).toBe(0);
+  });
+  it('seeks backward across holds and replays the hold without a timer latch', () => {
+    const time = timeSource();
+    const clock = new ReplayClock(lines([0, 1000, 2000, 3000]), { ...time, holdIndices: [1, 2] });
+    const ticks: number[][] = [];
+    clock.onTick((i, p) => ticks.push([i, p]));
+    clock.seek(8500);
+    expect(ticks.at(-1)).toEqual([2, 8500]);
+    clock.play();
+    clock.seek(500);
+    expect(ticks.at(-1)).toEqual([0, 500]);
+    time.advance(1500);
+    expect(ticks.at(-1)).toEqual([1, 2000]);
+    clock.pause();
+  });
+  it('scales the expanded timeline and preserves progress when changing speed inside a hold', () => {
+    const time = timeSource();
+    const clock = new ReplayClock(lines([0, 1000, 2000]), { ...time, holdIndices: [1] });
+    const ticks: number[][] = [];
+    clock.onTick((i, p) => ticks.push([i, p]));
+    clock.play(2);
+    time.advance(1000);
+    expect(ticks.at(-1)).toEqual([1, 2000]);
+    clock.setSpeed(0.5);
+    time.advance(2000);
+    expect(ticks.at(-1)).toEqual([1, 3000]);
+    time.advance(4000);
+    expect(ticks.at(-1)).toEqual([2, 5000]);
+  });
+  it('disabling holds restores duration and keeps the current recording moment', () => {
+    const clock = new ReplayClock(lines([0, 1000, 2000]), { holdIndices: [1] });
+    const ticks: number[][] = [];
+    clock.onTick((i, p) => ticks.push([i, p]));
+    expect(clock.durationMs).toBe(5000);
+    clock.seek(4500);
+    clock.setAutoHold(false);
+    expect(clock.durationMs).toBe(2000);
+    expect(ticks.at(-1)).toEqual([1, 1500]);
+    expect(clock.holds).toEqual([]);
+    clock.setAutoHold(true);
+    expect(ticks.at(-1)).toEqual([1, 4500]);
+    clock.seek(2000);
+    clock.setAutoHold(false);
+    expect(ticks.at(-1)).toEqual([1, 1000]);
+  });
+  it('holds separate anchors sharing a timestamp and shifts compressed gap markers', () => {
+    const clock = new ReplayClock(lines([0, 1000, 1000, 7000]), { holdIndices: [2, 1, 1] });
+    const ticks: number[][] = [];
+    clock.onTick((i, p) => ticks.push([i, p]));
+    expect(clock.durationMs).toBe(8500);
+    clock.seek(3999);
+    expect(ticks.at(-1)).toEqual([1, 3999]);
+    clock.seek(4000);
+    expect(ticks.at(-1)).toEqual([2, 4000]);
+    expect(clock.timeAt(3)).toBe(8500);
+    expect(clock.gaps).toEqual([{ atMs: 7000, realMs: 6000 }]);
+  });
+  it('enabling holds at simultaneous events preserves the visible event index', () => {
+    const clock = new ReplayClock(lines([0, 1000, 1000, 2000]), { holdIndices: [1, 2], autoHold: false });
+    const ticks: number[][] = [];
+    clock.onTick((i, p) => ticks.push([i, p]));
+    clock.seek(1000);
+    expect(ticks.at(-1)).toEqual([2, 1000]);
+    clock.setAutoHold(true);
+    expect(ticks.at(-1)).toEqual([2, 4000]);
+  });
+});
