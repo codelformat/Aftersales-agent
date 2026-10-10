@@ -1,0 +1,88 @@
+{"scene": "mcp-timeout", "title_zh": "MCP 超时：重试与降级", "title_en": "MCP timeout and retries", "recorded_at": "2026-10-10T02:44:39+00:00", "git_commit": "31e2276507d0802bfd972af05793929cc30567b7", "model": "deepseek-v4-flash"}
+{"t_ms": 825, "lane": "ops", "channel": "api", "event": "inject", "data": {"server": "logistics", "delay_seconds": 10}}
+{"t_ms": 825, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-mcp-timeout-44241d97027a", "message": "订单 1001 的快递到哪了", "debug": true}}
+{"t_ms": 1226, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "225"}}
+{"t_ms": 1254, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 71, "data": {}}}
+{"t_ms": 1300, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 139, "data": {"ms": 68}}}
+{"t_ms": 1314, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 152, "data": {}}}
+{"t_ms": 2581, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 1386, "data": {"original": "订单 1001 的快递到哪了", "resolved_input": "订单 1001 的快递到哪了", "standard_query": "订单 1001 的物流状态查询", "order_id": "1001", "order_scoped": true, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 2613, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 897, "output_tokens": 73, "cache_read_tokens": 763, "reasoning_tokens": 0, "ms": 1171}, "t_ms": 1387}}
+{"t_ms": 2614, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 1387, "data": {"ms": 1242}}}
+{"t_ms": 2617, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 1413, "data": {}}}
+{"t_ms": 3535, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "订单 1001 的快递到哪了", "intent": "物流"}}
+{"t_ms": 3538, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 640, "output_tokens": 15, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 880}, "t_ms": 2367}}
+{"t_ms": 3539, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 2367, "data": {"intent": "物流", "confidence": 0.9, "route": "business", "escalated": true}}}
+{"t_ms": 3540, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 2368, "data": {"ms": 971}}}
+{"t_ms": 3555, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 2394, "data": {}}}
+{"t_ms": 3556, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 2395, "data": {"layer1_tokens": 0, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 4444, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 3281, "data": {"ms": 903}}}
+{"t_ms": 4445, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 2186, "output_tokens": 81, "cache_read_tokens": 2048, "reasoning_tokens": 40, "ms": 842}, "t_ms": 3281}}
+{"t_ms": 4458, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_tools", "t_ms": 3290, "data": {}}}
+{"t_ms": 4458, "lane": "customer", "channel": "sse", "event": "tool_start", "data": {"tools": [{"id": "call_00_nxiZRe19UInJTktNTPpY8174", "name": "query_logistics", "args": {"order_id": "1001"}}]}}
+{"t_ms": 19941, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "tool", "node": "agent_tools", "t_ms": 18778, "data": {"call_id": "call_00_nxiZRe19UInJTktNTPpY8174", "name": "query_logistics", "source": "mcp", "mcp_server": "logistics", "status": "超时", "retry_count": 2, "duration_ms": 15456, "error_message": "超时（共 3 次尝试）"}}}
+{"t_ms": 19942, "lane": "customer", "channel": "sse", "event": "tool_end", "data": {"tools": [{"id": "call_00_nxiZRe19UInJTktNTPpY8174", "name": "query_logistics", "ok": false}]}}
+{"t_ms": 19942, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_tools", "t_ms": 18780, "data": {"ms": 15491}}}
+{"t_ms": 19947, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 18787, "data": {}}}
+{"t_ms": 19954, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 18788, "data": {"layer1_tokens": 0, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 21468, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 20297, "data": {"ms": 1508}}}
+{"t_ms": 21471, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 2303, "output_tokens": 190, "cache_read_tokens": 2048, "reasoning_tokens": 147, "ms": 1502}, "t_ms": 20298}}
+{"t_ms": 21473, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_tools", "t_ms": 20312, "data": {}}}
+{"t_ms": 21474, "lane": "customer", "channel": "sse", "event": "tool_start", "data": {"tools": [{"id": "call_00_9zwtZJ9n9uJkvsSFzIgg7204", "name": "offer_human_options", "args": {"options": ["handoff"]}}]}}
+{"t_ms": 21514, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "tool", "node": "agent_tools", "t_ms": 20352, "data": {"call_id": "call_00_9zwtZJ9n9uJkvsSFzIgg7204", "name": "offer_human_options", "source": "builtin", "mcp_server": null, "status": "成功", "retry_count": 0, "duration_ms": 6, "error_message": null}}}
+{"t_ms": 21515, "lane": "customer", "channel": "sse", "event": "tool_end", "data": {"tools": [{"id": "call_00_9zwtZJ9n9uJkvsSFzIgg7204", "name": "offer_human_options", "ok": true}]}}
+{"t_ms": 21516, "lane": "customer", "channel": "sse", "event": "actions", "data": {"options": [{"type": "handoff"}]}}
+{"t_ms": 21517, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_tools", "t_ms": 20354, "data": {"ms": 46}}}
+{"t_ms": 21523, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 20363, "data": {}}}
+{"t_ms": 21532, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 20363, "data": {"layer1_tokens": 0, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 21930, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "抱歉"}}
+{"t_ms": 21934, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 21935, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "订单"}}
+{"t_ms": 21935, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 21950, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "100"}}
+{"t_ms": 21951, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 21952, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 21953, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "的"}}
+{"t_ms": 21954, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "物流"}}
+{"t_ms": 21954, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "信息"}}
+{"t_ms": 21962, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "暂时"}}
+{"t_ms": 21962, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "查询"}}
+{"t_ms": 21963, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "超"}}
+{"t_ms": 21963, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "时"}}
+{"t_ms": 21964, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 21976, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "没能"}}
+{"t_ms": 21995, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "查到"}}
+{"t_ms": 22006, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 22018, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "建议"}}
+{"t_ms": 22018, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "您"}}
+{"t_ms": 22019, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "稍"}}
+{"t_ms": 22020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "后再"}}
+{"t_ms": 22020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "试"}}
+{"t_ms": 22037, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "一次"}}
+{"t_ms": 22038, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。"}}
+{"t_ms": 22038, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "如果"}}
+{"t_ms": 22045, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "急需"}}
+{"t_ms": 22075, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "确认"}}
+{"t_ms": 22076, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 22076, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "可以"}}
+{"t_ms": 22077, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "点击"}}
+{"t_ms": 22077, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "下方的"}}
+{"t_ms": 22086, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "「"}}
+{"t_ms": 22100, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "转"}}
+{"t_ms": 22101, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "人工"}}
+{"t_ms": 22101, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "」"}}
+{"t_ms": 22102, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "按钮"}}
+{"t_ms": 22102, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 22103, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "由"}}
+{"t_ms": 22114, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "人工"}}
+{"t_ms": 22114, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "客服"}}
+{"t_ms": 22115, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "协助"}}
+{"t_ms": 22116, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "跟进"}}
+{"t_ms": 22132, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。"}}
+{"t_ms": 22137, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 20977, "data": {"ms": 618}}}
+{"t_ms": 22138, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 2520, "output_tokens": 45, "cache_read_tokens": 2304, "reasoning_tokens": 0, "ms": 611}, "t_ms": 20977}}
+{"t_ms": 22144, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 20984, "data": {}}}
+{"t_ms": 22186, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 21026, "data": {"layer1_tokens": 403, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 22186, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 21026, "data": {"ms": 43}}}
+{"t_ms": 22188, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1197}}
+{"t_ms": 22228, "lane": "ops", "channel": "api", "event": "snapshot", "data": {"path": "/api/tool-audit?limit=50&status=超时", "response": [{"id": 57, "created_at": "2026-10-10T02:44:58", "conversation_id": 225, "tool_call_id": "call_00_nxiZRe19UInJTktNTPpY8174", "tool_name": "query_logistics", "tool_source": "mcp", "mcp_server": "logistics", "status": "超时", "retry_count": 2, "duration_ms": 15456, "error_message": "超时（共 3 次尝试）", "result_summary": "{\"ok\": false, \"error\": \"timeout\", \"message\": \"查询超时，暂时不可用\"}"}, {"id": 55, "created_at": "2026-10-10T02:42:44", "conversation_id": 221, "tool_call_id": "call_00_1tPznNMt3GbsAfnpw2DF5988", "tool_name": "query_logistics", "tool_source": "mcp", "mcp_server": "logistics", "status": "超时", "retry_count": 2, "duration_ms": 15339, "error_message": "超时（共 3 次尝试）", "result_summary": "{\"ok\": false, \"error\": \"timeout\", \"message\": \"查询超时，暂时不可用\"}"}, {"id": 17, "created_at": "2026-10-09T14:25:36", "conversation_id": 193, "tool_call_id": "call_00_Gi7HacF1lpSu1XXwlB5L8438", "tool_name": "create_ticket", "tool_source": "builtin", "mcp_server": null, "status": "超时", "retry_count": 0, "duration_ms": 1, "error_message": "超时（共 1 次尝试）", "result_summary": "{\"ok\": false, \"error\": \"timeout\", \"message\": \"查询超时，暂时不可用\"}"}, {"id": 15, "created_at": "2026-10-09T14:25:26", "conversation_id": 192, "tool_call_id": "call_00_cXpyyE21crvKKhAFqwQN7263", "tool_name": "query_logistics", "tool_source": "mcp", "mcp_server": "logistics", "status": "超时", "retry_count": 2, "duration_ms": 6432, "error_message": "超时（共 3 次尝试）", "result_summary": "{\"ok\": false, \"error\": \"timeout\", \"message\": \"查询超时，暂时不可用\"}"}]}}
+{"t_ms": 26411, "lane": "ops", "channel": "api", "event": "inject_restore", "data": {"servers": ["logistics"], "delay_seconds": 0}}

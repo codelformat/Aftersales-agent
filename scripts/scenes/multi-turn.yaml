@@ -1,0 +1,12 @@
+scene: multi-turn
+title_zh: 多轮：指代消解与回顾
+title_en: Multi-turn context and recall
+steps:
+  - chat: {lane: customer, text: X3 Pro 续航多久}
+  - wait_done: {}
+  - chat: {lane: customer, text: 那它防水吗}
+  - wait_done: {}
+  - chat: {lane: customer, text: 它能退吗}
+  - wait_done: {}
+  - chat: {lane: customer, text: 我刚才问了什么}
+  - wait_done: {}

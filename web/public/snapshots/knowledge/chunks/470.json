@@ -1,0 +1,9 @@
+{
+  "id": 470,
+  "section_path": "常见问答 > 发票",
+  "content_type": "faq",
+  "questions": "怎么开发票？",
+  "answer": "在订单详情页点击“申请开票”，填写抬头和税号。电子发票在订单完成后 3 个工作日内发送到账户。",
+  "prev_chunk_id": null,
+  "next_chunk_id": null
+}

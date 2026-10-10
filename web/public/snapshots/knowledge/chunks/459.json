@@ -1,0 +1,9 @@
+{
+  "id": 459,
+  "section_path": "退货政策 > 订单取消",
+  "content_type": "policy",
+  "questions": "订单取消",
+  "answer": "未发货的订单可以在订单详情页直接取消，货款原路退回。已发货的订单不能取消，需要在签收后申请退货。",
+  "prev_chunk_id": 458,
+  "next_chunk_id": 460
+}

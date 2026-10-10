@@ -1,0 +1,65 @@
+[
+  {
+    "session_id": "225",
+    "created_at": "2026-10-10T02:44:40",
+    "updated_at": "2026-10-10T02:44:40",
+    "preview": "订单 1001 的快递到哪了",
+    "summarized": false
+  },
+  {
+    "session_id": "224",
+    "created_at": "2026-10-10T02:42:55",
+    "updated_at": "2026-10-10T02:42:55",
+    "preview": "你好呀",
+    "summarized": false
+  },
+  {
+    "session_id": "223",
+    "created_at": "2026-10-10T02:42:53",
+    "updated_at": "2026-10-10T02:42:53",
+    "preview": "你们服务太差了，我要投诉！",
+    "summarized": false
+  },
+  {
+    "session_id": "222",
+    "created_at": "2026-10-10T02:42:50",
+    "updated_at": "2026-10-10T02:42:50",
+    "preview": "我想给宠物买保险，你们有什么推荐？",
+    "summarized": false
+  },
+  {
+    "session_id": "220",
+    "created_at": "2026-10-10T02:42:13",
+    "updated_at": "2026-10-10T02:42:13",
+    "preview": "我上周买的耳机想退",
+    "summarized": false
+  },
+  {
+    "session_id": "219",
+    "created_at": "2026-10-10T02:41:06",
+    "updated_at": "2026-10-10T02:41:13",
+    "preview": "帮我建个工单",
+    "summarized": false
+  },
+  {
+    "session_id": "218",
+    "created_at": "2026-10-10T02:40:51",
+    "updated_at": "2026-10-10T02:40:51",
+    "preview": "X3 Pro 续航多久",
+    "summarized": false
+  },
+  {
+    "session_id": "216",
+    "created_at": "2026-10-10T02:40:09",
+    "updated_at": "2026-10-10T02:40:09",
+    "preview": "L2 台灯可以用小爱同学语音控制吗？",
+    "summarized": false
+  },
+  {
+    "session_id": "215",
+    "created_at": "2026-10-10T02:40:05",
+    "updated_at": "2026-10-10T02:40:05",
+    "preview": "L2 台灯可以用小爱同学语音控制吗？",
+    "summarized": false
+  }
+]

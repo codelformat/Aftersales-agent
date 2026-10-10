@@ -1,0 +1,9 @@
+{
+  "id": 392,
+  "section_path": "商品手册 > 台灯 > L1 常见故障",
+  "content_type": "manual",
+  "questions": "L1 常见故障",
+  "answer": "L1 不亮时，检查 USB-C 线是否插紧，再换用输出 5V 2A 的电源。仍不亮的，上传电源规格和灯体的视频申请维修。",
+  "prev_chunk_id": 391,
+  "next_chunk_id": 393
+}

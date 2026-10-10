@@ -1,0 +1,10 @@
+scene: boundaries
+title_zh: 业务边界：兜底、投诉与闲聊
+title_en: Business boundaries
+steps:
+  - chat: {lane: customer, text: 我想给宠物买保险，你们有什么推荐？}
+  - wait_done: {}
+  - chat: {lane: customer, text: 你们服务太差了，我要投诉！, new_session: true}
+  - wait_done: {}
+  - chat: {lane: customer, text: 你好呀, new_session: true}
+  - wait_done: {}

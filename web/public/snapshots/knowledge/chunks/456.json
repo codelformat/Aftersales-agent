@@ -1,0 +1,9 @@
+{
+  "id": 456,
+  "section_path": "退货政策 > 退款 > 退款方式",
+  "content_type": "policy",
+  "questions": "退款方式",
+  "answer": "退款按原支付方式退回。微信支付退回微信零钱或原银行卡，支付宝退回支付宝余额或原银行卡，银行卡支付退回原银行卡。",
+  "prev_chunk_id": 455,
+  "next_chunk_id": 457
+}

@@ -1,0 +1,116 @@
+{"scene": "boundaries", "title_zh": "业务边界：兜底、投诉与闲聊", "title_en": "Business boundaries", "recorded_at": "2026-10-10T02:42:50+00:00", "git_commit": "31e2276507d0802bfd972af05793929cc30567b7", "model": "deepseek-v4-flash"}
+{"t_ms": 0, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-boundaries-0aada955c735", "message": "我想给宠物买保险，你们有什么推荐？", "debug": true}}
+{"t_ms": 41, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "222"}}
+{"t_ms": 48, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 9, "data": {}}}
+{"t_ms": 50, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 11, "data": {"ms": 4}}}
+{"t_ms": 52, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 13, "data": {}}}
+{"t_ms": 770, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 729, "data": {"original": "我想给宠物买保险，你们有什么推荐？", "resolved_input": "我想给宠物买保险，你们有什么推荐？", "standard_query": "宠物保险有哪些推荐", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 771, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 897, "output_tokens": 66, "cache_read_tokens": 640, "reasoning_tokens": 0, "ms": 694}, "t_ms": 730}}
+{"t_ms": 772, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 730, "data": {"ms": 717}}}
+{"t_ms": 773, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 732, "data": {}}}
+{"t_ms": 1453, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "我想给宠物买保险，你们有什么推荐？", "intent": "其他"}}
+{"t_ms": 1455, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 640, "output_tokens": 15, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 663}, "t_ms": 1414}}
+{"t_ms": 1456, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1414, "data": {"intent": "其他", "confidence": 0.9, "route": "business", "escalated": true}}}
+{"t_ms": 1457, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1414, "data": {"ms": 681}}}
+{"t_ms": 1479, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 1437, "data": {}}}
+{"t_ms": 1480, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 1439, "data": {"layer1_tokens": 0, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 2957, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "抱歉"}}
+{"t_ms": 2967, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 2967, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "宠物"}}
+{"t_ms": 2967, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "保险"}}
+{"t_ms": 2977, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "不属于"}}
+{"t_ms": 2978, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "本"}}
+{"t_ms": 2991, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "店的"}}
+{"t_ms": 2991, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "购物"}}
+{"t_ms": 2991, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "或"}}
+{"t_ms": 3007, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "售后"}}
+{"t_ms": 3007, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "范围"}}
+{"t_ms": 3008, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 3008, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "我"}}
+{"t_ms": 3008, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "这边"}}
+{"t_ms": 3020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "没有"}}
+{"t_ms": 3020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "相关"}}
+{"t_ms": 3021, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "推荐"}}
+{"t_ms": 3080, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "信息"}}
+{"t_ms": 3080, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 3081, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "也不"}}
+{"t_ms": 3082, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "方便"}}
+{"t_ms": 3082, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "凭"}}
+{"t_ms": 3083, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "常识"}}
+{"t_ms": 3088, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "给您"}}
+{"t_ms": 3104, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "建议"}}
+{"t_ms": 3104, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n\n"}}
+{"t_ms": 3105, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "如果您"}}
+{"t_ms": 3117, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "有"}}
+{"t_ms": 3118, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "本"}}
+{"t_ms": 3131, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "店的"}}
+{"t_ms": 3131, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "订单"}}
+{"t_ms": 3132, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 3132, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退"}}
+{"t_ms": 3143, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "换"}}
+{"t_ms": 3143, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "货"}}
+{"t_ms": 3144, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 3144, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退款"}}
+{"t_ms": 3156, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 3156, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "维修"}}
+{"t_ms": 3169, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "或"}}
+{"t_ms": 3185, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "商品"}}
+{"t_ms": 3186, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "使用"}}
+{"t_ms": 3197, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "方面"}}
+{"t_ms": 3209, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "的问题"}}
+{"t_ms": 3210, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 3210, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "欢迎"}}
+{"t_ms": 3222, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "告诉我"}}
+{"t_ms": 3223, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 3223, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "我来"}}
+{"t_ms": 3239, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "帮"}}
+{"t_ms": 3240, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "您"}}
+{"t_ms": 3240, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "处理"}}
+{"t_ms": 3241, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。"}}
+{"t_ms": 3249, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 3208, "data": {"ms": 1788}}}
+{"t_ms": 3251, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 2185, "output_tokens": 223, "cache_read_tokens": 1920, "reasoning_tokens": 169, "ms": 1737}, "t_ms": 3209}}
+{"t_ms": 3262, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 3222, "data": {}}}
+{"t_ms": 3295, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 3255, "data": {"layer1_tokens": 86, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 3297, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 3255, "data": {"ms": 40}}}
+{"t_ms": 3297, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1191}}
+{"t_ms": 3299, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-boundaries-0aada955c735", "message": "你们服务太差了，我要投诉！", "debug": true}}
+{"t_ms": 3317, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "223"}}
+{"t_ms": 3324, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 8, "data": {}}}
+{"t_ms": 3334, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 18, "data": {"ms": 9}}}
+{"t_ms": 3339, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 22, "data": {}}}
+{"t_ms": 4112, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 790, "data": {"original": "你们服务太差了，我要投诉！", "resolved_input": "你们服务太差了，我要投诉！", "standard_query": "投诉服务态度差", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 4114, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 895, "output_tokens": 64, "cache_read_tokens": 640, "reasoning_tokens": 0, "ms": 742}, "t_ms": 791}}
+{"t_ms": 4115, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 791, "data": {"ms": 769}}}
+{"t_ms": 4115, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 794, "data": {}}}
+{"t_ms": 4661, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "你们服务太差了，我要投诉！", "intent": "投诉"}}
+{"t_ms": 4663, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 638, "output_tokens": 15, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 527}, "t_ms": 1345}}
+{"t_ms": 4664, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1345, "data": {"intent": "投诉", "confidence": 0.95, "route": "complaint", "escalated": true}}}
+{"t_ms": 4665, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1346, "data": {"ms": 551}}}
+{"t_ms": 4666, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "complaint_reply", "t_ms": 1350, "data": {}}}
+{"t_ms": 4667, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "非常抱歉给您带来不好的体验，您的反馈我们很重视。如果需要，您可以选择转人工客服，或者提交一张投诉工单，我们会尽快跟进。"}}
+{"t_ms": 4667, "lane": "customer", "channel": "sse", "event": "actions", "data": {"options": [{"type": "handoff"}, {"type": "ticket", "description": "你们服务太差了，我要投诉！", "ticket_type": "投诉"}]}}
+{"t_ms": 4668, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "complaint_reply", "t_ms": 1350, "data": {"ms": 0}}}
+{"t_ms": 4674, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 1359, "data": {}}}
+{"t_ms": 4703, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 1387, "data": {"layer1_tokens": 64, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 4703, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 1387, "data": {"ms": 34}}}
+{"t_ms": 4703, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1193}}
+{"t_ms": 4704, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-boundaries-0aada955c735", "message": "你好呀", "debug": true}}
+{"t_ms": 4712, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "224"}}
+{"t_ms": 4715, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 3, "data": {}}}
+{"t_ms": 4717, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 6, "data": {"ms": 2}}}
+{"t_ms": 4720, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 8, "data": {}}}
+{"t_ms": 5684, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 969, "data": {"original": "你好呀", "resolved_input": "你好呀", "standard_query": "你好", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 5686, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 889, "output_tokens": 55, "cache_read_tokens": 640, "reasoning_tokens": 0, "ms": 938}, "t_ms": 970}}
+{"t_ms": 5687, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 970, "data": {"ms": 961}}}
+{"t_ms": 5688, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 973, "data": {}}}
+{"t_ms": 6466, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "你好呀", "intent": "闲聊"}}
+{"t_ms": 6468, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 632, "output_tokens": 15, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 762}, "t_ms": 1754}}
+{"t_ms": 6470, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1754, "data": {"intent": "闲聊", "confidence": 0.95, "route": "chitchat", "escalated": true}}}
+{"t_ms": 6471, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1755, "data": {"ms": 781}}}
+{"t_ms": 6472, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "chitchat_reply", "t_ms": 1759, "data": {}}}
+{"t_ms": 6472, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "您好，我是示例商城的售后客服助手。订单、物流、退换货和商品使用问题都可以问我。"}}
+{"t_ms": 6473, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "chitchat_reply", "t_ms": 1759, "data": {"ms": 0}}}
+{"t_ms": 6474, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 1762, "data": {}}}
+{"t_ms": 6493, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 1780, "data": {"layer1_tokens": 43, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 6494, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 1781, "data": {"ms": 19}}}
+{"t_ms": 6495, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1195}}

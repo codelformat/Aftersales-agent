@@ -1,0 +1,13 @@
+scene: refund
+title_zh: 退款：订单选择与恢复
+title_en: Refund and order selection
+# Stable mock data: the first order contains headphones, signed within 7 days.
+user_id: demo10-refund-53
+steps:
+  - chat: {lane: customer, text: 我上周买的耳机想退}
+  - wait_done: {}
+  - pick_order: {index: 1}
+  - wait_done: {}
+  - chat: {lane: customer, text: 请帮我提交退款单，七天无理由}
+  - wait_done: {refund_if_offered: true, reason: 七天无理由}
+  - snapshot: {lane: ops, path: '/api/tool-audit?limit=50'}
