@@ -238,11 +238,11 @@ describe('service desk interactions', () => {
     await user.keyboard('{Enter}'); await screen.findByText('您好'); expect(source.chat).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the perspective placeholder only in engineering view', async () => {
+  it('shows the perspective panel only in engineering view', async () => {
     const source = new FakeDataSource(); const mounted = mount(source);
     expect(screen.queryByRole('complementary', { name: '透视面板' })).not.toBeInTheDocument(); mounted.unmount();
     localStorage.setItem('view_mode', 'eng'); mount(source);
-    expect(screen.getByRole('complementary', { name: '透视面板' })).toHaveTextContent('透视面板将在下一任务接入');
+    expect(screen.getByRole('complementary', { name: '透视面板' })).toHaveTextContent('该轮没有调试数据');
   });
 
   it('locks the refund form and prevents closing while a submission is pending', async () => {

@@ -26,8 +26,13 @@ async def test_built_frontend_serves_index_assets_and_snapshots(monkeypatch, tmp
     app.include_router(web.router)
     web.mount_static(app)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        assert (await client.get("/")).text == "<h1>new frontend</h1>"
-        assert (await client.get("/assets/app.js")).text == "console.log('built')"
+        home = await client.get("/")
+        assert home.text == "<h1>new frontend</h1>"
+        assert home.headers.get("cache-control") == "no-cache"
+        asset = await client.get("/assets/app.js")
+        assert asset.text == "console.log('built')"
+        assert "cache-control" not in asset.headers
+        assert "etag" in asset.headers
         assert (await client.get("/snapshots/example.json")).json() == {"live": True}
         assert (await client.get("/unknown")).status_code == 404
         assert (await client.get("/assets/")).status_code == 404

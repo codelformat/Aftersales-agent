@@ -8,6 +8,7 @@
   color: var(--color-text);
 }
 .desk[data-view='eng'] { grid-template-columns: 232px minmax(0, 1fr) 380px; }
+.desk[data-view='eng'][data-xray-collapsed='true'] { grid-template-columns: 232px minmax(0, 1fr) 56px; }
 .desk button, .dialog button {
   padding: var(--space-1) var(--space-2);
   border: var(--border-width) solid var(--color-border);
@@ -67,7 +68,7 @@
 .inputRow textarea { flex: 1; min-width: 0; min-height: 80px; max-height: 160px; resize: vertical; }
 .desk textarea, .dialog textarea, .dialog select { padding: var(--space-1); color: var(--color-text); background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); font: inherit; }
 .hint { margin: var(--space-1) 0 0; }
-.perspective { padding: var(--space-3); border-left: var(--border-width) solid var(--color-border); background: var(--color-background); }
+.perspective { min-width: 0; min-height: 0; overflow: hidden; border-left: var(--border-width) solid var(--color-border); background: var(--color-background); }
 .overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--color-heading) 30%, transparent); z-index: 30; }
 .dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 31; width: min(560px, calc(100vw - 32px)); max-height: 80dvh; overflow-y: auto; padding: var(--space-3); background: var(--color-surface); color: var(--color-text); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-medium); box-shadow: var(--shadow-surface); }
 .dialogHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
@@ -79,12 +80,13 @@
 .mobileToggle { display: none; }
 .loading { padding: var(--space-1) var(--space-3); color: var(--color-text-muted); }
 @media (max-width: 1199px) {
-  .desk[data-view='eng'] { grid-template-columns: 200px minmax(0, 1fr); }
-  .perspective { grid-column: 1 / -1; border-left: 0; border-top: var(--border-width) solid var(--color-border); padding: var(--space-2); }
-  .desk[data-view='eng'] { grid-template-rows: minmax(0, 1fr) auto; }
+  .desk[data-view='eng'], .desk[data-view='eng'][data-xray-collapsed='true'] { grid-template-columns: 200px minmax(0, 1fr); }
+  .perspective { grid-column: 1 / -1; border-left: 0; border-top: var(--border-width) solid var(--color-border); }
+  .desk[data-view='eng'] { grid-template-rows: minmax(0, 1fr) minmax(0, 280px); }
+  .desk[data-view='eng'][data-xray-collapsed='true'] { grid-template-rows: minmax(0, 1fr) 56px; }
 }
 @media (max-width: 719px) {
-  .desk, .desk[data-view='eng'] { grid-template-columns: minmax(0, 1fr); height: calc(100dvh - 200px); min-height: 480px; }
+  .desk, .desk[data-view='eng'], .desk[data-view='eng'][data-xray-collapsed='true'] { grid-template-columns: minmax(0, 1fr); height: calc(100dvh - 200px); min-height: 480px; }
   .sidebar { display: none; position: absolute; inset: 0 auto 0 0; width: 256px; z-index: 10; box-shadow: var(--shadow-surface); }
   .desk[data-sidebar-open='true'] .sidebar { display: flex; }
   .desk button.mobileToggle { display: inline-block; }

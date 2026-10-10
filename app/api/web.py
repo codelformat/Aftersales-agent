@@ -11,7 +11,7 @@ DIST_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
 @router.get("/", include_in_schema=False)
 async def index():
     if (DIST_DIR / "index.html").is_file():
-        return FileResponse(DIST_DIR / "index.html")
+        return FileResponse(DIST_DIR / "index.html", headers={"Cache-Control": "no-cache"})
     return HTMLResponse("""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <title>构建前端</title><h1>前端尚未构建</h1>
 <p>在仓库根目录执行：</p>
