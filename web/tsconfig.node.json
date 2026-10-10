@@ -8,7 +8,8 @@
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "e2e/**/*.ts"]
+  "include": ["vite.config.ts", "replayMeta.ts", "vitest.config.ts", "playwright.config.ts", "e2e/**/*.ts"]
 }

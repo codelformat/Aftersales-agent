@@ -6,6 +6,13 @@ describe('theater deep links', () => {
     expect(parseDeepLink(formatDeepLink(link))).toEqual(link);
     expect(formatDeepLink(link)).toBe(`#/theater/mcp-timeout?t=12.375&view=${view}`);
   });
+  it('parses and formats lang and autoplay only when set', () => {
+    expect(parseDeepLink('#/theater/flywheel?view=eng&lang=en&autoplay=1'))
+      .toEqual({ scene: 'flywheel', seconds: 0, view: 'eng', lang: 'en', autoplay: true });
+    expect(Object.keys(parseDeepLink('#/theater/flywheel?lang=fr&autoplay=yes')!)).toEqual(['scene', 'seconds', 'view']);
+    expect(formatDeepLink({ scene: 'flywheel', seconds: 0, view: 'eng', lang: 'en', autoplay: true }))
+      .toBe('#/theater/flywheel?t=0&view=eng&lang=en&autoplay=1');
+  });
   it('defaults to time zero and engineering view, and normalizes invalid time', () => {
     expect(parseDeepLink('#/theater/refund')).toEqual({ scene: 'refund', seconds: 0, view: 'eng' });
     for (const time of ['-1', 'NaN', 'Infinity', 'oops']) {

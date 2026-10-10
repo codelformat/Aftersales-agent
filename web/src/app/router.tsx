@@ -9,10 +9,11 @@ import FaithPage from '../ops/FaithPage';
 import ToolAuditPage from '../ops/ToolAuditPage';
 import GalleryPage from '../theater/GalleryPage';
 import PlayerPage from '../theater/PlayerPage';
+import WelcomePage from '../welcome/WelcomePage';
 import { parseDeepLink } from '../theater/deepLink';
 
 export type AppRoute = {
-  section: 'desk' | 'ops' | 'theater' | 'missing';
+  section: 'desk' | 'ops' | 'theater' | 'welcome' | 'missing';
   title: string;
   showViewMode: boolean;
   scene?: string;
@@ -40,10 +41,13 @@ export function useHashRoute(): AppRoute {
   const redirect = path === '/' && DATA_SOURCE === 'replay';
 
   useEffect(() => {
-    if (redirect) window.location.replace('#/theater');
+    if (redirect) window.location.replace('#/welcome');
   }, [redirect]);
 
-  if (redirect || path === '/theater') {
+  if (redirect || path === '/welcome') {
+    return { section: 'welcome', title: 'Welcome', showViewMode: false };
+  }
+  if (path === '/theater') {
     return { section: 'theater', title: '场景库', showViewMode: false };
   }
   if (path === '/' || path === '/desk') {
@@ -60,6 +64,7 @@ export function useHashRoute(): AppRoute {
 }
 
 export function RoutePage({ route }: { route: AppRoute }) {
+  if (route.section === 'welcome') return <WelcomePage />;
   if (route.section === 'desk') return <DeskPage />;
   if (route.section === 'theater') return route.scene ? <PlayerPage key={route.scene} sceneId={route.scene} /> : <GalleryPage />;
   if (route.section === 'ops') {

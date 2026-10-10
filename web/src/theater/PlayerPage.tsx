@@ -43,7 +43,7 @@ function Playback({ scene, metadata, source, initial }: LoadedScene) {
   const [tick, setTick] = useState(start);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
+  const [language, setLanguage] = useState<'zh' | 'en'>(initial.lang ?? 'zh');
   useLayoutEffect(() => {
     const element = player.current;
     if (!element) return;
@@ -70,6 +70,9 @@ function Playback({ scene, metadata, source, initial }: LoadedScene) {
     return () => { off(); clock.pause(); };
   }, [clock]);
   useEffect(() => {
+    if (initial.autoplay && clock.position() < clock.durationMs) { clock.play(speed); setPlaying(true); }
+  }, [clock, initial.autoplay]);
+  useEffect(() => {
     const onHashChange = () => {
       const link = parseDeepLink(window.location.hash);
       if (link?.scene !== metadata.id) return;
@@ -81,12 +84,12 @@ function Playback({ scene, metadata, source, initial }: LoadedScene) {
   }, [clock, metadata.id, setViewMode]);
   function replaceLink(ms: number) {
     window.history.replaceState(window.history.state, '', formatDeepLink({ scene: metadata.id, seconds: ms / 1000,
-      view: viewMode === 'customer' ? 'cust' : 'eng' }));
+      view: viewMode === 'customer' ? 'cust' : 'eng', ...(language === 'en' ? { lang: 'en' as const } : {}) }));
   }
   useEffect(() => {
     window.history.replaceState(window.history.state, '', formatDeepLink({ scene: metadata.id, seconds: clock.position() / 1000,
-      view: viewMode === 'customer' ? 'cust' : 'eng' }));
-  }, [clock, metadata.id, viewMode]);
+      view: viewMode === 'customer' ? 'cust' : 'eng', ...(language === 'en' ? { lang: 'en' as const } : {}) }));
+  }, [clock, metadata.id, viewMode, language]);
   function seek(ms: number) { clock.seek(ms); replaceLink(clock.position()); }
   const stageProps = { lines: scene.lines, index: tick.index, engineering: viewMode === 'eng', source };
   return <section className={styles.player} ref={player}>

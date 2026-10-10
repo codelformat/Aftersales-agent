@@ -1,4 +1,5 @@
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
+import { DATA_SOURCE } from '../config';
 import type { AppRoute } from './router';
 import { useViewMode } from './ViewModeContext';
 import styles from './App.module.css';
@@ -9,6 +10,7 @@ export default function TopBar({ route }: { route: AppRoute }) {
     <header className={styles.topBar}>
       <span className={styles.brand}>示例商城客服</span>
       <nav aria-label="主导航" className={styles.navigation}>
+        {DATA_SOURCE === 'replay' && <a href="#/welcome" lang="en" aria-current={route.section === 'welcome' ? 'page' : undefined}>Welcome</a>}
         <a href="#/desk" aria-current={route.section === 'desk' ? 'page' : undefined}>工作台</a>
         <a href="#/ops/review" aria-current={route.section === 'ops' ? 'page' : undefined}>运营台</a>
         <a href="#/theater" aria-current={route.section === 'theater' ? 'page' : undefined}>回放剧场</a>

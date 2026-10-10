@@ -1,10 +1,11 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { replayHead } from './replayMeta.ts';
 
 export default defineConfig(({ mode }) => {
   const replay = mode === 'replay';
   return {
-    plugins: [react()],
+    plugins: [react(), ...(replay ? [{ name: 'replay-meta', transformIndexHtml: replayHead }] : [])],
     base: replay ? '/Aftersales-agent/' : '/',
     define: {
       'import.meta.env.VITE_DATA_SOURCE': JSON.stringify(replay ? 'replay' : 'live'),

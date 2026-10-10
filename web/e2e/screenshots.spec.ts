@@ -34,6 +34,12 @@ async function openGate(page: Page, occurrence: number) {
   await gate.scrollIntoViewIfNeeded();
 }
 
+test('welcome', async ({ page }) => {
+  await page.goto('./#/welcome');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await capture(page, 'welcome');
+});
+
 test('gallery', async ({ page }) => {
   await page.goto('./#/theater');
   await expect(page.getByRole('link', { name: /^观看 / })).toHaveCount(7);

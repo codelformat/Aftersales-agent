@@ -17,6 +17,7 @@ describe('hash routes', () => {
   it.each([
     ['#/', '客服工作台'],
     ['#/desk', '客服工作台'],
+    ['#/welcome', 'An after-sales support agent that knows when not to answer.'],
     ['#/ops/review', '待审队列'],
     ['#/ops/evals', '评估趋势'],
     ['#/ops/faith', '编造台账'],
@@ -45,10 +46,11 @@ describe('hash routes', () => {
 });
 
 describe('replay mode', () => {
-  it('redirects the home hash to the scene library', async () => {
+  it('redirects the home hash to the welcome page', async () => {
     await mountApp('#/', 'replay');
-    await waitFor(() => expect(window.location.hash).toBe('#/theater'));
-    expect(await screen.findByRole('heading', { name: '场景库' })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.hash).toBe('#/welcome'));
+    expect(await screen.findByRole('heading', { name: 'An after-sales support agent that knows when not to answer.' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Welcome' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('shows the recording banner with the local run link', async () => {
@@ -64,6 +66,7 @@ describe('replay mode', () => {
     await mountApp();
     expect(screen.getByRole('heading', { name: '客服工作台' })).toBeInTheDocument();
     expect(screen.queryByText(/这是录制的真实会话回放/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Welcome' })).not.toBeInTheDocument();
   });
 });
 
@@ -101,7 +104,7 @@ describe('view mode', () => {
     expect(screen.getByRole('radiogroup', { name: '视角切换' })).toBeInTheDocument();
   });
 
-  it.each(['#/ops/review', '#/ops/evals', '#/ops/faith', '#/ops/tools', '#/theater'])(
+  it.each(['#/ops/review', '#/ops/evals', '#/ops/faith', '#/ops/tools', '#/theater', '#/welcome'])(
     'hides the switch on %s', async (hash) => {
       await mountApp(hash);
       expect(screen.getByRole('navigation', { name: '主导航' })).toBeInTheDocument();

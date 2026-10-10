@@ -6,15 +6,17 @@ import PlayerPage from './PlayerPage';
 import GalleryPage from './GalleryPage';
 import App from '../app/App';
 import { fixture, recording } from './test-fixtures';
+import { ReplayClock } from '../data/clock';
 import { gateCompletion } from '../../e2e/recording';
 
 function ViewSwitch() {
   const { setViewMode } = useViewMode();
   return <button onClick={() => setViewMode('eng')}>切换工程</button>;
 }
-function mount(sceneId: string, query = '') {
+function mount(sceneId: string, query = '', strict = false) {
   window.history.replaceState(null, '', `#/theater/${sceneId}${query}`);
-  return render(<ViewModeProvider><ViewSwitch /><PlayerPage sceneId={sceneId} /></ViewModeProvider>);
+  const player = <ViewModeProvider><ViewSwitch /><PlayerPage sceneId={sceneId} /></ViewModeProvider>;
+  return render(strict ? <StrictMode>{player}</StrictMode> : player);
 }
 beforeEach(() => {
   localStorage.clear();
@@ -36,6 +38,52 @@ describe('gallery', () => {
   });
 });
 describe('player', () => {
+  it.each([false, true])('starts English autoplay once, including StrictMode (%s)', async strict => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const play = vi.spyOn(ReplayClock.prototype, 'play');
+    let page: ReturnType<typeof mount>;
+    await act(async () => { page = mount('flywheel', '?view=eng&lang=en&autoplay=1', strict); });
+    expect(page!.container.querySelector('p[aria-live="polite"]')).toHaveAttribute('lang', 'en');
+    expect(screen.getByRole('button', { name: '暂停' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/theater/flywheel?t=0&view=eng&lang=en');
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => vi.advanceTimersByTime(2000));
+    const slider = screen.getByRole('slider', { name: '播放进度' });
+    expect(Number((slider as HTMLInputElement).value)).toBeGreaterThan(0);
+    // StrictMode restarts after cleanup; it leaves one active clock timer.
+    expect(play).toHaveBeenCalledTimes(strict ? 2 : 1);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+  it('keeps autoplay paused when the initial time is already at the end', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    await act(async () => { mount('flywheel', '?t=999999&lang=en&autoplay=1'); });
+    const slider = screen.getByRole('slider', { name: '播放进度' });
+    expect(slider).toHaveValue(slider.getAttribute('max'));
+    expect(screen.getByRole('button', { name: '播放' })).toBeInTheDocument();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('keeps ordinary deep links paused with Chinese narration', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    let page: ReturnType<typeof mount>;
+    await act(async () => { page = mount('flywheel', '?view=eng'); });
+    expect(screen.getByRole('button', { name: '播放' })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.getByRole('slider', { name: '播放进度' })).toHaveValue('0');
+    expect(page!.container.querySelector('p[aria-live="polite"]')).toHaveAttribute('lang', 'zh-CN');
+  });
+  it('keeps English in seek and view URLs and removes it when switching to Chinese', async () => {
+    const page = mount('flywheel', '?view=cust&lang=en');
+    const slider = await screen.findByRole('slider', { name: '播放进度' });
+    fireEvent.change(slider, { target: { value: '1000' } });
+    expect(window.location.hash).toBe('#/theater/flywheel?t=1&view=cust&lang=en');
+    fireEvent.click(screen.getByRole('button', { name: '切换工程' }));
+    expect(window.location.hash).toBe('#/theater/flywheel?t=1&view=eng&lang=en');
+    fireEvent.click(screen.getByRole('button', { name: '中文' }));
+    expect(window.location.hash).toBe('#/theater/flywheel?t=1&view=eng');
+    fireEvent.click(screen.getByRole('button', { name: 'EN' }));
+    expect(page.container.querySelector('p[aria-live="polite"]')).toHaveAttribute('lang', 'en');
+    expect(window.location.hash).toBe('#/theater/flywheel?t=1&view=eng&lang=en');
+  });
   it.each([
     [1, '通过', 1], [2, '拦下', 3],
   ] as const)('opens the completed gate #%s using event time and explicit turn selection', async (occurrence, status, visibleTurns) => {
