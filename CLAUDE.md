@@ -14,7 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch07：会话上下文管理。三层：层 1 原文、层 2 规则截短（用户原话不动、答复留 60 字、长工具结果换一行标识）、层 3 后台异步分段梗概（`conversation_summaries`，只追加）；`conversations.summary_upto_msg_id`、`layer1_from_msg_id` 两个锚点划边界，只增不减。预算从模型窗口倒推（`app/context/budget.py`，启动自检），层 1 七成、层 2 三成；`finalize` 末尾层 1 超预算按 0.6 水位降级、层 2 超预算起后台摘要。Agent 上下文：固定 System → 层 2 → 层 1 → 用户这句 → 参考资料消息（日期、梗概、订单段、任务段、证据）。回顾本次对话的问题（`history_recall`）直达 Agent。日志 `model_ctx`、`history_ctx`、`context_usage`、`层1 降级`、`summary trigger/done/...` 写 `log/app.log`。聊天页会话侧栏 + `GET /api/conversations`、`GET /api/conversations/{id}/messages`。
 - ch08：即插即用的工具系统。内置工具放 `app/tools/builtin/`，启动时扫描登记；MCP 工具每轮从 `config/tools.json` 列出的 Server 动态发现（`MultiServerMCPClient`，Streamable HTTP），与内置工具合成一份本轮工具集。所有调用只走执行引擎 `execute_tool_calls`：查找 → JSON Schema 校验 → 写工具确认 → 超时/重试（只读工具、暂时性故障）→ 分诊（参数不合法、查询落空、真故障）→ 格式化 → 审计（`tool_audit_logs`）。自建两个 MCP Server：物流 8101（`query_logistics`，内置版下线）、售后 8102（`query_warranty`、`query_return_progress`）。用户明确要求建工单时，解析器设 `ticket_request`，Agent 补齐信息后发起 `create_ticket`，`confirm_write` 用 interrupt 推预览卡片，`/chat/resume`（`ticket_confirm`）确认或取消。
 - ch09：可观测性与知识飞轮。Langfuse 记录每轮 trace、节点和 LLM 调用，按意图汇总 token。置信度闸用 `evidence_confidence`。低置信度问题与用户 👎 反馈保存召回快照，经单 worker 标准化、查重进入 `/admin/review-queue`；人工核准后入库并同步向量化。评估流水线写 `eval_runs`，`/admin/eval-runs` 显示趋势。
-- ch10：展示型前端。`web/` 用 React + TypeScript + Vite，提供客服工作台、运营台和回放剧场。工程视角用 `debug=true` 获取 `trace`，显示节点、检索、置信度闸和 LLM 用量。7 个场景使用真实录制和评估快照。live 构建由 FastAPI 服务；replay 构建只读静态文件，用于 Pages。Docker `full` profile 启动完整系统；Playwright 与 3 条 CI workflow 负责验收。
+- ch10：展示型前端。`web/` 用 React + TypeScript + Vite，提供客服工作台、运营台和回放剧场。工程视角用 `debug=true` 获取 `trace`，显示节点、检索、置信度闸和 LLM 用量。7 个场景使用真实录制和评估快照。live 构建由 FastAPI 服务；replay 构建只读静态文件，用于 Pages。Docker `full` profile 启动完整系统；Playwright 与 3 条 CI workflow 负责验收。replay 首页为英文欢迎页 `#/welcome`（面向招聘方）；剧场深链接支持 `lang=en`、`autoplay=1`；OG 元数据（`web/replayMeta.ts`、`web/public/og.png`）只加在 replay 构建。
+- README：英文 `README.md` + 中文 `README.zh-CN.md`，MIT `LICENSE`。README 中的数字都来自 `evals/reports/` 和实测测试数；数字变化时两份 README 和 `web/src/welcome/facts.ts` 一起改。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
@@ -40,7 +41,8 @@ npm --prefix web run build:replay                    # replay 构建写入 web/d
 npm --prefix web run typecheck                      # 前端、配置与 E2E 类型检查
 npm --prefix web run test                           # 前端单元和组件测试
 npm --prefix web run e2e                            # Chromium E2E，自动构建并启动 replay preview（4174）
-UPDATE_SCREENSHOTS=1 npm --prefix web run e2e -- screenshots.spec.ts   # 更新 docs/media 的 6 张截图
+UPDATE_SCREENSHOTS=1 npm --prefix web run e2e -- screenshots.spec.ts   # 更新 docs/media 的 7 张截图
+UPDATE_MEDIA=1 npm --prefix web run e2e -- media.spec.ts && uv run --with pillow python scripts/make_hero_gif.py   # 重新生成 README 的 docs/media/hero.gif（≤ 5 MB）
 uv run python scripts/record_scene.py flywheel      # 从真实运行系统录制；场景定义在 scripts/scenes/
 uv run python scripts/export_snapshots.py           # 导出运营与知识快照，写入 web/public/snapshots
 uv run pytest -q                                     # 全量测试（需要 MySQL；连不上时数据库测试直接失败，不跳过）
@@ -141,7 +143,8 @@ scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export
 | `app/api/review_queue.py` | 待审列表、详情、核准和驳回；核准写 flywheel 知识块并同步向量化 |
 | `app/api/eval_runs.py` | `GET /api/eval-runs`：只读历史评估指标 |
 | `web/` | React + TypeScript 前端；`desk/` 工作台、`xray/` 透视面板、`ops/` 运营台、`theater/` 回放剧场；`state/` 按事件 reduce，`data/` 切换 live 与 replay |
-| `web/e2e/` | Playwright 对 replay preview 验收；拦截非静态请求；截图仅在 `UPDATE_SCREENSHOTS=1` 时写入 `docs/media/` |
+| `web/e2e/` | Playwright 对 replay preview 验收；拦截非静态请求；截图仅在 `UPDATE_SCREENSHOTS=1` 时写入 `docs/media/`，hero 帧仅在 `UPDATE_MEDIA=1` 时采集 |
+| `web/src/welcome/` | replay 首页英文欢迎页；`facts.ts` 存放展示用数字和链接 |
 | `app/tracing.py`、`app/graph/events.py` | 本轮 LLM 用量回调与节点、领域 trace；只在 debug 模式发给前端 |
 | `app/api/tool_audit.py` | `GET /api/tool-audit?limit=&status=`：按时间倒序列出审计记录，可按状态筛选 |
 | `app/api/strategy.py` | `GET /api/strategy-comparison`：读取四策略评估快照；未导出时返回 404 |
