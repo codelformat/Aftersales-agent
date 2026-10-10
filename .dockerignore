@@ -1,0 +1,22 @@
+.git
+.claude
+.codex
+.superpowers
+.venv
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.env
+.env.*
+!.env.example
+# Keep web/src/data: it contains the frontend DataSource implementation.
+/data
+/log
+/app/web/dist
+/web/dist-replay
+/web/playwright-report
+/web/test-results
+/evals/reports
+/tests
+/dev-notes

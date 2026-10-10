@@ -82,6 +82,90 @@ services:
       - milvus-etcd
       - milvus-minio
 
+  init:
+    profiles: ["full"]
+    image: aftersales-agent:ch10
+    build: .
+    env_file: &app-env-file
+      - path: ${AFTERSALES_ENV_FILE:-.env}
+        required: false
+    environment: &app-environment
+      DATABASE_URL: mysql+asyncmy://aftersales:aftersales@mysql:3306/aftersales?charset=utf8mb4
+      MILVUS_URI: http://milvus-standalone:19530
+      TOOL_POLICY_PATH: /app/config/tools.docker.json
+    command: ["bash", "scripts/docker_init.sh"]
+    healthcheck:
+      disable: true
+    depends_on:
+      mysql: {condition: service_healthy}
+      milvus-standalone: {condition: service_healthy}
+
+  mcp-logistics:
+    profiles: ["full"]
+    image: aftersales-agent:ch10
+    build: .
+    environment:
+      MOCK_DELAY_SECONDS: ${MOCK_DELAY_SECONDS:-0}
+    command: ["uv", "run", "python", "-m", "mcp_servers.logistics", "--host", "0.0.0.0", "--port", "8101"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import httpx;
+          httpx.post('http://127.0.0.1:8101/mcp',
+          headers={'Accept': 'application/json, text/event-stream'},
+          json={'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params':
+          {'protocolVersion': '2025-06-18', 'capabilities': {},
+          'clientInfo': {'name': 'healthcheck', 'version': '1'}}},
+          timeout=5, trust_env=False).raise_for_status()
+      interval: 10s
+      timeout: 6s
+      start_period: 10s
+      retries: 10
+
+  mcp-aftersales:
+    profiles: ["full"]
+    image: aftersales-agent:ch10
+    build: .
+    environment:
+      MOCK_DELAY_SECONDS: ${MOCK_DELAY_SECONDS:-0}
+    command: ["uv", "run", "python", "-m", "mcp_servers.aftersales", "--host", "0.0.0.0", "--port", "8102"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import httpx;
+          httpx.post('http://127.0.0.1:8102/mcp',
+          headers={'Accept': 'application/json, text/event-stream'},
+          json={'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params':
+          {'protocolVersion': '2025-06-18', 'capabilities': {},
+          'clientInfo': {'name': 'healthcheck', 'version': '1'}}},
+          timeout=5, trust_env=False).raise_for_status()
+      interval: 10s
+      timeout: 6s
+      start_period: 10s
+      retries: 10
+
+  app:
+    profiles: ["full"]
+    image: aftersales-agent:ch10
+    build: .
+    env_file: *app-env-file
+    environment: *app-environment
+    ports:
+      - "8000:8000"
+    volumes:
+      - aftersales-app-data:/app/data
+      - aftersales-app-log:/app/log
+    depends_on:
+      init: {condition: service_completed_successfully}
+      mcp-logistics: {condition: service_healthy}
+      mcp-aftersales: {condition: service_healthy}
+
 volumes:
   aftersales-mysql-data:
     name: aftersales-mysql-data
@@ -91,3 +175,7 @@ volumes:
     name: aftersales-milvus-minio
   aftersales-milvus-data:
     name: aftersales-milvus-data
+  aftersales-app-data:
+    name: aftersales-app-data
+  aftersales-app-log:
+    name: aftersales-app-log

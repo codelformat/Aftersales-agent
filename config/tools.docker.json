@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "logistics": {
+      "url": "http://mcp-logistics:8101/mcp",
+      "tools": {"query_logistics": "read"}
+    },
+    "aftersales": {
+      "url": "http://mcp-aftersales:8102/mcp",
+      "tools": {"query_warranty": "read", "query_return_progress": "read"}
+    }
+  },
+  "overrides": {
+    "create_ticket": {"timeout_seconds": 5}
+  }
+}
