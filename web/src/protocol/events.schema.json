@@ -414,7 +414,7 @@
       "additionalProperties": false
     },
     "trace": {
-      "$comment": "Node timing and domain traces. The llm branch is added in Task 3.",
+      "$comment": "Node timing, domain and per-request LLM usage traces.",
       "oneOf": [
         {
           "$ref": "#/$defs/nodeStart"
@@ -439,6 +439,9 @@
         },
         {
           "$ref": "#/$defs/contextTrace"
+        },
+        {
+          "$ref": "#/$defs/llmTrace"
         }
       ]
     },
@@ -1032,6 +1035,69 @@
             "layer2_tokens",
             "layer2_budget",
             "summary_triggered"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "llmTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "llm"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "input_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cache_read_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reasoning_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ms": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "node",
+            "model",
+            "input_tokens",
+            "output_tokens",
+            "cache_read_tokens",
+            "reasoning_tokens",
+            "ms"
           ],
           "additionalProperties": false
         }

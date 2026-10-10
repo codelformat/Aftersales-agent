@@ -9,6 +9,7 @@ from typing import Any
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessageChunk
+from langchain_core.messages.ai import UsageMetadata
 from langchain_core.messages.tool import tool_call_chunk
 from langchain_core.outputs import ChatGenerationChunk
 
@@ -73,12 +74,14 @@ class ScriptedChatModel(BaseChatModel):
     """每次调用消费 scripts 中的一个列表。
 
     列表元素：AIMessageChunk 依次流出；Exception 在该位置抛出；asyncio.Event 在该位置等待。
+    usage_metadata 在每次成功调用结束时流出一次。
     """
 
     scripts: list
     recorder: Any = None
     bound_tools: list = []
     bound_kwargs: dict = {}
+    usage_metadata: UsageMetadata | None = None
 
     @property
     def _llm_type(self) -> str:
@@ -104,6 +107,8 @@ class ScriptedChatModel(BaseChatModel):
                 await item.wait()
                 continue
             yield ChatGenerationChunk(message=item)
+        if self.usage_metadata is not None:
+            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=self.usage_metadata))
 
 
 def text(s: str) -> list:
