@@ -1,0 +1,6 @@
+{"scene":"refund","title_zh":"退款演示","title_en":"Refund demo","recorded_at":"2026-10-09T12:00:00Z","git_commit":"test-fixture","model":"fixture-model"}
+{"t_ms":0,"lane":"customer","channel":"api","event":"chat","data":{"user_id":"demo","message":"我想退款"}}
+{"t_ms":100,"lane":"customer","channel":"sse","event":"session","data":{"session_id":"42"}}
+{"t_ms":1000,"lane":"customer","channel":"sse","event":"token","data":{"text":"请选择订单"}}
+{"t_ms":7000,"lane":"ops","channel":"api","event":"snapshot","data":{"path":"/api/review-queue","response":[]}}
+{"t_ms":7500,"lane":"customer","channel":"sse","event":"done","data":{"finish_reason":"interrupted"}}
