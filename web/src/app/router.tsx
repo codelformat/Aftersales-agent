@@ -1,12 +1,19 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { DATA_SOURCE } from '../config';
 import DeskPage from '../desk/DeskPage';
+import OpsLayout from '../ops/OpsLayout';
+import type { OpsPage } from '../ops/OpsLayout';
+import ReviewPage from '../ops/ReviewPage';
+import EvalsPage from '../ops/EvalsPage';
+import FaithPage from '../ops/FaithPage';
+import ToolAuditPage from '../ops/ToolAuditPage';
 
 export type AppRoute = {
   section: 'desk' | 'ops' | 'theater' | 'missing';
   title: string;
   showViewMode: boolean;
   scene?: string;
+  opsPage?: OpsPage;
 };
 
 const opsTitles: Record<string, string> = {
@@ -40,7 +47,7 @@ export function useHashRoute(): AppRoute {
     return { section: 'desk', title: '客服工作台', showViewMode: true };
   }
   if (Object.hasOwn(opsTitles, path)) {
-    return { section: 'ops', title: opsTitles[path]!, showViewMode: false };
+    return { section: 'ops', title: opsTitles[path]!, showViewMode: false, opsPage: path.slice(5) as OpsPage };
   }
   const scene = /^\/theater\/([^/]+)$/.exec(path)?.[1];
   if (scene) {
@@ -51,6 +58,12 @@ export function useHashRoute(): AppRoute {
 
 export function RoutePage({ route }: { route: AppRoute }) {
   if (route.section === 'desk') return <DeskPage />;
+  if (route.section === 'ops') {
+    const page = route.opsPage ?? 'review';
+    const pages = { review: ReviewPage, evals: EvalsPage, faith: FaithPage, tools: ToolAuditPage };
+    const Page = pages[page];
+    return <OpsLayout page={page}><Page /></OpsLayout>;
+  }
   return (
     <section>
       <h1>{route.title}</h1>
