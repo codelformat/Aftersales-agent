@@ -143,7 +143,7 @@ scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export
 | `web/` | React + TypeScript 前端；`desk/` 工作台、`xray/` 透视面板、`ops/` 运营台、`theater/` 回放剧场；`state/` 按事件 reduce，`data/` 切换 live 与 replay |
 | `web/e2e/` | Playwright 对 replay preview 验收；拦截非静态请求；截图仅在 `UPDATE_SCREENSHOTS=1` 时写入 `docs/media/` |
 | `app/tracing.py`、`app/graph/events.py` | 本轮 LLM 用量回调与节点、领域 trace；只在 debug 模式发给前端 |
-| `app/api/tool_audit.py` | `GET /api/tool-audit`：按会话、工具和状态筛选审计记录 |
+| `app/api/tool_audit.py` | `GET /api/tool-audit?limit=&status=`：按时间倒序列出审计记录，可按状态筛选 |
 | `app/api/strategy.py` | `GET /api/strategy-comparison`：读取四策略评估快照；未导出时返回 404 |
 | `app/api/web.py` | 服务 live 构建；未构建时显示命令；旧管理页重定向到 `/#/ops/...` |
 | `scripts/record_scene.py`、`scripts/export_snapshots.py` | 按 YAML 场景录制真实事件；导出回放使用的运营、会话与知识快照 |
@@ -190,8 +190,8 @@ scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export
 - **`history_recall` 为真时 `after_intent` 直接走 business**，不检索、不过置信度闸（spec 5.5，用户裁定）。
 - **State `messages` 只由 `finalize` 和 `POST /tickets` 追加；本轮字段由 `start_turn` 重置。** 一轮失败时历史不变，checkpoint 的 `next` 停在失败节点，下一轮新输入从 START 重新开始。
 - **节点用 `events.emit(name, data)` 发 SSE 事件，API 用 `stream_mode="custom"`；每轮依赖（会话 ID、日期、聊天模型、执行函数）走 `context=GraphContext(...)`，不进 State。** 每个节点进入时打 `node=<名> conversation=<id>`，`finalize` 打一行 `turn ...` 汇总日志。
-- **Agent 绑定本轮工具集（`turn_toolset`）：内置按 `BUILTIN_AGENT_ORDER` 在前，MCP 按策略文件顺序在后。`offer_refund_form` 只在 aftersales 且有订单号时开放，`order_id` 用 `enum` 收窄；`create_ticket` 只在 `ticket_request` 为真时开放，执行前必须经 `confirm_write` 确认（或 `POST /tickets` 点击）。`confirm_write` 在 `interrupt()` 之前不发事件、不写库；确认或取消后由 `ticket_reply` 用固定话术收尾，不再调模型。`offer_human_options` 只写 `actions`，不做业务动作。** 停止条件：无工具调用收敛；`AGENT_MAX_STEPS=4` 或 `AGENT_TOKEN_BUDGET=16000` 触发强制收尾；`GRAPH_RECURSION_LIMIT=25` 兜底。
-- **`ensure_order` 在 `interrupt()` 之前不发事件、不写库、不调上游**（恢复时节点从头重新执行）；订单卡片由 API 从 `stream_mode=["custom","updates"]` 的 `__interrupt__` 中取出发 `order_picker`。
+- **Agent 绑定本轮工具集（`turn_toolset`）：内置按 `BUILTIN_AGENT_ORDER` 在前，MCP 按策略文件顺序在后。`offer_refund_form` 只在 aftersales 且有订单号时开放，`order_id` 用 `enum` 收窄；`create_ticket` 只在 `ticket_request` 为真时开放，执行前必须经 `confirm_write` 确认（或 `POST /tickets` 点击）。`confirm_write` 在 `interrupt()` 之前不发业务事件、不写库（debug 模式下节点计时包装发的 `trace` `node_start` 除外）；确认或取消后由 `ticket_reply` 用固定话术收尾，不再调模型。`offer_human_options` 只写 `actions`，不做业务动作。** 停止条件：无工具调用收敛；`AGENT_MAX_STEPS=4` 或 `AGENT_TOKEN_BUDGET=16000` 触发强制收尾；`GRAPH_RECURSION_LIMIT=25` 兜底。
+- **`ensure_order` 在 `interrupt()` 之前不发业务事件、不写库、不调上游**（debug 模式下节点计时包装发的 `trace` `node_start`/`node_end{interrupted}` 除外；恢复时节点从头重新执行）；订单卡片由 API 从 `stream_mode=["custom","updates"]` 的 `__interrupt__` 中取出发 `order_picker`。
 - **`/chat/resume` 必须预检待处理的 `order_picker`**：没有待处理 interrupt 时 `Command(resume=)` 静默不执行（设计阶段实测）→ 409 `no_pending_selection`；订单不在卡片列表 → 422 `invalid_order`。有待处理 interrupt 时新消息直接从 START 开始，原 interrupt 作废（实测）。
 - **指代消解丢弃不在原文和历史中的订单号**（整词匹配，前后不能是字母或数字）；`order_id` 有值时 `order_scoped` 为真；历史为空时 `resolved_input` 等于原话。
 - **aftersales 出口的置信度闸只看 `evidence_confidence`，不调自评**（spec 6.12，用户裁定）：子流程中缺的信息由 Agent 追问。knowledge 出口仍是 `evidence_confidence` + 自评。

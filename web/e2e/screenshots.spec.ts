@@ -67,8 +67,9 @@ test('strategies', async ({ page }) => {
 test('ops-review', async ({ page }) => {
   await page.goto('./#/ops/review');
   const table = page.getByRole('table', { name: '待审问题列表' });
-  await expect(table.getByRole('button', { name: 'X3 Pro 耳机的续航是多久？' })).toBeVisible();
-  await table.getByRole('button', { name: 'X3 Pro 耳机的续航是多久？' }).click();
+  const expand = table.getByRole('button', { expanded: false }).first();
+  await expect(expand).toBeVisible();
+  await expand.click();
   await expect(table.getByRole('heading', { name: '用户原话' }).first()).toBeVisible();
   await capture(page, 'ops-review');
 });

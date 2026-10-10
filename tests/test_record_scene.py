@@ -226,11 +226,13 @@ async def test_snapshot_export_matches_replay_paths(tmp_path):
     replay_dir.mkdir()
     rows = [{"scene": "sample"},
             {"channel": "api", "event": "chat", "data": {"user_id": "demo"}},
+            {"channel": "sse", "event": "session", "data": {"session_id": "42"}},
             {"channel": "sse", "event": "citations", "data": {"items": [{"chunk_id": 5}]}}]
     (replay_dir / "sample.jsonl").write_text("\n".join(map(json.dumps, rows)))
 
     responses = {
-        "/api/review-queue": [{"id": 3}], "/api/review-queue/3": {"id": 3, "sources": []},
+        "/api/review-queue": [{"id": 3, "normalized_question": "问题", "updated_at": "2026-10-09"}],
+        "/api/review-queue/3": {"id": 3, "sources": [{"conversation_id": 42}]},
         "/api/eval-runs": [], "/api/faith-cases": [], "/api/tool-audit": [],
         "/api/conversations": [{"session_id": "42", "updated_at": "2026-10-09"}],
         "/api/conversations/42/messages": [{"role": "user", "content": "你好"}],
@@ -251,5 +253,5 @@ async def test_snapshot_export_matches_replay_paths(tmp_path):
         await export_snapshots(client, output, replay_dir)
     expected = {"review-queue.json", "review-queue/3.json", "eval-runs.json", "faith-cases.json",
                 "tool-audit.json", "conversations.json", "conversations/42/messages.json",
-                "knowledge/chunks/5.json", "knowledge/chunks/4.json"}
+                "knowledge/chunks/5.json"}
     assert {p.relative_to(output).as_posix() for p in output.rglob("*.json")} == expected

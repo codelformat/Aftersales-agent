@@ -69,7 +69,7 @@ def test_compose_preserves_default_and_adds_full_profile(services):
 def test_compose_app_waits_for_initialization_and_mcp_health(services):
     assert "app" in services
     app = services["app"]
-    assert app["ports"] == ["8000:8000"]
+    assert app["ports"] == ["127.0.0.1:8000:8000"]
     assert app["depends_on"]["init"]["condition"] == "service_completed_successfully"
     for name in ("mcp-logistics", "mcp-aftersales"):
         assert app["depends_on"][name]["condition"] == "service_healthy"

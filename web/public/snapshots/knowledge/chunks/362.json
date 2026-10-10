@@ -1,9 +1,0 @@
-{
-  "id": 362,
-  "section_path": "商品手册 > 扫地机器人 > S10 常见故障",
-  "content_type": "manual",
-  "questions": "S10 常见故障",
-  "answer": "S10 连不上 Wi-Fi 时，确认路由器开启了 2.4GHz 频段，手机连接同一个网络，然后在 App 中重新添加设备。滚刷不转时，先关机，再清理滚刷两端缠绕的毛发。",
-  "prev_chunk_id": 361,
-  "next_chunk_id": 363
-}

@@ -30,6 +30,9 @@ async def test_list_and_detail(db, client):
     d = (await client.get(f"/api/review-queue/{rid}")).json()
     assert [x["raw_question"] for x in d["sources"]] == ["杯子能扔洗碗机吗", "保温杯洗碗机能洗不"]
     assert d["sources"][0]["retrieved_chunks"] == SNAP
+    async with db() as s:
+        sources = await low_confidence.list_for_review(s, rid)
+    assert [x.get("conversation_id") for x in d["sources"]] == [x.conversation_id for x in sources]
     assert (await client.get("/api/review-queue/999999")).status_code == 404
 
 

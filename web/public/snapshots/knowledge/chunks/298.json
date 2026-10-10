@@ -1,9 +1,0 @@
-{
-  "id": 298,
-  "section_path": "商品FAQ > 扫地机器人 > 扫地机器人连不上 Wi-Fi 怎么办？",
-  "content_type": "faq",
-  "questions": "扫地机器人连不上 Wi-Fi 怎么办？",
-  "answer": "扫地机器人只支持 2.4GHz 的 Wi-Fi。请确认路由器开启了 2.4GHz 频段，手机连接同一个网络，然后在 App 中重新添加设备。",
-  "prev_chunk_id": 297,
-  "next_chunk_id": 299
-}

@@ -6,9 +6,9 @@ Strategy comparison is produced separately by evals/export_strategy_compare.py.
 
 import argparse
 import asyncio
-from collections import deque
 import json
 from pathlib import Path
+import shutil
 
 import httpx
 
@@ -33,61 +33,94 @@ def chunk_ids(value):
 async def export_snapshots(client, output_dir, replay_dir):
     output_dir = Path(output_dir)
     chunks, required_chunks, users, conversations = set(), set(), set(), {}
+    recorded_ids = set()
 
-    async def fetch(path, filename):
+    for replay in sorted(Path(replay_dir).glob("*.jsonl")):
+        for line in replay.read_text(encoding="utf-8").splitlines()[1:]:
+            row = json.loads(line)
+            data = row["data"]
+            chunks.update(chunk_ids(data))
+            for key in ("session_id", "conversation_id"):
+                if data.get(key) is not None:
+                    recorded_ids.add(str(data[key]))
+            if row["channel"] == "sse":
+                required_chunks.update(chunk_ids(data))
+            if row["channel"] == "api" and row["event"] == "chat":
+                users.add(data["user_id"])
+
+    # Only remove entries inside the selected snapshot directory. Unlink
+    # symlinks without following them; strategy comparison has its own exporter.
+    if output_dir.is_symlink():
+        raise ValueError("Snapshot output directory must not be a symlink")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for entry in output_dir.iterdir():
+        if entry.name == "strategy-comparison.json":
+            continue
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+
+    async def fetch(path):
         response = await client.get(path, params=[*httpx.URL(path).params.multi_items(), ("debug", "true")])
         response.raise_for_status()
-        value = response.json()
+        return response.json()
+
+    def write(filename, value):
         target = output_dir / f"{filename}.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(".json.partial")
         temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         temporary.replace(target)
-        chunks.update(chunk_ids(value))
-        return value
 
     for name, path in OPS_PATHS.items():
-        rows = await fetch(path, name)
+        rows = await fetch(path)
         if name == "review-queue":
+            latest = {}
             for row in rows:
-                await fetch(f'/api/review-queue/{row["id"]}', f'review-queue/{row["id"]}')
+                detail = await fetch(f'/api/review-queue/{row["id"]}')
+                detail["sources"] = [source for source in detail["sources"]
+                                     if str(source.get("conversation_id")) in recorded_ids]
+                if not detail["sources"]:
+                    continue
+                question = row["normalized_question"].strip()
+                previous = latest.get(question)
+                # API timestamps share the same ISO format. Use the ID to break ties.
+                if previous is None or (row["updated_at"], row["id"]) > \
+                        (previous[0]["updated_at"], previous[0]["id"]):
+                    latest[question] = (row, detail)
+            rows = sorted((row for row, _ in latest.values()),
+                          key=lambda row: (row["updated_at"], row["id"]), reverse=True)
+            for row, detail in latest.values():
+                write(f'review-queue/{row["id"]}', detail)
+                chunks.update(chunk_ids(detail))
+        elif name == "tool-audit":
+            rows = [row for row in rows if str(row.get("conversation_id")) in recorded_ids]
+            chunks.update(chunk_ids(rows))
+        write(name, rows)
 
-    for replay in sorted(Path(replay_dir).glob("*.jsonl")):
-        for line in replay.read_text(encoding="utf-8").splitlines()[1:]:
-            row = json.loads(line)
-            chunks.update(chunk_ids(row["data"]))
-            if row["channel"] == "sse":
-                required_chunks.update(chunk_ids(row["data"]))
-            if row["channel"] == "api" and row["event"] == "chat":
-                users.add(row["data"]["user_id"])
     for user in sorted(users):
         response = await client.get("/api/conversations", params={"user_id": user, "debug": "true"})
         response.raise_for_status()
         for conversation in response.json():
-            cid = conversation["session_id"]
+            cid = str(conversation["session_id"])
+            if cid not in recorded_ids:
+                continue
             conversations[cid] = conversation
             query = httpx.QueryParams({"user_id": user})
-            await fetch(f"/api/conversations/{cid}/messages?{query}", f"conversations/{cid}/messages")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "conversations.json").write_text(
-        json.dumps(sorted(conversations.values(), key=lambda c: c["updated_at"], reverse=True),
-                   ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    pending, visited = deque(sorted(chunks)), set()
-    while pending:
-        cid = pending.popleft()
-        if cid in visited:
-            continue
-        visited.add(cid)
+            messages = await fetch(f"/api/conversations/{cid}/messages?{query}")
+            # The current API scopes messages by URL and omits conversation_id.
+            # Also check explicit IDs if a response includes them.
+            messages = [row for row in messages if str(row.get("conversation_id", cid)) == cid]
+            write(f"conversations/{cid}/messages", messages)
+            chunks.update(chunk_ids(messages))
+    write("conversations", sorted(conversations.values(), key=lambda c: c["updated_at"], reverse=True))
+    for cid in sorted(chunks):
         # A previous demo's deleted flywheel chunk can remain in historical review
         # evidence. Those cards already contain their question and answer.
         try:
-            chunk = await fetch(f"/api/knowledge/chunks/{cid}", f"knowledge/chunks/{cid}")
-            # The original-text dialog can navigate to adjacent chunks.
-            for key in ("prev_chunk_id", "next_chunk_id"):
-                neighbor = chunk.get(key)
-                if neighbor is not None:
-                    required_chunks.add(neighbor)
-                    pending.append(neighbor)
+            chunk = await fetch(f"/api/knowledge/chunks/{cid}")
+            write(f"knowledge/chunks/{cid}", chunk)
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != 404 or cid in required_chunks:
                 raise

@@ -10,6 +10,7 @@
   "sources": [
     {
       "id": 70,
+      "conversation_id": 218,
       "raw_question": "那它防水吗",
       "source": "retrieval_low_conf",
       "reason": "检索证据置信度低于门槛",

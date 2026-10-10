@@ -55,7 +55,7 @@ describe('replay mode', () => {
     await mountApp('#/theater/after-sales', 'replay');
     expect(screen.getByText(/这是录制的真实会话回放/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '在本地运行完整系统 →' }))
-      .toHaveAttribute('href', 'https://github.com/codelformat/Aftersales-agent#run-locally');
+      .toHaveAttribute('href', 'https://github.com/codelformat/Aftersales-agent/blob/main/docs/run-locally.md');
     expect(screen.getByRole('heading', { name: '场景播放器' })).toBeInTheDocument();
     expect(window.location.hash).toBe('#/theater/after-sales');
   });

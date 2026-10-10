@@ -1,5 +1,12 @@
 [
   {
+    "session_id": "226",
+    "created_at": "2026-10-10T02:52:12",
+    "updated_at": "2026-10-10T02:52:12",
+    "preview": "我上周买的耳机想退",
+    "summarized": false
+  },
+  {
     "session_id": "225",
     "created_at": "2026-10-10T02:44:40",
     "updated_at": "2026-10-10T02:44:40",
@@ -25,13 +32,6 @@
     "created_at": "2026-10-10T02:42:50",
     "updated_at": "2026-10-10T02:42:50",
     "preview": "我想给宠物买保险，你们有什么推荐？",
-    "summarized": false
-  },
-  {
-    "session_id": "220",
-    "created_at": "2026-10-10T02:42:13",
-    "updated_at": "2026-10-10T02:42:13",
-    "preview": "我上周买的耳机想退",
     "summarized": false
   },
   {

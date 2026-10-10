@@ -10,6 +10,7 @@
   "sources": [
     {
       "id": 69,
+      "conversation_id": 215,
       "raw_question": "L2 台灯可以用小爱同学语音控制吗？",
       "source": "retrieval_low_conf",
       "reason": "检索证据置信度低于门槛",

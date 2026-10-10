@@ -1,9 +1,0 @@
-{
-  "id": 324,
-  "section_path": "售后手册 > 发票 > 开具发票",
-  "content_type": "manual",
-  "questions": "开具发票",
-  "answer": "在订单详情页点击\"申请开票\"，填写抬头和税号。电子发票在订单完成后 3 个工作日内发送到账户，在\"我的发票\"中可以下载。",
-  "prev_chunk_id": 323,
-  "next_chunk_id": 325
-}

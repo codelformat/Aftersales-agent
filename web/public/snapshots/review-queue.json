@@ -1,15 +1,5 @@
 [
   {
-    "id": 2,
-    "normalized_question": "X3 Pro 耳机的续航是多久？",
-    "ai_suggested_answer": "（待核实）X3 Pro 关闭降噪、音量 50% 时，单次续航约 8 小时，加上充电盒约 32 小时；开启降噪后单次续航约 5 小时，充电盒充满约需要 2 小时。",
-    "occurrence_count": 4,
-    "review_status": "待审",
-    "approved_answer": null,
-    "created_at": "2026-10-09T20:10:40",
-    "updated_at": "2026-10-09T20:20:00"
-  },
-  {
     "id": 7,
     "normalized_question": "X3 Pro 耳机防水吗？",
     "ai_suggested_answer": "（待核实）X3 Pro 防水性能请以商品详情页或官方参数说明为准。参考片段中未提及 X3 Pro 的防水等级或是否支持防水，无法确认。进水不属于免费维修范围，建议日常避免接触液体，具体防护能力请咨询店铺客服核实。",
@@ -28,45 +18,5 @@
     "approved_answer": "L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。",
     "created_at": "2026-10-10T02:40:09",
     "updated_at": "2026-10-10T02:40:09"
-  },
-  {
-    "id": 5,
-    "normalized_question": "L2 台灯可以用小爱同学语音控制吗？",
-    "ai_suggested_answer": "（待核实）目前参考资料未提及 L2 台灯支持小爱同学语音控制的相关信息。建议以商品详情页标注的智能联动功能为准，或联系店铺客服确认。若商品页面未标注支持该功能，则通常不支持语音控制。",
-    "occurrence_count": 1,
-    "review_status": "通过",
-    "approved_answer": "L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。",
-    "created_at": "2026-10-09T20:19:50",
-    "updated_at": "2026-10-09T20:19:50"
-  },
-  {
-    "id": 4,
-    "normalized_question": "L2 台灯可以用小爱同学语音控制吗？",
-    "ai_suggested_answer": "（待核实）参考片段中没有关于 L2 台灯是否支持小爱同学语音控制的信息。按电商售后通常做法，若商品详情页或说明书未标注支持该功能，则一般不支持；建议以商品页面标注或咨询人工客服确认为准。",
-    "occurrence_count": 1,
-    "review_status": "通过",
-    "approved_answer": "L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。",
-    "created_at": "2026-10-09T20:18:33",
-    "updated_at": "2026-10-09T20:18:34"
-  },
-  {
-    "id": 3,
-    "normalized_question": "L2 台灯可以用小爱同学语音控制吗？",
-    "ai_suggested_answer": "（待核实）现有资料未提及 L2 台灯支持小爱同学语音控制。L2 采用轻触开关切换亮度、长按开关切换色温，未说明具备语音控制功能。如需确认，建议咨询官方客服。",
-    "occurrence_count": 1,
-    "review_status": "通过",
-    "approved_answer": "L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。",
-    "created_at": "2026-10-09T20:17:55",
-    "updated_at": "2026-10-09T20:17:56"
-  },
-  {
-    "id": 1,
-    "normalized_question": "L2 台灯可以用小爱同学语音控制吗？",
-    "ai_suggested_answer": "（待核实）参考片段中未提及 L2 台灯支持小爱同学语音控制。若商品未内置语音助手，通常无法通过小爱同学直接控制；建议核实产品参数或咨询店铺客服确认。",
-    "occurrence_count": 1,
-    "review_status": "通过",
-    "approved_answer": "L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。",
-    "created_at": "2026-10-09T20:10:30",
-    "updated_at": "2026-10-09T20:10:30"
   }
 ]
