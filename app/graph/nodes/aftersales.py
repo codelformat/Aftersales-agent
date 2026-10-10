@@ -52,4 +52,7 @@ async def retrieve_multi_evidence(state, runtime):
     trace = events.enter("retrieve_multi", state, runtime)
     plan = QueryPlan(standard_query=state["standard_query"], product_category=state.get("product_category"))
     result = await retrieve_multi(state["queries"], plan, top_n=get_settings().rerank_top_k)
-    return evidence_update(state["resolved_input"], result, trace)
+    update = evidence_update(state["resolved_input"], result, trace)
+    events.trace("retrieval", {"queries": state["queries"], "top": update["retrieval"],
+                               "kept": len(update["evidence"])}, node="retrieve_multi")
+    return update

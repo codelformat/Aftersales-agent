@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import ToolException
+from langgraph.config import get_config
 from pydantic import ValidationError
 from sqlalchemy.exc import OperationalError
 
@@ -101,12 +102,24 @@ async def _finish(
     )
     source = entry.source if entry is not None else "builtin"
     server = entry.server if entry is not None else None
-    await audit.record(audit.AuditRecord(
+    rec = await audit.record(audit.AuditRecord(
         conversation_id=conversation_id, tool_call_id=call_id, tool_name=name,
         tool_source=source, mcp_server=server, arguments=arguments,
         result_summary=outcome.message.content, status=status, error_message=error,
         retry_count=retry_count, duration_ms=outcome.duration_ms,
     ))
+    # 延迟导入，避免 state → executor → events → state 的循环依赖。
+    from app.graph import events
+
+    try:
+        node = get_config().get("metadata", {}).get("langgraph_node")
+    except RuntimeError:
+        node = None
+    events.trace("tool", {
+        "call_id": rec.tool_call_id, "name": rec.tool_name, "source": rec.tool_source,
+        "mcp_server": rec.mcp_server, "status": rec.status, "retry_count": rec.retry_count,
+        "duration_ms": rec.duration_ms, "error_message": rec.error_message,
+    }, node=node)
     logger.info("tool_call conversation=%s name=%s source=%s status=%s retries=%s ms=%s",
                 conversation_id, name, f"mcp:{server}" if source == "mcp" else source,
                 status, retry_count, outcome.duration_ms)

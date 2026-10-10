@@ -37,7 +37,10 @@ async def retrieve_evidence(state, runtime):
     trace = events.enter("retrieve", state, runtime)
     plan = QueryPlan(standard_query=state["standard_query"], product_category=state.get("product_category"))
     result = await retrieve(state["resolved_input"], plan=plan, top_n=get_settings().rerank_top_k)
-    return evidence_update(state["resolved_input"], result, trace)
+    update = evidence_update(state["resolved_input"], result, trace)
+    events.trace("retrieval", {"queries": [state["standard_query"]], "top": update["retrieval"],
+                               "kept": len(update["evidence"])}, node="retrieve")
+    return update
 
 
 async def confidence_gate(state, runtime):
@@ -48,15 +51,21 @@ async def confidence_gate(state, runtime):
                            threshold=GATE_CONF_THRESHOLD)
     base = {"top_score": state["gate"]["top_score"], "confidence": round(conf.score, 4),
             "signals": {k: v for k, v in conf.to_dict().items() if k != "score"}}
+    checked = False
     if not citations or not ok:
         gate = {**base, "passed": False, "reason": EMPTY_EVIDENCE_REASON, "source": "retrieval_low_conf"}
     elif state.get("route") == "aftersales":
         # 子流程中缺的信息由 Agent 追问，自评会挡在 Agent 之前。
         gate = {**base, "passed": True, "reason": "", "source": None}
     else:
+        checked = True
         check = await self_check([state["resolved_input"]], citations)
         gate = {**base, "passed": check.useful, "reason": check.reason,
                 "source": None if check.useful else "self_check"}
+    events.trace("gate", {
+        **{key: gate[key] for key in ("passed", "confidence", "signals", "source", "reason")},
+        "weights": list(GATE_WEIGHTS), "threshold": GATE_CONF_THRESHOLD, "self_check": checked,
+    }, node="confidence_gate")
     if gate["passed"]:
         events.emit("citations", {"items": state["evidence"], "refused": False})
     else:

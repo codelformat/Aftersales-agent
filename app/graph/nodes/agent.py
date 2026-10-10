@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessage, SystemMessage
 
 from app.config import AGENT_TOKEN_BUDGET, SYSTEM_RESERVE_TOKENS, TOOL_SCHEMA_CHARS_PER_TOKEN, get_settings
 from app.context import count_tokens
+from app.context.budget import get_budget
 from app.context.assemble import build_agent_prompt, log_model_ctx
 from app.graph import events
 from app.graph.control import actions_from_args, refund_action
@@ -92,6 +93,15 @@ async def agent_model(state, runtime):
         layer1_from=state.get("layer1_from"), summary=state.get("summary"),
         user_input=state["resolved_input"], reference=reference, agent_messages=state.get("agent_messages", []))
     prompt = built.messages
+    if ctx.debug:
+        budget = get_budget()
+        layer2 = prompt[1:1 + built.layer2]
+        layer1 = prompt[1 + built.layer2:1 + built.layer2 + built.layer1]
+        events.trace("context", {
+            "layer1_tokens": count_tokens(layer1) if layer1 else 0, "layer1_budget": budget.layer1,
+            "layer2_tokens": count_tokens(layer2) if layer2 else 0, "layer2_budget": budget.layer2,
+            "summary_triggered": False,
+        }, node="agent_model")
     force = state.get("force_final", False)
     if force:
         runnable = ctx.model
