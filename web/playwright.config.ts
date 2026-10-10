@@ -1,14 +1,26 @@
 import { defineConfig } from '@playwright/test';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const baseURL = 'http://127.0.0.1:4174/Aftersales-agent/';
 
 export default defineConfig({
-  testDir: './e2e',
-  outputDir: join(tmpdir(), 'aftersales-theater-playwright'),
-  use: { channel: process.env.PLAYWRIGHT_CHANNEL, baseURL: 'http://127.0.0.1:4173/Aftersales-agent/', viewport: { width: 1440, height: 900 } },
+  testDir: fileURLToPath(new URL('./e2e/', import.meta.url)),
+  outputDir: fileURLToPath(new URL('./test-results/', import.meta.url)),
+  forbidOnly: !!process.env.CI,
+  workers: process.env.CI ? 1 : undefined,
+  retries: 0,
+  use: {
+    baseURL,
+    viewport: { width: 1440, height: 900 },
+    serviceWorkers: 'block',
+    trace: 'retain-on-failure',
+  },
+  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
-    command: 'npm run dev -- --mode replay --host 127.0.0.1 --port 4173 --strictPort',
-    url: 'http://127.0.0.1:4173/Aftersales-agent/',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run build:replay && npx vite preview --mode replay --port 4174 --strictPort',
+    cwd: import.meta.dirname,
+    url: baseURL,
+    reuseExistingServer: false,
+    timeout: 120_000,
   },
 });

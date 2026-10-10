@@ -9,3 +9,7 @@ log/
 app/web/dist/
 web/node_modules/
 web/dist-replay/
+web/test-results/
+web/playwright-report/
+test-results/
+playwright-report/

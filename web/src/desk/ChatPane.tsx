@@ -17,15 +17,21 @@ export default function ChatPane({ desk, source, selectedTurnId, onSelect, onCit
   const followBottom = useRef(true);
   useEffect(() => { followBottom.current = true; }, [desk.state.sessionId]);
   useEffect(() => {
-    if (followBottom.current && log.current) log.current.scrollTop = log.current.scrollHeight;
-  }, [desk.state.turns, desk.notices, desk.busy]);
+    if (!readOnly && followBottom.current && log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [desk.state.turns, desk.notices, desk.busy, readOnly]);
+  // Playback position changes rerender the pane even between recorded events.
+  useEffect(() => {
+    if (readOnly && log.current) log.current.scrollTop = log.current.scrollHeight;
+  });
   return <section className={styles.chat} aria-label="客服对话">
-    <header className={styles.header}>
+    {readOnly ? <header className={styles.replayHeader}>
+      {desk.state.sessionId ? `会话 #${desk.state.sessionId}` : '新会话'} · 只读回放
+    </header> : <header className={styles.header}>
       <button ref={sidebarToggleRef} type="button" className={styles.mobileToggle} aria-label="展开会话侧栏"
         aria-expanded={sidebarOpen} aria-controls={sidebarId} onClick={onOpenSidebar}>会话</button>
       <div><h1>客服工作台</h1><span className={styles.muted}>{desk.state.sessionId ? `会话 #${desk.state.sessionId}` : '新会话'} · 售后服务</span></div>
       <button type="button" disabled={desk.busy || readOnly} onClick={desk.newSession}>新对话</button>
-    </header>
+    </header>}
     {desk.historyError && <div role="alert" className={styles.error}>{desk.historyError}</div>}
     {desk.loadingHistory && <div role="status" className={styles.loading}>正在加载会话…</div>}
     <div ref={log} className={styles.messages} role="log" aria-label="对话消息" aria-live="polite" onScroll={() => {
@@ -40,6 +46,6 @@ export default function ChatPane({ desk, source, selectedTurnId, onSelect, onCit
       {desk.state.turns.map((turn, index) => <MessageBubble key={turn.id} turn={turn} index={index} desk={desk} source={source}
         selected={selectedTurnId === turn.id} onSelect={() => onSelect(turn.id)} onCitationHover={onCitationHover} />)}
     </div>
-    <Composer key={desk.state.sessionId ?? 'new'} disabled={desk.busy || desk.loadingHistory || source.mode === 'replay'} onSend={desk.send} />
+    {!readOnly && <Composer key={desk.state.sessionId ?? 'new'} disabled={desk.busy || desk.loadingHistory || source.mode === 'replay'} onSend={desk.send} />}
   </section>;
 }

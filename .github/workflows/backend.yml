@@ -1,0 +1,59 @@
+name: Backend
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          python-version: '3.12'
+      - uses: docker/setup-buildx-action@v4
+      - name: Build MinIO with cache
+        uses: docker/build-push-action@v7
+        with:
+          context: docker/minio
+          load: true
+          tags: aftersales-minio:RELEASE.2024-05-28T17-19-04Z-local
+          cache-from: type=gha,scope=minio
+          cache-to: type=gha,mode=max,scope=minio
+      - name: Write test configuration
+        run: |
+          cat > .env <<'EOF'
+          CHAT_BASE_URL=http://127.0.0.1:9/v1
+          CHAT_MODEL=test-model
+          CHAT_API_KEY=test-placeholder
+          EMBED_BASE_URL=http://127.0.0.1:9/v1
+          EMBED_API_KEY=test-placeholder
+          RERANK_BASE_URL=http://127.0.0.1:9/v1
+          RERANK_API_KEY=test-placeholder
+          DATABASE_URL=mysql+asyncmy://aftersales:aftersales@127.0.0.1:3307/aftersales?charset=utf8mb4
+          MILVUS_URI=http://127.0.0.1:19530
+          EOF
+          # Compose 默认 pull_policy=build；使用上一步已加载的缓存构建镜像。
+          cat > /tmp/aftersales-ci-compose.yml <<'EOF'
+          services:
+            milvus-minio:
+              pull_policy: never
+          EOF
+          echo "COMPOSE_FILE=docker-compose.yml:/tmp/aftersales-ci-compose.yml" >> "$GITHUB_ENV"
+      - name: Start MySQL and Milvus
+        run: docker compose up -d --wait
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v

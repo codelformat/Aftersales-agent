@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch07：会话上下文管理。三层：层 1 原文、层 2 规则截短（用户原话不动、答复留 60 字、长工具结果换一行标识）、层 3 后台异步分段梗概（`conversation_summaries`，只追加）；`conversations.summary_upto_msg_id`、`layer1_from_msg_id` 两个锚点划边界，只增不减。预算从模型窗口倒推（`app/context/budget.py`，启动自检），层 1 七成、层 2 三成；`finalize` 末尾层 1 超预算按 0.6 水位降级、层 2 超预算起后台摘要。Agent 上下文：固定 System → 层 2 → 层 1 → 用户这句 → 参考资料消息（日期、梗概、订单段、任务段、证据）。回顾本次对话的问题（`history_recall`）直达 Agent。日志 `model_ctx`、`history_ctx`、`context_usage`、`层1 降级`、`summary trigger/done/...` 写 `log/app.log`。聊天页会话侧栏 + `GET /api/conversations`、`GET /api/conversations/{id}/messages`。
 - ch08：即插即用的工具系统。内置工具放 `app/tools/builtin/`，启动时扫描登记；MCP 工具每轮从 `config/tools.json` 列出的 Server 动态发现（`MultiServerMCPClient`，Streamable HTTP），与内置工具合成一份本轮工具集。所有调用只走执行引擎 `execute_tool_calls`：查找 → JSON Schema 校验 → 写工具确认 → 超时/重试（只读工具、暂时性故障）→ 分诊（参数不合法、查询落空、真故障）→ 格式化 → 审计（`tool_audit_logs`）。自建两个 MCP Server：物流 8101（`query_logistics`，内置版下线）、售后 8102（`query_warranty`、`query_return_progress`）。用户明确要求建工单时，解析器设 `ticket_request`，Agent 补齐信息后发起 `create_ticket`，`confirm_write` 用 interrupt 推预览卡片，`/chat/resume`（`ticket_confirm`）确认或取消。
 - ch09：可观测性与知识飞轮。Langfuse 记录每轮 trace、节点和 LLM 调用，按意图汇总 token。置信度闸用 `evidence_confidence`。低置信度问题与用户 👎 反馈保存召回快照，经单 worker 标准化、查重进入 `/admin/review-queue`；人工核准后入库并同步向量化。评估流水线写 `eval_runs`，`/admin/eval-runs` 显示趋势。
+- ch10：展示型前端。`web/` 用 React + TypeScript + Vite，提供客服工作台、运营台和回放剧场。工程视角用 `debug=true` 获取 `trace`，显示节点、检索、置信度闸和 LLM 用量。7 个场景使用真实录制和评估快照。live 构建由 FastAPI 服务；replay 构建只读静态文件，用于 Pages。Docker `full` profile 启动完整系统；Playwright 与 3 条 CI workflow 负责验收。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
 - 远程仓库：https://github.com/codelformat/Aftersales-agent （默认分支 `main`，GitHub CLI `gh` 已登录）。每章在 `chNN` 分支开发，finish 时提 PR。
@@ -24,6 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 uv sync                                              # 安装依赖（Python 3.12，由 uv 管理）
 docker compose up -d --wait                          # 启动 MySQL（宿主端口 3307）和 Milvus（19530，健康检查 9091）
+docker compose --profile full up -d --build --wait   # 启动完整系统：建库、MCP Server、后端与 live 前端（需 .env）
 docker compose -f docker-compose.langfuse.yml up -d --wait   # 启动本项目 Langfuse（Web http://127.0.0.1:3100）
 bash scripts/reset_db.sh                             # 删除 MySQL 和 Milvus 数据卷并重建，校验 FAQ 中文编码和 Milvus 健康
 uv run python scripts/build_kb.py                    # 离线建库：文档和 faq 表入库（pending），再向量化写 Milvus；已入库的文档跳过
@@ -31,6 +33,16 @@ uv run python scripts/build_kb.py --rebuild          # 删除并重建 Milvus �
 uv run python scripts/seed_history.py --date 2026-10-05   # 导入 30 通样例历史对话（默认昨天）
 uv run python scripts/mine_qa.py --date 2026-10-05   # 挖掘任务：抽取 → 暂存 → 去重 → 入库 → 向量化（默认昨天；crontab 示例见脚本头）
 uv run uvicorn app.main:app --reload --port 8000     # 启动服务；聊天页 http://127.0.0.1:8000/（验收时重定向日志：> /tmp/ch05-server.log 2>&1）
+npm --prefix web ci                                 # 安装前端依赖（Node 22.22.2+）
+npm --prefix web run dev                            # 前端开发服务，代理本机 8000 端口
+npm --prefix web run build                          # live 构建写入 app/web/dist，由 FastAPI 服务
+npm --prefix web run build:replay                    # replay 构建写入 web/dist-replay，用于 Pages
+npm --prefix web run typecheck                      # 前端、配置与 E2E 类型检查
+npm --prefix web run test                           # 前端单元和组件测试
+npm --prefix web run e2e                            # Chromium E2E，自动构建并启动 replay preview（4174）
+UPDATE_SCREENSHOTS=1 npm --prefix web run e2e -- screenshots.spec.ts   # 更新 docs/media 的 6 张截图
+uv run python scripts/record_scene.py flywheel      # 从真实运行系统录制；场景定义在 scripts/scenes/
+uv run python scripts/export_snapshots.py           # 导出运营与知识快照，写入 web/public/snapshots
 uv run pytest -q                                     # 全量测试（需要 MySQL；连不上时数据库测试直接失败，不跳过）
 uv run pytest tests/test_chat_api.py::test_business_tool_round_events -q   # 单个测试
 uv run python evals/run_tool_selection_eval.py       # 工具选择样例集（真实上游，只执行第 1 次调用；未达标退出码 1）
@@ -94,6 +106,11 @@ scripts/build_kb.py → knowledge.ingest, knowledge.vectorize
 scripts/mine_qa.py  → knowledge.mining → knowledge.vectorize
 graph.nodes (turn, agent, finalize) → context.layers, context.assemble, context.maintain → context.summarizer → llm, repositories.summaries
 api.conversations → repositories.conversations, repositories.messages
+web/ (desk, xray, ops, theater) → data.DataSource → live (HTTP / SSE) 或 replay (静态录制与快照)
+api.chat (debug=true) → graph.events.trace, tracing.UsageCollector → SSE trace → web/state reducer → xray
+api.tool_audit → repositories.tool_audit；api.strategy → 四策略评估快照
+api.web → app/web/dist（live 构建）；旧 /admin 页面重定向到前端 hash 路由
+scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export_snapshots.py → web/public/snapshots
 ```
 
 | 模块 | 职责 |
@@ -123,9 +140,19 @@ api.conversations → repositories.conversations, repositories.messages
 | `app/api/feedback.py` | `POST /api/feedback`：校验用户和回复；down 保存原话与 checkpoint 召回快照，幂等入池 |
 | `app/api/review_queue.py` | 待审列表、详情、核准和驳回；核准写 flywheel 知识块并同步向量化 |
 | `app/api/eval_runs.py` | `GET /api/eval-runs`：只读历史评估指标 |
+| `web/` | React + TypeScript 前端；`desk/` 工作台、`xray/` 透视面板、`ops/` 运营台、`theater/` 回放剧场；`state/` 按事件 reduce，`data/` 切换 live 与 replay |
+| `web/e2e/` | Playwright 对 replay preview 验收；拦截非静态请求；截图仅在 `UPDATE_SCREENSHOTS=1` 时写入 `docs/media/` |
+| `app/tracing.py`、`app/graph/events.py` | 本轮 LLM 用量回调与节点、领域 trace；只在 debug 模式发给前端 |
+| `app/api/tool_audit.py` | `GET /api/tool-audit`：按会话、工具和状态筛选审计记录 |
+| `app/api/strategy.py` | `GET /api/strategy-comparison`：读取四策略评估快照；未导出时返回 404 |
+| `app/api/web.py` | 服务 live 构建；未构建时显示命令；旧管理页重定向到 `/#/ops/...` |
+| `scripts/record_scene.py`、`scripts/export_snapshots.py` | 按 YAML 场景录制真实事件；导出回放使用的运营、会话与知识快照 |
 
 必须保持的设计约束（每条都有测试或实测依据，改动前先读 spec 和 `dev-notes/`）：
 
+- **`debug=false` 时事件流与 ch09 一致**：不发 `trace`，不改变原事件的顺序和内容。`trace` 不含 Prompt 原文、密钥和 Langfuse 地址。
+- **录制文件必须来自真实系统**：保留录制日期、模型、git commit 和原始事件；不得手编模型回复或调试数据。replay 只读静态录制与快照，不请求后端。
+- **前端状态 = 事件序列 reduce**：live 与 replay 共用协议和 reducer。拖动时从事件前缀重算，不靠界面副作用补状态。
 - **`db/schema.sql`、`db/schema_ch03.sql`、`db/schema_ch04.sql`、`db/schema_ch07.sql`、`db/schema_ch09.sql` 是用户 DDL，逐字保存，是表结构唯一来源。** ORM 只映射，不 `create_all`。
 - **容器初始化 SQL 必须用 utf8mb4 读取**（`db/mysql-client.cnf` 挂到 `/etc/mysql/conf.d/`），否则中文双重编码。校验存储字节要用 `HEX()`，字符串比较会被 latin1 客户端"还原"而漏检。
 - **执行 `.sql` 文件用 `exec_driver_sql`，不用 `text()`。** 异步 ORM 提交后读数据库默认值列前先 `await session.refresh()`。测试引擎用 `NullPool`（pytest 每个异步测试一个事件循环）。
@@ -208,7 +235,7 @@ FastAPI、SQLAlchemy、LangChain、LangGraph、Milvus、Langfuse。
 
 - 全程走 Superpowers 流程（brainstorm → spec → plan → 计划评审 → 实现 → code review → finish），相关技能自动触发。
 - **非可单测代码的任务**（纯 Prompt、数据类）：把 TDD 那步换成用标注样例或评估集跑一遍验证，其余步骤照走。
-- **例外：聊天页面**用 Vibe Coding 方式做：用户描述效果，Claude 转成任务交给 Codex 改，不套 brainstorm、TDD、code review 流程（代码仍由 Codex 写）。
+- **ch10 起前端按完整流程开发**：执行 brainstorm、TDD、code review 和验收。用户仍可描述视觉效果，由 Claude 转成任务交给 Codex 调整；不再使用聊天页面的 Vibe Coding 例外。
 
 ## 分工：Claude 规划，Codex 编码
 

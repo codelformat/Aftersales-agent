@@ -24,9 +24,15 @@
 .split > section { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .split > section > h2 { font-size: var(--font-size-label); padding: var(--space-2); margin: 0; border-bottom: 1px solid var(--color-border); color: var(--color-heading); }
 .split > section + section { border-left: 1px solid var(--color-border); }
-.split .deskEngineering, .split .deskCustomer { display: flex; flex-direction: column; flex: 1; height: auto; overflow: hidden; }
-.split .chatStage { flex: 1; height: auto; }
-.split .xray { flex: 0 1 45%; height: auto; border-top: 1px solid var(--color-border); border-left: 0; }
+.split .deskEngineering, .split .deskCustomer { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; flex: 1; height: auto; overflow: hidden; }
+/* Share the order/session rows through both wrappers so the message row itself
+   can reserve at least 60% of the customer stage, including when xray is open. */
+.split .deskEngineering:has(> .xray) { grid-template-rows: auto auto minmax(60%, 3fr) auto minmax(0, 2fr); }
+.split .chatStage { display: grid; grid-row: 1 / 4; grid-template-rows: subgrid; height: auto; }
+.split .chatStage > section { display: grid; grid-row: 2 / 4; grid-template-rows: subgrid; }
+.split .chatStage [role='log'] { grid-row: 2; }
+.split .xrayToggle { grid-row: 4; }
+.split .xray { grid-row: 5; height: auto; border-top: 1px solid var(--color-border); border-left: 0; }
 .split .xray > div { height: auto; }
 .xrayToggle { flex-shrink: 0; text-align: left; border-top: 1px solid var(--color-border); }
 .opsRecords { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2); overflow-wrap: anywhere; }

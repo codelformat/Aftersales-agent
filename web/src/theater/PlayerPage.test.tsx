@@ -5,7 +5,8 @@ import { ViewModeProvider, useViewMode } from '../app/ViewModeContext';
 import PlayerPage from './PlayerPage';
 import GalleryPage from './GalleryPage';
 import App from '../app/App';
-import { fixture } from './test-fixtures';
+import { fixture, recording } from './test-fixtures';
+import { gateCompletion } from '../../e2e/recording';
 
 function ViewSwitch() {
   const { setViewMode } = useViewMode();
@@ -35,6 +36,23 @@ describe('gallery', () => {
   });
 });
 describe('player', () => {
+  it.each([
+    [1, '通过', 1], [2, '拦下', 3],
+  ] as const)('opens the completed gate #%s using event time and explicit turn selection', async (occurrence, status, visibleTurns) => {
+    const target = gateCompletion(recording('multi-turn').lines, occurrence);
+    mount('multi-turn', '?t=0&view=eng');
+    const slider = await screen.findByRole('slider', { name: '播放进度' });
+    fireEvent.click(screen.getByRole('checkbox', { name: '自动停留' }));
+    fireEvent.change(slider, { target: { value: target.position } });
+    // Gate #2's done coincides with chat #3: the active turn alone has no gate.
+    expect(screen.getAllByRole('article', { name: /客服回复/ })).toHaveLength(visibleTurns);
+    fireEvent.click(screen.getByRole('button', { name: `查看此轮 ${target.turn}` }));
+    fireEvent.click(screen.getByRole('button', { name: /置信度闸/ }));
+    const gate = screen.getByRole('region', { name: '置信度闸详情' });
+    expect(within(gate).getByText(status, { exact: true })).toBeInTheDocument();
+    expect(within(gate).getByRole('img', { name: /置信度/ })).toBeInTheDocument();
+  });
+
   it.each([
     ['player', ''], ['player', '?t=0&view=eng'],
     ['app', ''], ['app', '?t=0&view=eng'],
@@ -235,7 +253,7 @@ describe('player', () => {
     expect(screen.getByText(/R202610092247/)).toBeInTheDocument();
     expect(screen.getAllByRole('article', { name: /客服回复/ })).toHaveLength(2);
     expect(screen.getByRole('button', { name: '提交退款单' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '新对话' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '新对话' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'EN' }));
     expect(screen.getByText(/The refund API returns/)).toBeInTheDocument();
   });
