@@ -117,6 +117,7 @@ class Settings(BaseSettings):
     chat_model: str
     chat_api_key: SecretStr
     chat_thinking: str | None = None
+    tool_policy_path: str | None = None
     database_url: str
     embed_api_key: SecretStr
     embed_base_url: str = "https://api.siliconflow.cn/v1"

@@ -18,6 +18,28 @@ DATA = {"servers": {"logistics": {"url": "http://x/mcp", "tools": {"query_logist
         "overrides": {"query_order": {"timeout_seconds": 2, "max_retries": 1}}}
 
 
+def test_env_policy_path_and_explicit_path_precedence(tmp_path, monkeypatch):
+    from app.config import get_settings
+    path = tmp_path / "environment.json"
+    write(path, {"servers": {"custom": {"url": "http://custom/mcp", "tools": {"x": "read"}}},
+                 "overrides": {}})
+    monkeypatch.setenv("TOOL_POLICY_PATH", str(path))
+    get_settings.cache_clear()
+    try:
+        assert pol.load_policy().mcp_permission("custom", "x") == "read"
+        explicit = tmp_path / "explicit.json"
+        write(explicit, DATA)
+        assert pol.load_policy(explicit).mcp_permission("logistics", "query_logistics") == "read"
+    finally:
+        get_settings.cache_clear()
+
+
+def test_policy_setting_defaults_to_none(monkeypatch):
+    from app.config import Settings
+    monkeypatch.delenv("TOOL_POLICY_PATH", raising=False)
+    assert Settings().tool_policy_path is None
+
+
 def test_permissions(tmp_path):
     p = tmp_path / "tools.json"
     write(p, DATA)

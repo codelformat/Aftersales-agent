@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
-from app.config import TOOL_POLICY_PATH
+from app.config import TOOL_POLICY_PATH, get_settings
 from app.tools.registry import ToolEntry
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ def _parse_policy(data) -> ToolPolicy:
 
 
 def load_policy(path: Path | None = None) -> ToolPolicy:
-    path = path or TOOL_POLICY_PATH
+    path = Path(path or get_settings().tool_policy_path or TOOL_POLICY_PATH)
     cached = _cache.get(path)
     try:
         mtime = path.stat().st_mtime_ns
