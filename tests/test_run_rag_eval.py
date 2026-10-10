@@ -237,6 +237,29 @@ async def test_retrieval_stage_caches_plans_and_uses_ranked_before_threshold(off
     assert lifecycle == ["ensure", "milvus", "rerank", "db"]
 
 
+async def test_save_rankings_before_threshold_with_sample_metadata(offline_eval, monkeypatch):
+    _, _, report_dir = offline_eval
+
+    async def understand(query):
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        items = [replace(ITEM, section_path=f"key{i}", score=0.01) for i in range(7)]
+        return Retrieval(PLAN, items, [])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    path = report_dir / "nested/rankings.json"
+    args = rre.build_parser().parse_args(["--stage", "retrieval", "--bucket", "B_model", "--limit", "2",
+                                         "--no-write", "--save-rankings", str(path)])
+    assert await rre.run_eval(args) == 0
+    data = json.loads(path.read_text())
+    assert data["rankings"] == {s: {sid: [f"key{i}" for i in range(5)] for sid in ("B01", "B02")}
+                                for s in rre.STRATEGIES}
+    assert data["samples"]["B01"] == {"query": "B01 q", "bucket": "B_model",
+                                          "relevant": [[ITEM.section_path]]}
+
+
 async def test_retrieval_failures_continue_and_report(offline_eval, monkeypatch):
     _, lifecycle, report_dir = offline_eval
     seen = []

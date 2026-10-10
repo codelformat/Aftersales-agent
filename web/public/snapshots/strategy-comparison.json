@@ -1,0 +1,370 @@
+{
+  "generated_from": {
+    "report": "evals/reports/rag_eval_20261009-193611.md",
+    "rankings": "evals/reports/rankings_ch10.json",
+    "git_commit": "438f85ac58176247b3358de226e9922b189e2941",
+    "metrics_source": "report",
+    "consistency_note": "检索和生成指标均取指定报告，检索为门槛前 ALL（A/B/C/E 共 240 题）。代表题排序来自本次检索运行。两次运行独立，排序可能变化；Top-5 文件不足以重算 R@10 和完整 MRR，不混用两次运行的汇总指标。"
+  },
+  "metrics": {
+    "dense": {
+      "R@1": 0.844,
+      "R@3": 0.965,
+      "R@5": 0.985,
+      "R@10": 0.994,
+      "MRR": 0.969,
+      "faithfulness": 0.933,
+      "false_refusal": 0.054,
+      "d_refusal": 0.983
+    },
+    "bm25": {
+      "R@1": 0.747,
+      "R@3": 0.938,
+      "R@5": 0.962,
+      "R@10": 0.972,
+      "MRR": 0.909,
+      "faithfulness": 0.93,
+      "false_refusal": 0.042,
+      "d_refusal": 0.967
+    },
+    "hybrid": {
+      "R@1": 0.834,
+      "R@3": 0.967,
+      "R@5": 0.988,
+      "R@10": 0.995,
+      "MRR": 0.967,
+      "faithfulness": 0.926,
+      "false_refusal": 0.029,
+      "d_refusal": 0.983
+    },
+    "hybrid_rerank": {
+      "R@1": 0.861,
+      "R@3": 0.984,
+      "R@5": 0.992,
+      "R@10": 0.997,
+      "MRR": 0.987,
+      "faithfulness": 0.964,
+      "false_refusal": 0.058,
+      "d_refusal": 0.983
+    }
+  },
+  "cases": [
+    {
+      "id": "C01",
+      "relevant": [
+        [
+          "常见问答 > 运费 > 运费怎么算？"
+        ]
+      ],
+      "bucket": "C_colloquial",
+      "query": "邮费",
+      "rankings": {
+        "dense": [
+          {
+            "key": "常见问答 > 运费 > 运费怎么算？",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 运费 > 退货的运费谁承担？",
+            "relevant": false
+          },
+          {
+            "key": "售后手册 > 发票 > 开具发票",
+            "relevant": false
+          },
+          {
+            "key": "退货政策 > 特殊情况 > 赠品退回",
+            "relevant": false
+          },
+          {
+            "key": "售后手册 > 发票 > 发票类型",
+            "relevant": false
+          }
+        ],
+        "bm25": [
+          {
+            "key": "常见问答 > 运费 > 退货的运费谁承担？",
+            "relevant": false
+          },
+          {
+            "key": "常见问答 > 运费 > 运费怎么算？",
+            "relevant": true
+          }
+        ],
+        "hybrid": [
+          {
+            "key": "常见问答 > 运费 > 运费怎么算？",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 运费 > 退货的运费谁承担？",
+            "relevant": false
+          },
+          {
+            "key": "售后手册 > 发票 > 开具发票",
+            "relevant": false
+          },
+          {
+            "key": "退货政策 > 特殊情况 > 赠品退回",
+            "relevant": false
+          },
+          {
+            "key": "售后手册 > 发票 > 发票类型",
+            "relevant": false
+          }
+        ],
+        "hybrid_rerank": [
+          {
+            "key": "常见问答 > 运费 > 运费怎么算？",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 运费 > 退货的运费谁承担？",
+            "relevant": false
+          },
+          {
+            "key": "退货政策 > 特殊情况 > 赠品退回",
+            "relevant": false
+          },
+          {
+            "key": "退货政策 > 特殊情况 > 价格保护",
+            "relevant": false
+          },
+          {
+            "key": "售后手册 > 维修 > 维修流程",
+            "relevant": false
+          }
+        ]
+      },
+      "fallback": false
+    },
+    {
+      "id": "B12",
+      "relevant": [
+        [
+          "商品手册 > 电动牙刷 > T5 参数"
+        ]
+      ],
+      "bucket": "B_model",
+      "query": "T5 支持剩余电量显示吗？",
+      "rankings": {
+        "dense": [
+          {
+            "key": "商品手册 > 电动牙刷 > T5 常见故障",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 参数",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 续航",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T3 续航",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T3 Pro 续航",
+            "relevant": false
+          }
+        ],
+        "bm25": [
+          {
+            "key": "商品手册 > 电动牙刷 > T5 参数",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 常见故障",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 退换规则",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 续航",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 保修",
+            "relevant": false
+          }
+        ],
+        "hybrid": [
+          {
+            "key": "商品手册 > 电动牙刷 > T5 参数",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 常见故障",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 续航",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 退换规则",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 保修",
+            "relevant": false
+          }
+        ],
+        "hybrid_rerank": [
+          {
+            "key": "商品手册 > 电动牙刷 > T5 参数",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 常见故障",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 续航",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 退换规则",
+            "relevant": false
+          },
+          {
+            "key": "商品手册 > 电动牙刷 > T5 保修",
+            "relevant": false
+          }
+        ]
+      },
+      "fallback": false
+    },
+    {
+      "id": "A02",
+      "relevant": [
+        [
+          "退货政策 > 退货条件 > 质量问题退货",
+          "常见问答 > 退换货 > 退货政策是什么？",
+          "退货政策 > 品类退换货规则",
+          "商品手册 > 蓝牙耳机 > X3 退换规则",
+          "商品手册 > 蓝牙耳机 > X3 Pro 退换规则",
+          "商品手册 > 蓝牙耳机 > X5 退换规则",
+          "商品手册 > 羊毛衫 > W1 退换规则",
+          "商品手册 > 羊毛衫 > W1 Plus 退换规则",
+          "商品手册 > 羊毛衫 > W2 退换规则",
+          "商品手册 > 扫地机器人 > S10 退换规则",
+          "商品手册 > 扫地机器人 > S10 Max 退换规则",
+          "商品手册 > 扫地机器人 > S20 退换规则",
+          "商品手册 > 电动牙刷 > T3 退换规则",
+          "商品手册 > 电动牙刷 > T3 Pro 退换规则",
+          "商品手册 > 电动牙刷 > T5 退换规则",
+          "商品手册 > 台灯 > L1 退换规则",
+          "商品手册 > 台灯 > L1 Pro 退换规则",
+          "商品手册 > 台灯 > L2 退换规则",
+          "商品手册 > 保温杯 > C5 退换规则",
+          "商品手册 > 保温杯 > C5 Plus 退换规则",
+          "商品手册 > 保温杯 > C8 退换规则",
+          "商品手册 > 运动鞋 > R1 退换规则",
+          "商品手册 > 运动鞋 > R1 Pro 退换规则",
+          "商品手册 > 运动鞋 > R2 退换规则",
+          "商品手册 > 手机壳 > K1 退换规则",
+          "商品手册 > 手机壳 > K1 Pro 退换规则",
+          "商品手册 > 手机壳 > K2 退换规则"
+        ]
+      ],
+      "bucket": "A_policy",
+      "query": "收到有质量问题的商品，多少天内能退？",
+      "rankings": {
+        "dense": [
+          {
+            "key": "退货政策 > 退货条件 > 质量问题退货",
+            "relevant": true
+          },
+          {
+            "key": "退货政策 > 品类退换货规则",
+            "relevant": true
+          },
+          {
+            "key": "退货政策 > 品类退换货规则",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 退换货 > 退货政策是什么？",
+            "relevant": true
+          },
+          {
+            "key": "退货政策 > 品类退换货规则",
+            "relevant": true
+          }
+        ],
+        "bm25": [
+          {
+            "key": "退货政策 > 退货条件 > 质量问题退货",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 退换货 > 退货政策是什么？",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 蓝牙耳机 > X5 退换规则",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 台灯 > L1 退换规则",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 台灯 > L2 退换规则",
+            "relevant": true
+          }
+        ],
+        "hybrid": [
+          {
+            "key": "退货政策 > 退货条件 > 质量问题退货",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 退换货 > 退货政策是什么？",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 保温杯 > C8 退换规则",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 保温杯 > C5 退换规则",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 运动鞋 > R1 退换规则",
+            "relevant": true
+          }
+        ],
+        "hybrid_rerank": [
+          {
+            "key": "退货政策 > 退货条件 > 质量问题退货",
+            "relevant": true
+          },
+          {
+            "key": "常见问答 > 退换货 > 退货政策是什么？",
+            "relevant": true
+          },
+          {
+            "key": "退货政策 > 品类退换货规则",
+            "relevant": true
+          },
+          {
+            "key": "商品手册 > 台灯 > L1 退换规则",
+            "relevant": true
+          },
+          {
+            "key": "退货政策 > 品类退换货规则",
+            "relevant": true
+          }
+        ]
+      },
+      "fallback": false
+    }
+  ]
+}

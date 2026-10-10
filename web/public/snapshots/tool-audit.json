@@ -1,0 +1,72 @@
+[
+  {
+    "id": 60,
+    "created_at": "2026-10-10T02:52:30",
+    "conversation_id": 226,
+    "tool_call_id": "call_00_YWAN6FSn3VwZeIPfSaTp1539",
+    "tool_name": "offer_refund_form",
+    "tool_source": "builtin",
+    "mcp_server": null,
+    "status": "成功",
+    "retry_count": 0,
+    "duration_ms": 6,
+    "error_message": null,
+    "result_summary": "{\"ok\": true, \"data\": {\"shown\": \"refund\"}}"
+  },
+  {
+    "id": 59,
+    "created_at": "2026-10-10T02:52:14",
+    "conversation_id": 226,
+    "tool_call_id": "fetch-e607224e",
+    "tool_name": "query_order",
+    "tool_source": "builtin",
+    "mcp_server": null,
+    "status": "成功",
+    "retry_count": 0,
+    "duration_ms": 2,
+    "error_message": null,
+    "result_summary": "{\"ok\": true, \"data\": {\"order_id\": \"205925\", \"status\": \"已签收\", \"items\": [{\"product_id\": \"P001\", \"name\": \"蓝牙耳机\", \"price\": 299, \"quantity\": 1}], \"total\": 299, \"created_at\": \"2026-10-04 10:00\"}}"
+  },
+  {
+    "id": 58,
+    "created_at": "2026-10-10T02:45:00",
+    "conversation_id": 225,
+    "tool_call_id": "call_00_9zwtZJ9n9uJkvsSFzIgg7204",
+    "tool_name": "offer_human_options",
+    "tool_source": "builtin",
+    "mcp_server": null,
+    "status": "成功",
+    "retry_count": 0,
+    "duration_ms": 6,
+    "error_message": null,
+    "result_summary": "{\"ok\": true, \"data\": {\"shown\": [\"handoff\"]}}"
+  },
+  {
+    "id": 57,
+    "created_at": "2026-10-10T02:44:58",
+    "conversation_id": 225,
+    "tool_call_id": "call_00_nxiZRe19UInJTktNTPpY8174",
+    "tool_name": "query_logistics",
+    "tool_source": "mcp",
+    "mcp_server": "logistics",
+    "status": "超时",
+    "retry_count": 2,
+    "duration_ms": 15456,
+    "error_message": "超时（共 3 次尝试）",
+    "result_summary": "{\"ok\": false, \"error\": \"timeout\", \"message\": \"查询超时，暂时不可用\"}"
+  },
+  {
+    "id": 53,
+    "created_at": "2026-10-10T02:41:13",
+    "conversation_id": 219,
+    "tool_call_id": "call_00_UmHuLwcIWS1Jrwe1Pgjn0492",
+    "tool_name": "create_ticket",
+    "tool_source": "builtin",
+    "mcp_server": null,
+    "status": "成功",
+    "retry_count": 0,
+    "duration_ms": 48,
+    "error_message": null,
+    "result_summary": "{\"ok\": true, \"data\": {\"ticket_no\": \"T20261009003\", \"status\": \"待处理\"}}"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "id": 402,
+  "section_path": "商品手册 > 台灯 > L2 常见故障",
+  "content_type": "manual",
+  "questions": "L2 常见故障",
+  "answer": "L2 用充电宝供电时闪烁，检查充电宝是否支持 5V 2A 输出，再更换 USB-C 线。符合供电规格仍闪烁的，上传视频申请维修。",
+  "prev_chunk_id": 401,
+  "next_chunk_id": 403
+}

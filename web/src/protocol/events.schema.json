@@ -1,0 +1,1114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Aftersales SSE events",
+  "description": "An SSE event name and its parsed JSON data. Internal saved events are excluded.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "session"
+        },
+        "data": {
+          "$ref": "#/$defs/session"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "understood"
+        },
+        "data": {
+          "$ref": "#/$defs/understood"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "token"
+        },
+        "data": {
+          "$ref": "#/$defs/token"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "tool_start"
+        },
+        "data": {
+          "$ref": "#/$defs/tool_start"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "tool_end"
+        },
+        "data": {
+          "$ref": "#/$defs/tool_end"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "citations"
+        },
+        "data": {
+          "$ref": "#/$defs/citations"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "actions"
+        },
+        "data": {
+          "$ref": "#/$defs/actions"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "order_picker"
+        },
+        "data": {
+          "$ref": "#/$defs/order_picker"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "ticket_preview"
+        },
+        "data": {
+          "$ref": "#/$defs/ticket_preview"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "error"
+        },
+        "data": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "done"
+        },
+        "data": {
+          "$ref": "#/$defs/done"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event": {
+          "const": "trace"
+        },
+        "data": {
+          "$ref": "#/$defs/trace"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "citation": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "chunk_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "section_path": {
+          "type": "string"
+        },
+        "question": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "n",
+        "chunk_id",
+        "section_path",
+        "question",
+        "answer"
+      ],
+      "additionalProperties": false
+    },
+    "action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "handoff"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ticket"
+            },
+            "description": {
+              "type": "string"
+            },
+            "ticket_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "description",
+            "ticket_type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "refund"
+            },
+            "order_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "order_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "orderCard": {
+      "type": "object",
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "total": {
+          "type": "number"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_id",
+        "title",
+        "total",
+        "created_at",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "toolCall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "args"
+      ],
+      "additionalProperties": false
+    },
+    "toolResult": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "ok"
+      ],
+      "additionalProperties": false
+    },
+    "nodeStart": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "node_start"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "nodeEnd": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "node_end"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "interrupted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "trace": {
+      "$comment": "Node timing, domain and per-request LLM usage traces.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nodeStart"
+        },
+        {
+          "$ref": "#/$defs/nodeEnd"
+        },
+        {
+          "$ref": "#/$defs/resolveTrace"
+        },
+        {
+          "$ref": "#/$defs/intentTrace"
+        },
+        {
+          "$ref": "#/$defs/retrievalTrace"
+        },
+        {
+          "$ref": "#/$defs/gateTrace"
+        },
+        {
+          "$ref": "#/$defs/toolTrace"
+        },
+        {
+          "$ref": "#/$defs/contextTrace"
+        },
+        {
+          "$ref": "#/$defs/llmTrace"
+        }
+      ]
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "additionalProperties": false
+    },
+    "understood": {
+      "type": "object",
+      "properties": {
+        "resolved_input": {
+          "type": "string"
+        },
+        "intent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "resolved_input",
+        "intent"
+      ],
+      "additionalProperties": false
+    },
+    "token": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "tool_start": {
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/toolCall"
+          }
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "additionalProperties": false
+    },
+    "tool_end": {
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/toolResult"
+          }
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "additionalProperties": false
+    },
+    "citations": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citation"
+          }
+        },
+        "refused": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "items",
+        "refused"
+      ],
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "additionalProperties": false
+    },
+    "order_picker": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/orderCard"
+          }
+        }
+      },
+      "required": [
+        "orders"
+      ],
+      "additionalProperties": false
+    },
+    "ticket_preview": {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "type": "string"
+        },
+        "ticket_type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "ticket_type",
+        "description"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "done": {
+      "type": "object",
+      "properties": {
+        "finish_reason": {
+          "enum": [
+            "stop",
+            "interrupted"
+          ]
+        },
+        "message_id": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "finish_reason"
+      ],
+      "additionalProperties": false
+    },
+    "retrievalSnapshot": {
+      "type": "object",
+      "properties": {
+        "chunk_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "section_path": {
+          "type": "string"
+        },
+        "question": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "chunk_id",
+        "section_path",
+        "question",
+        "answer",
+        "score"
+      ],
+      "additionalProperties": false
+    },
+    "resolveTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "resolve"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "original": {
+              "type": "string"
+            },
+            "resolved_input": {
+              "type": "string"
+            },
+            "standard_query": {
+              "type": "string"
+            },
+            "order_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "order_scoped": {
+              "type": "boolean"
+            },
+            "ticket_request": {
+              "type": "boolean"
+            },
+            "status_query": {
+              "type": "boolean"
+            },
+            "history_recall": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "original",
+            "resolved_input",
+            "standard_query",
+            "order_id",
+            "order_scoped",
+            "ticket_request",
+            "status_query",
+            "history_recall"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "intentTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "intent"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "intent": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "confidence": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "route": {
+              "enum": [
+                "knowledge",
+                "aftersales",
+                "business",
+                "complaint",
+                "chitchat"
+              ]
+            },
+            "escalated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "intent",
+            "confidence",
+            "route",
+            "escalated"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "retrievalTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "retrieval"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "queries": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "top": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/retrievalSnapshot"
+              }
+            },
+            "kept": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "queries",
+            "top",
+            "kept"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "gateTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "gate"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "signals": {
+              "type": "object",
+              "properties": {
+                "top1": {
+                  "type": "number"
+                },
+                "effective": {
+                  "type": "number"
+                },
+                "margin": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "top1",
+                "effective",
+                "margin"
+              ],
+              "additionalProperties": false
+            },
+            "weights": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "threshold": {
+              "type": "number"
+            },
+            "source": {
+              "enum": [
+                null,
+                "retrieval_low_conf",
+                "self_check"
+              ]
+            },
+            "reason": {
+              "type": "string"
+            },
+            "self_check": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "passed",
+            "confidence",
+            "signals",
+            "weights",
+            "threshold",
+            "source",
+            "reason",
+            "self_check"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "toolTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "tool"
+        },
+        "node": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "call_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "source": {
+              "enum": [
+                "builtin",
+                "mcp"
+              ]
+            },
+            "mcp_server": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "status": {
+              "enum": [
+                "成功",
+                "失败",
+                "超时",
+                "校验拦下",
+                "权限拒绝"
+              ]
+            },
+            "retry_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "duration_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "error_message": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "call_id",
+            "name",
+            "source",
+            "mcp_server",
+            "status",
+            "retry_count",
+            "duration_ms",
+            "error_message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "contextTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "context"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "layer1_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "layer1_budget": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "layer2_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "layer2_budget": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "summary_triggered": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "layer1_tokens",
+            "layer1_budget",
+            "layer2_tokens",
+            "layer2_budget",
+            "summary_triggered"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "llmTrace": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "llm"
+        },
+        "node": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "input_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cache_read_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reasoning_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ms": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "node",
+            "model",
+            "input_tokens",
+            "output_tokens",
+            "cache_read_tokens",
+            "reasoning_tokens",
+            "ms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "t_ms",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

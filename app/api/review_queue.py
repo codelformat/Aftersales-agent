@@ -33,6 +33,7 @@ class ReviewOut(BaseModel):
 
 class SourceOut(BaseModel):
     id: int
+    conversation_id: int | None
     raw_question: str
     source: str
     reason: str | None

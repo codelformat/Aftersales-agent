@@ -32,6 +32,7 @@ class ChatRequest(BaseModel):
     session_id: SessionId | None = None
     user_id: UserId
     message: UserText
+    debug: bool = False
 
 
 class ExtractRequest(BaseModel):
@@ -133,6 +134,7 @@ class ResumeRequest(BaseModel):
     user_id: UserId
     order_id: OrderId | None = None
     ticket_confirm: bool | None = None
+    debug: bool = False
 
     @model_validator(mode="after")
     def _exactly_one_choice(self):

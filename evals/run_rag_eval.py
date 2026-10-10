@@ -142,6 +142,7 @@ class Collected:
     rows: list
     results: list
     failures: list[str]
+    rankings: dict
 
 
 async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
@@ -160,12 +161,14 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
 
     await asyncio.gather(*(prepare(s) for s in samples))
     scores, post_scores, rows = [], [], []
+    rankings = {strategy: {} for strategy in strategies}
 
     async def retrieve_one(sample, strategy):
         async with semaphore:
             try:
                 r = await retrieve(sample.query, strategy, plan=plans[sample.id], exclude_mined=True)
                 ranked = [source_key(e.section_path, e.question) for e in r.ranked]
+                rankings[strategy][sample.id] = ranked[:5]
                 if sample.bucket in ANSWERABLE:
                     scores.append(score_retrieval(sample.id, sample.bucket, sample.difficulty,
                                                   strategy, ranked, sample.relevant))
@@ -214,7 +217,7 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
                 logger.exception("编造个案写入失败")
                 failures.append(f"faith_cases：{type(exc).__name__}")
 
-    return Collected(plans, scores, post_scores, rows, results, failures)
+    return Collected(plans, scores, post_scores, rows, results, failures, rankings)
 
 
 async def run_eval(args: argparse.Namespace) -> int:
@@ -247,6 +250,18 @@ async def run_eval(args: argparse.Namespace) -> int:
         )
         scores, post_scores, rows = got.scores, got.post_scores, got.rows
         results, failures = got.results, got.failures
+
+        if args.save_rankings:
+            path = Path(args.save_rankings)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({
+                "rankings": {strategy: {s.id: ranking[s.id] for s in samples if s.id in ranking}
+                             for strategy, ranking in got.rankings.items()},
+                "samples": {s.id: {"relevant": s.relevant, "bucket": s.bucket, "query": s.query}
+                            for s in samples},
+                "failures": sorted(failures),
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"排序结果保存：{path}")
 
         # 并发完成顺序不影响报告中组名的顺序。
         scores.sort(key=lambda s: (STRATEGIES.index(s.strategy), s.sample_id))
@@ -294,6 +309,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=_positive)
     parser.add_argument("--bucket", choices=tuple(BUCKET_SIZES))
     parser.add_argument("--no-write", action="store_true")
+    parser.add_argument("--save-rankings", help="保存门槛前 Top-5 来源键和逐题标注")
     return parser
 
 

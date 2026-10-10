@@ -1,0 +1,13 @@
+scene: flywheel
+title_zh: 知识飞轮：从兜底到答对
+title_en: Knowledge flywheel
+steps:
+  - reset_demo_chunk: {contains: 小爱同学}
+  - chat: {lane: customer, text: L2 台灯可以用小爱同学语音控制吗？}
+  - wait_done: {}
+  - poll_review: {contains: L2 台灯可以用小爱同学语音控制吗？, timeout_s: 90}
+  - approve:
+      answer: L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。
+      category: 台灯
+  - chat: {lane: customer, text: L2 台灯可以用小爱同学语音控制吗？, new_session: true}
+  - wait_done: {}

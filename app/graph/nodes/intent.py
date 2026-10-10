@@ -14,4 +14,6 @@ async def classify_intent(state, runtime):
     logger.info("intent=%s confidence=%s intent_model=%s route=%s conversation=%s", decision.intent,
                 decision.confidence, decision.model, route, runtime.context.conversation_id)
     events.emit("understood", {"resolved_input": state["resolved_input"], "intent": decision.intent})
+    events.trace("intent", {"intent": decision.intent, "confidence": decision.confidence,
+                            "route": route, "escalated": decision.model == "large"}, node="classify_intent")
     return {"intent": decision.intent, "intent_confidence": decision.confidence, "route": route, "trace": trace}

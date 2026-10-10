@@ -35,6 +35,11 @@ async def resolve_reference(state, runtime):
     r = await understanding.resolve(state["user_input"], history)
     logger.info("resolved=%s order_scoped=%s order_id=%s history_recall=%s ticket_request=%s status_query=%s conversation=%s",
                 r.resolved_input, r.order_scoped, r.order_id, r.history_recall, r.ticket_request, r.status_query, cid)
+    events.trace("resolve", {
+        "original": state["user_input"], "resolved_input": r.resolved_input,
+        "standard_query": r.standard_query, "order_id": r.order_id, "order_scoped": r.order_scoped,
+        "ticket_request": r.ticket_request, "status_query": r.status_query, "history_recall": r.history_recall,
+    }, node="resolve_reference")
     return {"resolved_input": r.resolved_input, "standard_query": r.standard_query,
             "product_category": r.product_category, "order_scoped": r.order_scoped,
             "order_id": r.order_id, "history_recall": r.history_recall,

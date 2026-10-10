@@ -1,6 +1,7 @@
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
+import time
 from typing import Annotated, Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -65,3 +66,5 @@ class GraphContext:
     execute: Callable[..., Any] = execute_tool_calls
     user_id: str = "guest"
     base_toolset: Toolset | None = None
+    debug: bool = False
+    started_at: float = field(default_factory=time.monotonic)

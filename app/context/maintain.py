@@ -21,7 +21,8 @@ def _tokens(messages: Sequence[BaseMessage]) -> int:
     return count_tokens(messages) if messages else 0
 
 
-async def maintain(cid: int, messages: Sequence[BaseMessage]) -> None:
+async def maintain(cid: int, messages: Sequence[BaseMessage]) -> bool:
+    """维护上下文；返回本次是否启动了新的后台摘要。"""
     budget = get_budget()
     sm = get_sessionmaker()
     # 后台摘要可在本轮进行中推进锚点，所以重新读数据库。
@@ -51,4 +52,5 @@ async def maintain(cid: int, messages: Sequence[BaseMessage]) -> None:
     logger.info("context_usage conversation=%s layer1=%s/%s layer2=%s/%s",
                 cid, _tokens(layers.layer1), budget.layer1, l2, budget.layer2)
     if layers.layer2 and l2 > budget.layer2:
-        get_runner().start(cid, layers.layer2, layers.ids2[0], layer1_from, l2, budget.layer2)
+        return get_runner().start(cid, layers.layer2, layers.ids2[0], layer1_from, l2, budget.layer2)
+    return False

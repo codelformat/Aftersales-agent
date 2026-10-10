@@ -1,0 +1,371 @@
+{"scene": "multi-turn", "title_zh": "多轮：指代消解与回顾", "title_en": "Multi-turn context and recall", "recorded_at": "2026-10-10T02:40:51+00:00", "git_commit": "31e2276507d0802bfd972af05793929cc30567b7", "model": "deepseek-v4-flash"}
+{"t_ms": 0, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-multi-turn-998ef51a3b38", "message": "X3 Pro 续航多久", "debug": true}}
+{"t_ms": 16, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "218"}}
+{"t_ms": 18, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 2, "data": {}}}
+{"t_ms": 20, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 3, "data": {"ms": 1}}}
+{"t_ms": 21, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 5, "data": {}}}
+{"t_ms": 874, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 857, "data": {"original": "X3 Pro 续航多久", "resolved_input": "X3 Pro 续航多久", "standard_query": "X3 Pro 续航多久", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 875, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 893, "output_tokens": 64, "cache_read_tokens": 640, "reasoning_tokens": 0, "ms": 833}, "t_ms": 858}}
+{"t_ms": 875, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 858, "data": {"ms": 853}}}
+{"t_ms": 876, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 859, "data": {}}}
+{"t_ms": 1690, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "X3 Pro 续航多久", "intent": "商品咨询"}}
+{"t_ms": 1691, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 636, "output_tokens": 16, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 789}, "t_ms": 1671}}
+{"t_ms": 1692, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1672, "data": {"intent": "商品咨询", "confidence": 0.95, "route": "knowledge", "escalated": true}}}
+{"t_ms": 1693, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1672, "data": {"ms": 810}}}
+{"t_ms": 1699, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "retrieve", "t_ms": 1681, "data": {}}}
+{"t_ms": 2680, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "retrieval", "node": "retrieve", "t_ms": 2662, "data": {"queries": ["X3 Pro 续航多久"], "top": [{"chunk_id": 334, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 续航", "question": "X3 Pro 续航", "answer": "X3 Pro 关闭降噪、音量 50% 时，单次续航约 8 小时，加上充电盒约 32 小时。开启降噪后单次续航约 5 小时，充电盒充满约需要 2 小时。", "score": 0.9993}, {"chunk_id": 329, "section_path": "商品手册 > 蓝牙耳机 > X3 续航", "question": "X3 续航", "answer": "X3 单次充满可以连续播放约 6 小时，加上充电盒总续航约 24 小时。充电盒充满约需要 1.5 小时，续航数据按音量 50% 测得。", "score": 0.993}, {"chunk_id": 335, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 保修", "question": "X3 Pro 保修", "answer": "X3 Pro 保修期为 365 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，维修前按售后手册办理报价确认。", "score": 0.9635}, {"chunk_id": 330, "section_path": "商品手册 > 蓝牙耳机 > X3 保修", "question": "X3 保修", "answer": "X3 保修期为 180 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，商家检测后先报价，用户同意后再维修。", "score": 0.4805}, {"chunk_id": 336, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 退换规则", "question": "X3 Pro 退换规则", "answer": "X3 Pro 签收后 7 天内，商品完好、配件齐全、不影响二次销售的，可以申请无理由退货。耳塞套拆封后要一起寄回。质量问题退货期限为 15 天，质量问题换货期限为 30 天，期限从签收次日开始计算。", "score": 0.2748}], "kept": 6}}}
+{"t_ms": 2681, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "retrieve", "t_ms": 2663, "data": {"ms": 984}}}
+{"t_ms": 2689, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "confidence_gate", "t_ms": 2672, "data": {}}}
+{"t_ms": 3553, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "gate", "node": "confidence_gate", "t_ms": 3536, "data": {"passed": true, "confidence": 0.503, "signals": {"top1": 0.9993, "effective": 1.0, "margin": 0.0063}, "source": null, "reason": "证据[1]直接写明X3 Pro的续航时长（关闭降噪单次约8小时、含充电盒约32小时，开启降噪单次约5小时），足以回答用户问题。", "weights": [0.2, 0.3, 0.5], "threshold": 0.39, "self_check": true}}}
+{"t_ms": 3554, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "confidence_gate", "data": {"node": "confidence_gate", "model": "deepseek-flash", "input_tokens": 973, "output_tokens": 90, "cache_read_tokens": 768, "reasoning_tokens": 0, "ms": 846}, "t_ms": 3536}}
+{"t_ms": 3555, "lane": "customer", "channel": "sse", "event": "citations", "data": {"items": [{"n": 1, "chunk_id": 334, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 续航", "question": "X3 Pro 续航", "answer": "X3 Pro 关闭降噪、音量 50% 时，单次续航约 8 小时，加上充电盒约 32 小时。开启降噪后单次续航约 5 小时，充电盒充满约需要 2 小时。"}, {"n": 2, "chunk_id": 335, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 保修", "question": "X3 Pro 保修", "answer": "X3 Pro 保修期为 365 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，维修前按售后手册办理报价确认。"}, {"n": 3, "chunk_id": 336, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 退换规则", "question": "X3 Pro 退换规则", "answer": "X3 Pro 签收后 7 天内，商品完好、配件齐全、不影响二次销售的，可以申请无理由退货。耳塞套拆封后要一起寄回。质量问题退货期限为 15 天，质量问题换货期限为 30 天，期限从签收次日开始计算。"}, {"n": 4, "chunk_id": 333, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 参数", "question": "X3 Pro 参数", "answer": "X3 Pro 使用蓝牙 5.3，单只耳机重 4.5 克，支持主动降噪。连接时长按充电盒按键 3 秒，在手机蓝牙列表中选择\"示例耳机\"。"}, {"n": 5, "chunk_id": 330, "section_path": "商品手册 > 蓝牙耳机 > X3 保修", "question": "X3 保修", "answer": "X3 保修期为 180 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，商家检测后先报价，用户同意后再维修。"}, {"n": 6, "chunk_id": 329, "section_path": "商品手册 > 蓝牙耳机 > X3 续航", "question": "X3 续航", "answer": "X3 单次充满可以连续播放约 6 小时，加上充电盒总续航约 24 小时。充电盒充满约需要 1.5 小时，续航数据按音量 50% 测得。"}], "refused": false}}
+{"t_ms": 3556, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "confidence_gate", "t_ms": 3537, "data": {"ms": 870}}}
+{"t_ms": 3564, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 3546, "data": {}}}
+{"t_ms": 3564, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 3547, "data": {"layer1_tokens": 0, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 4559, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "X"}}
+{"t_ms": 4560, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "3"}}
+{"t_ms": 4561, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " Pro"}}
+{"t_ms": 4562, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4562, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "的"}}
+{"t_ms": 4562, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "续航"}}
+{"t_ms": 4573, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "数据"}}
+{"t_ms": 4574, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "如下"}}
+{"t_ms": 4579, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "["}}
+{"t_ms": 4594, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 4595, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "]"}}
+{"t_ms": 4596, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "：\n\n"}}
+{"t_ms": 4597, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 4597, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 4597, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4613, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "关闭"}}
+{"t_ms": 4613, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "降"}}
+{"t_ms": 4614, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "噪"}}
+{"t_ms": 4614, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 4615, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "音量"}}
+{"t_ms": 4616, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4621, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "50"}}
+{"t_ms": 4621, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "%"}}
+{"t_ms": 4621, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4622, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "时"}}
+{"t_ms": 4622, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 4622, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "单"}}
+{"t_ms": 4634, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "次"}}
+{"t_ms": 4634, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "续航"}}
+{"t_ms": 4635, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "约"}}
+{"t_ms": 4635, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4635, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "8"}}
+{"t_ms": 4636, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4648, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "小时"}}
+{"t_ms": 4649, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 4649, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "加上"}}
+{"t_ms": 4650, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "充电"}}
+{"t_ms": 4650, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "盒"}}
+{"t_ms": 4651, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "约"}}
+{"t_ms": 4664, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4664, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "32"}}
+{"t_ms": 4665, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4665, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "小时"}}
+{"t_ms": 4666, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n"}}
+{"t_ms": 4666, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "2"}}
+{"t_ms": 4674, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 4674, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4675, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "开启"}}
+{"t_ms": 4675, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "降"}}
+{"t_ms": 4675, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "噪"}}
+{"t_ms": 4676, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "后"}}
+{"t_ms": 4688, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 4703, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "单"}}
+{"t_ms": 4704, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "次"}}
+{"t_ms": 4705, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "续航"}}
+{"t_ms": 4705, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "约"}}
+{"t_ms": 4706, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4706, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "5"}}
+{"t_ms": 4716, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4717, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "小时"}}
+{"t_ms": 4734, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n"}}
+{"t_ms": 4734, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "3"}}
+{"t_ms": 4735, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 4735, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4736, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "充电"}}
+{"t_ms": 4736, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "盒"}}
+{"t_ms": 4736, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "充满"}}
+{"t_ms": 4749, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "约"}}
+{"t_ms": 4749, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "需要"}}
+{"t_ms": 4758, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4758, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "2"}}
+{"t_ms": 4759, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 4759, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "小时"}}
+{"t_ms": 4760, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n\n"}}
+{"t_ms": 4760, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "如需"}}
+{"t_ms": 4773, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "了解"}}
+{"t_ms": 4773, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "其他"}}
+{"t_ms": 4791, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "型号"}}
+{"t_ms": 4791, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "或"}}
+{"t_ms": 4800, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退"}}
+{"t_ms": 4815, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "换"}}
+{"t_ms": 4815, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 4833, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "保修"}}
+{"t_ms": 4834, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "等"}}
+{"t_ms": 4834, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "政策"}}
+{"t_ms": 4842, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 4842, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "可以"}}
+{"t_ms": 4843, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "继续"}}
+{"t_ms": 4925, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "问我"}}
+{"t_ms": 4926, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。"}}
+{"t_ms": 4930, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 4913, "data": {"ms": 1374}}}
+{"t_ms": 4931, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 2654, "output_tokens": 114, "cache_read_tokens": 2432, "reasoning_tokens": 23, "ms": 1345}, "t_ms": 4913}}
+{"t_ms": 4937, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 4919, "data": {}}}
+{"t_ms": 4954, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 4937, "data": {"layer1_tokens": 107, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 4955, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 4937, "data": {"ms": 21}}}
+{"t_ms": 4957, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1175}}
+{"t_ms": 4958, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-multi-turn-998ef51a3b38", "message": "那它防水吗", "session_id": "218", "debug": true}}
+{"t_ms": 4970, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "218"}}
+{"t_ms": 4974, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 4, "data": {}}}
+{"t_ms": 4980, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 10, "data": {"ms": 5}}}
+{"t_ms": 4983, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 13, "data": {}}}
+{"t_ms": 5680, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 710, "data": {"original": "那它防水吗", "resolved_input": "X3 Pro 防水吗", "standard_query": "X3 Pro 防水等级", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 5681, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 989, "output_tokens": 66, "cache_read_tokens": 768, "reasoning_tokens": 0, "ms": 678}, "t_ms": 710}}
+{"t_ms": 5681, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 710, "data": {"ms": 698}}}
+{"t_ms": 5684, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 714, "data": {}}}
+{"t_ms": 6447, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "X3 Pro 防水吗", "intent": "商品咨询"}}
+{"t_ms": 6447, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 636, "output_tokens": 16, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 749}, "t_ms": 1477}}
+{"t_ms": 6448, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1478, "data": {"intent": "商品咨询", "confidence": 0.95, "route": "knowledge", "escalated": true}}}
+{"t_ms": 6448, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1478, "data": {"ms": 763}}}
+{"t_ms": 6449, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "retrieve", "t_ms": 1480, "data": {}}}
+{"t_ms": 7353, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "retrieval", "node": "retrieve", "t_ms": 2379, "data": {"queries": ["X3 Pro 防水等级"], "top": [{"chunk_id": 335, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 保修", "question": "X3 Pro 保修", "answer": "X3 Pro 保修期为 365 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，维修前按售后手册办理报价确认。", "score": 0.1422}, {"chunk_id": 333, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 参数", "question": "X3 Pro 参数", "answer": "X3 Pro 使用蓝牙 5.3，单只耳机重 4.5 克，支持主动降噪。连接时长按充电盒按键 3 秒，在手机蓝牙列表中选择\"示例耳机\"。", "score": 0.1116}, {"chunk_id": 453, "section_path": "退货政策 > 品类退换货规则", "question": "品类退换货规则", "answer": "| 品类 | 无理由退货 | 质量问题退货 | 质量问题换货 | 说明 |\n|---|---|---|---|---|\n| 蓝牙耳机 | 7 天 | 15 天 | 30 天 | X3、X3 Pro 耳塞套拆封后不影响退货，但要一起寄回；X5 拆封后不支持无理由退货 |\n| 羊毛衫 | 7 天 | 15 天 | 30 天 | 吊牌剪掉或洗涤后，不支持无理由退货 |\n| 扫地机器人 | 7 天 | 15 天 | 30 天 | 已开机建图的，需要先恢复出厂设置 |\n| 电动牙刷 | 7 天 | 15 天 | 30 天 | 刷头拆封后，刷头不退，主机可以退 |\n| 台灯 | 7 天 | 15 天 | 30 天 | 灯罩破损的，要在签收当天反馈 |\n| 保温杯 | 7 天 | 15 天 | 30 天 | 杯身有使用划痕的，不支持无理由退货 |", "score": 0.0283}, {"chunk_id": 330, "section_path": "商品手册 > 蓝牙耳机 > X3 保修", "question": "X3 保修", "answer": "X3 保修期为 180 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，商家检测后先报价，用户同意后再维修。", "score": 0.0171}, {"chunk_id": 334, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 续航", "question": "X3 Pro 续航", "answer": "X3 Pro 关闭降噪、音量 50% 时，单次续航约 8 小时，加上充电盒约 32 小时。开启降噪后单次续航约 5 小时，充电盒充满约需要 2 小时。", "score": 0.0154}], "kept": 0}}}
+{"t_ms": 7355, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "retrieve", "t_ms": 2380, "data": {"ms": 898}}}
+{"t_ms": 7356, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "confidence_gate", "t_ms": 2386, "data": {}}}
+{"t_ms": 7358, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "gate", "node": "confidence_gate", "t_ms": 2386, "data": {"passed": false, "confidence": 0.0437, "signals": {"top1": 0.1422, "effective": 0.0, "margin": 0.0306}, "source": "retrieval_low_conf", "reason": "检索证据置信度低于门槛", "weights": [0.2, 0.3, 0.5], "threshold": 0.39, "self_check": false}}}
+{"t_ms": 7373, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "confidence_gate", "t_ms": 2403, "data": {"ms": 17}}}
+{"t_ms": 7381, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "fallback_reply", "t_ms": 2412, "data": {}}}
+{"t_ms": 7381, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "抱歉，这个问题我没有在知识库中找到可靠依据。您可以换个问法再试，或者补充商品型号等具体信息。"}}
+{"t_ms": 7381, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "fallback_reply", "t_ms": 2412, "data": {"ms": 0}}}
+{"t_ms": 7382, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 2414, "data": {}}}
+{"t_ms": 7388, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 2419, "data": {"layer1_tokens": 156, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 7388, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 2419, "data": {"ms": 5}}}
+{"t_ms": 7389, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1177}}
+{"t_ms": 7389, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-multi-turn-998ef51a3b38", "message": "它能退吗", "session_id": "218", "debug": true}}
+{"t_ms": 7394, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "218"}}
+{"t_ms": 7396, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 2, "data": {}}}
+{"t_ms": 7397, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 3, "data": {"ms": 1}}}
+{"t_ms": 7399, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 5, "data": {}}}
+{"t_ms": 8298, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 903, "data": {"original": "它能退吗", "resolved_input": "X3 Pro 蓝牙耳机能退吗", "standard_query": "X3 Pro 是否支持退货", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": false}}}
+{"t_ms": 8300, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 1023, "output_tokens": 70, "cache_read_tokens": 768, "reasoning_tokens": 0, "ms": 883}, "t_ms": 903}}
+{"t_ms": 8301, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 903, "data": {"ms": 898}}}
+{"t_ms": 8302, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 906, "data": {}}}
+{"t_ms": 9226, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "X3 Pro 蓝牙耳机能退吗", "intent": "退款退货"}}
+{"t_ms": 9227, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 639, "output_tokens": 16, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 905}, "t_ms": 1828}}
+{"t_ms": 9228, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1828, "data": {"intent": "退款退货", "confidence": 0.9, "route": "aftersales", "escalated": true}}}
+{"t_ms": 9229, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1829, "data": {"ms": 920}}}
+{"t_ms": 9229, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "expand_query", "t_ms": 1832, "data": {}}}
+{"t_ms": 9993, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "expand_query", "t_ms": 2597, "data": {"ms": 765}}}
+{"t_ms": 9994, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "expand_query", "data": {"node": "expand_query", "model": "deepseek-flash", "input_tokens": 301, "output_tokens": 53, "cache_read_tokens": 128, "reasoning_tokens": 0, "ms": 747}, "t_ms": 2597}}
+{"t_ms": 9998, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "retrieve_multi", "t_ms": 2604, "data": {}}}
+{"t_ms": 10859, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "retrieval", "node": "retrieve_multi", "t_ms": 3462, "data": {"queries": ["X3 Pro 是否支持退货", "X3 Pro 是否支持退货，需要满足什么条件？", "X3 Pro 退货流程怎么走，运费由谁承担？", "X3 Pro 签收后几天内可以退货，有哪些例外？"], "top": [{"chunk_id": 336, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 退换规则", "question": "X3 Pro 退换规则", "answer": "X3 Pro 签收后 7 天内，商品完好、配件齐全、不影响二次销售的，可以申请无理由退货。耳塞套拆封后要一起寄回。质量问题退货期限为 15 天，质量问题换货期限为 30 天，期限从签收次日开始计算。", "score": 0.9952}, {"chunk_id": 453, "section_path": "退货政策 > 品类退换货规则", "question": "品类退换货规则", "answer": "| 品类 | 无理由退货 | 质量问题退货 | 质量问题换货 | 说明 |\n|---|---|---|---|---|\n| 蓝牙耳机 | 7 天 | 15 天 | 30 天 | X3、X3 Pro 耳塞套拆封后不影响退货，但要一起寄回；X5 拆封后不支持无理由退货 |\n| 羊毛衫 | 7 天 | 15 天 | 30 天 | 吊牌剪掉或洗涤后，不支持无理由退货 |\n| 扫地机器人 | 7 天 | 15 天 | 30 天 | 已开机建图的，需要先恢复出厂设置 |\n| 电动牙刷 | 7 天 | 15 天 | 30 天 | 刷头拆封后，刷头不退，主机可以退 |\n| 台灯 | 7 天 | 15 天 | 30 天 | 灯罩破损的，要在签收当天反馈 |\n| 保温杯 | 7 天 | 15 天 | 30 天 | 杯身有使用划痕的，不支持无理由退货 |", "score": 0.9922}, {"chunk_id": 331, "section_path": "商品手册 > 蓝牙耳机 > X3 退换规则", "question": "X3 退换规则", "answer": "X3 签收后 7 天内，商品完好、配件齐全、不影响二次销售的，可以申请无理由退货。耳塞套拆封后不影响退货，但要一起寄回。质量问题退货期限为 15 天，质量问题换货期限为 30 天，期限从签收次日开始计算。", "score": 0.9629}, {"chunk_id": 335, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 保修", "question": "X3 Pro 保修", "answer": "X3 Pro 保修期为 365 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，维修前按售后手册办理报价确认。", "score": 0.6202}, {"chunk_id": 454, "section_path": "退货政策 > 品类退换货规则", "question": "品类退换货规则", "answer": "| 品类 | 无理由退货 | 质量问题退货 | 质量问题换货 | 说明 |\n|---|---|---|---|---|\n| 运动鞋 | 7 天 | 15 天 | 30 天 | 鞋底有穿着磨损的，不支持无理由退货 |\n| 手机壳 | 7 天 | 15 天 | 15 天 | 已贴合手机并留有划痕的，不支持无理由退货 |\n| 床品套件 | 7 天 | 15 天 | 30 天 | 拆封后不支持无理由退货 |\n| 厨房小电 | 7 天 | 15 天 | 30 天 | 已通电使用的，按质量问题流程检测 |\n| 图书 | 7 天 | 15 天 | 15 天 | 有缺页、错印的，按质量问题处理 |\n| 食品 | 不支持 | 7 天 | 不支持 | 包装破损或临近保质期的，签收当天反馈 |\n| 生鲜 | 不支持 | 48 小时 | 不支持 | 需要上传开箱照片 |", "score": 0.4258}], "kept": 7}}}
+{"t_ms": 10861, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "retrieve_multi", "t_ms": 3463, "data": {"ms": 860}}}
+{"t_ms": 10863, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "confidence_gate", "t_ms": 3469, "data": {}}}
+{"t_ms": 10865, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "gate", "node": "confidence_gate", "t_ms": 3469, "data": {"passed": true, "confidence": 0.5005, "signals": {"top1": 0.9952, "effective": 1.0, "margin": 0.003}, "source": null, "reason": "", "weights": [0.2, 0.3, 0.5], "threshold": 0.39, "self_check": false}}}
+{"t_ms": 10866, "lane": "customer", "channel": "sse", "event": "citations", "data": {"items": [{"n": 1, "chunk_id": 336, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 退换规则", "question": "X3 Pro 退换规则", "answer": "X3 Pro 签收后 7 天内，商品完好、配件齐全、不影响二次销售的，可以申请无理由退货。耳塞套拆封后要一起寄回。质量问题退货期限为 15 天，质量问题换货期限为 30 天，期限从签收次日开始计算。"}, {"n": 2, "chunk_id": 331, "section_path": "商品手册 > 蓝牙耳机 > X3 退换规则", "question": "X3 退换规则", "answer": "X3 签收后 7 天内，商品完好、配件齐全、不影响二次销售的，可以申请无理由退货。耳塞套拆封后不影响退货，但要一起寄回。质量问题退货期限为 15 天，质量问题换货期限为 30 天，期限从签收次日开始计算。"}, {"n": 3, "chunk_id": 454, "section_path": "退货政策 > 品类退换货规则", "question": "品类退换货规则", "answer": "| 品类 | 无理由退货 | 质量问题退货 | 质量问题换货 | 说明 |\n|---|---|---|---|---|\n| 运动鞋 | 7 天 | 15 天 | 30 天 | 鞋底有穿着磨损的，不支持无理由退货 |\n| 手机壳 | 7 天 | 15 天 | 15 天 | 已贴合手机并留有划痕的，不支持无理由退货 |\n| 床品套件 | 7 天 | 15 天 | 30 天 | 拆封后不支持无理由退货 |\n| 厨房小电 | 7 天 | 15 天 | 30 天 | 已通电使用的，按质量问题流程检测 |\n| 图书 | 7 天 | 15 天 | 15 天 | 有缺页、错印的，按质量问题处理 |\n| 食品 | 不支持 | 7 天 | 不支持 | 包装破损或临近保质期的，签收当天反馈 |\n| 生鲜 | 不支持 | 48 小时 | 不支持 | 需要上传开箱照片 |"}, {"n": 4, "chunk_id": 455, "section_path": "退货政策 > 品类退换货规则", "question": "品类退换货规则", "answer": "| 品类 | 无理由退货 | 质量问题退货 | 质量问题换货 | 说明 |\n|---|---|---|---|---|\n| 美妆个护 | 7 天 | 15 天 | 15 天 | 拆封试用后不支持无理由退货 |\n| 数码配件 | 7 天 | 15 天 | 30 天 | 数据线、充电头要连同包装一起寄回 |\n| 家居收纳 | 7 天 | 15 天 | 30 天 | 已组装的，需要拆回原状 |\n| 儿童玩具 | 7 天 | 15 天 | 30 天 | 电池仓有漏液的，按质量问题处理 |\n| 定制商品 | 不支持 | 15 天 | 15 天 | 刻字、定制尺寸的商品不支持无理由退货 |"}, {"n": 5, "chunk_id": 327, "section_path": "商品手册", "question": "商品手册", "answer": "本手册覆盖 8 个品类、24 个型号的参数和售后规则。商品FAQ 中未注明型号的耳机、电动牙刷、台灯和保温杯参数分别对应 X3、T3、L1 和 C5，其他型号按本手册查看。保修期从签收次日开始计算，退换申请在订单详情页的\"申请售后\"入口提交。"}, {"n": 6, "chunk_id": 335, "section_path": "商品手册 > 蓝牙耳机 > X3 Pro 保修", "question": "X3 Pro 保修", "answer": "X3 Pro 保修期为 365 天，保修期内的质量问题可以申请免费维修。人为损坏、进水和私自拆机不属于免费维修范围，维修前按售后手册办理报价确认。"}, {"n": 7, "chunk_id": 453, "section_path": "退货政策 > 品类退换货规则", "question": "品类退换货规则", "answer": "| 品类 | 无理由退货 | 质量问题退货 | 质量问题换货 | 说明 |\n|---|---|---|---|---|\n| 蓝牙耳机 | 7 天 | 15 天 | 30 天 | X3、X3 Pro 耳塞套拆封后不影响退货，但要一起寄回；X5 拆封后不支持无理由退货 |\n| 羊毛衫 | 7 天 | 15 天 | 30 天 | 吊牌剪掉或洗涤后，不支持无理由退货 |\n| 扫地机器人 | 7 天 | 15 天 | 30 天 | 已开机建图的，需要先恢复出厂设置 |\n| 电动牙刷 | 7 天 | 15 天 | 30 天 | 刷头拆封后，刷头不退，主机可以退 |\n| 台灯 | 7 天 | 15 天 | 30 天 | 灯罩破损的，要在签收当天反馈 |\n| 保温杯 | 7 天 | 15 天 | 30 天 | 杯身有使用划痕的，不支持无理由退货 |"}], "refused": false}}
+{"t_ms": 10866, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "confidence_gate", "t_ms": 3470, "data": {"ms": 1}}}
+{"t_ms": 10878, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 3482, "data": {}}}
+{"t_ms": 10880, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 3483, "data": {"layer1_tokens": 156, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 11818, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "X"}}
+{"t_ms": 11818, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "3"}}
+{"t_ms": 11819, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " Pro"}}
+{"t_ms": 11819, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11819, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "是可以"}}
+{"t_ms": 11820, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退"}}
+{"t_ms": 11820, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "的"}}
+{"t_ms": 11820, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 11821, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "规则"}}
+{"t_ms": 11821, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "如下"}}
+{"t_ms": 11825, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "：\n\n"}}
+{"t_ms": 11826, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 11827, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 11828, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11829, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "无"}}
+{"t_ms": 11830, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "理由"}}
+{"t_ms": 11830, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退货"}}
+{"t_ms": 11885, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "："}}
+{"t_ms": 11885, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "签"}}
+{"t_ms": 11885, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "收"}}
+{"t_ms": 11886, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "后"}}
+{"t_ms": 11886, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11886, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "7"}}
+{"t_ms": 11887, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11888, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "天内"}}
+{"t_ms": 11888, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 11889, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "商品"}}
+{"t_ms": 11889, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "完好"}}
+{"t_ms": 11890, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 11890, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "配件"}}
+{"t_ms": 11891, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "齐全"}}
+{"t_ms": 11891, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "、"}}
+{"t_ms": 11892, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "不影响"}}
+{"t_ms": 11893, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "二次"}}
+{"t_ms": 11893, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "销售的"}}
+{"t_ms": 11893, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 11894, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "可以"}}
+{"t_ms": 11895, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "申请"}}
+{"t_ms": 11895, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "无"}}
+{"t_ms": 11896, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "理由"}}
+{"t_ms": 11897, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退货"}}
+{"t_ms": 11897, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "；"}}
+{"t_ms": 11898, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "耳"}}
+{"t_ms": 11898, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "塞"}}
+{"t_ms": 11898, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "套"}}
+{"t_ms": 11899, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "拆"}}
+{"t_ms": 11899, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "封"}}
+{"t_ms": 11904, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "后"}}
+{"t_ms": 11904, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "不影响"}}
+{"t_ms": 11905, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退货"}}
+{"t_ms": 11914, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 11915, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "但要"}}
+{"t_ms": 11915, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "一起"}}
+{"t_ms": 11916, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "寄"}}
+{"t_ms": 11916, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "回"}}
+{"t_ms": 11923, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "["}}
+{"t_ms": 11923, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 11924, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "]["}}
+{"t_ms": 11937, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "7"}}
+{"t_ms": 11938, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "]"}}
+{"t_ms": 11938, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n"}}
+{"t_ms": 11939, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "2"}}
+{"t_ms": 11939, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 11940, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11950, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "质量问题"}}
+{"t_ms": 11950, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "："}}
+{"t_ms": 11962, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退货"}}
+{"t_ms": 11978, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "期限"}}
+{"t_ms": 11978, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11979, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "15"}}
+{"t_ms": 11979, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11979, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "天"}}
+{"t_ms": 11979, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 11990, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "换"}}
+{"t_ms": 11990, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "货"}}
+{"t_ms": 11991, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "期限"}}
+{"t_ms": 11991, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 11991, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "30"}}
+{"t_ms": 11992, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 12003, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "天"}}
+{"t_ms": 12004, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 12004, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "均"}}
+{"t_ms": 12019, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "从"}}
+{"t_ms": 12020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "签"}}
+{"t_ms": 12020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "收"}}
+{"t_ms": 12020, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "次日"}}
+{"t_ms": 12030, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "开始"}}
+{"t_ms": 12030, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "计算"}}
+{"t_ms": 12030, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "["}}
+{"t_ms": 12031, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 12031, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "]["}}
+{"t_ms": 12031, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "7"}}
+{"t_ms": 12044, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "]。\n\n"}}
+{"t_ms": 12044, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "如果您"}}
+{"t_ms": 12044, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "想"}}
+{"t_ms": 12058, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "办理"}}
+{"t_ms": 12059, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 12059, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "请"}}
+{"t_ms": 12060, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "提供"}}
+{"t_ms": 12080, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "订单"}}
+{"t_ms": 12085, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "号"}}
+{"t_ms": 12086, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 12087, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "我"}}
+{"t_ms": 12087, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "帮"}}
+{"t_ms": 12087, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "您"}}
+{"t_ms": 12100, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "查询"}}
+{"t_ms": 12100, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "具体"}}
+{"t_ms": 12101, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "状态"}}
+{"t_ms": 12115, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。"}}
+{"t_ms": 12121, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 4726, "data": {"ms": 1251}}}
+{"t_ms": 12123, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 3467, "output_tokens": 135, "cache_read_tokens": 1920, "reasoning_tokens": 25, "ms": 1216}, "t_ms": 4726}}
+{"t_ms": 12127, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 4733, "data": {}}}
+{"t_ms": 12141, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 4747, "data": {"layer1_tokens": 284, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 12142, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 4747, "data": {"ms": 16}}}
+{"t_ms": 12143, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1179}}
+{"t_ms": 12144, "lane": "customer", "channel": "api", "event": "chat", "data": {"user_id": "demo10-multi-turn-998ef51a3b38", "message": "我刚才问了什么", "session_id": "218", "debug": true}}
+{"t_ms": 12152, "lane": "customer", "channel": "sse", "event": "session", "data": {"session_id": "218"}}
+{"t_ms": 12156, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "start_turn", "t_ms": 5, "data": {}}}
+{"t_ms": 12158, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "start_turn", "t_ms": 7, "data": {"ms": 2}}}
+{"t_ms": 12161, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "resolve_reference", "t_ms": 10, "data": {}}}
+{"t_ms": 12978, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "resolve", "node": "resolve_reference", "t_ms": 822, "data": {"original": "我刚才问了什么", "resolved_input": "我刚才问了什么", "standard_query": "历史提问内容查询", "order_id": null, "order_scoped": false, "ticket_request": false, "status_query": false, "history_recall": true}}}
+{"t_ms": 12980, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "resolve_reference", "data": {"node": "resolve_reference", "model": "deepseek-flash", "input_tokens": 1140, "output_tokens": 59, "cache_read_tokens": 896, "reasoning_tokens": 0, "ms": 792}, "t_ms": 822}}
+{"t_ms": 12981, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "resolve_reference", "t_ms": 822, "data": {"ms": 813}}}
+{"t_ms": 12981, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "classify_intent", "t_ms": 825, "data": {}}}
+{"t_ms": 13557, "lane": "customer", "channel": "sse", "event": "understood", "data": {"resolved_input": "我刚才问了什么", "intent": "其他"}}
+{"t_ms": 13558, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "classify_intent", "data": {"node": "classify_intent", "model": "deepseek-flash", "input_tokens": 633, "output_tokens": 15, "cache_read_tokens": 384, "reasoning_tokens": 0, "ms": 565}, "t_ms": 1405}}
+{"t_ms": 13559, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "intent", "node": "classify_intent", "t_ms": 1405, "data": {"intent": "其他", "confidence": 0.9, "route": "business", "escalated": true}}}
+{"t_ms": 13560, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "classify_intent", "t_ms": 1406, "data": {"ms": 580}}}
+{"t_ms": 13570, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "agent_model", "t_ms": 1418, "data": {}}}
+{"t_ms": 13571, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "agent_model", "t_ms": 1419, "data": {"layer1_tokens": 284, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 14749, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "您"}}
+{"t_ms": 14749, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "刚才"}}
+{"t_ms": 14750, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "依次"}}
+{"t_ms": 14766, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "问了"}}
+{"t_ms": 14766, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "三个"}}
+{"t_ms": 14766, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "问题"}}
+{"t_ms": 14781, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "：\n\n"}}
+{"t_ms": 14782, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "1"}}
+{"t_ms": 14782, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 14783, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " X"}}
+{"t_ms": 14783, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "3"}}
+{"t_ms": 14784, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " Pro"}}
+{"t_ms": 14794, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 14794, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "的"}}
+{"t_ms": 14795, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "续航"}}
+{"t_ms": 14795, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "多久"}}
+{"t_ms": 14804, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n"}}
+{"t_ms": 14805, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "2"}}
+{"t_ms": 14805, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 14806, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 14806, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "它"}}
+{"t_ms": 14807, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "是否"}}
+{"t_ms": 14807, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "防水"}}
+{"t_ms": 14812, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n"}}
+{"t_ms": 14812, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "3"}}
+{"t_ms": 14813, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "."}}
+{"t_ms": 14813, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": " "}}
+{"t_ms": 14814, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "它"}}
+{"t_ms": 14827, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "能不能"}}
+{"t_ms": 14828, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退"}}
+{"t_ms": 14828, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。\n\n"}}
+{"t_ms": 14829, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "其中"}}
+{"t_ms": 14838, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "续航"}}
+{"t_ms": 14851, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "和"}}
+{"t_ms": 14852, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "退货"}}
+{"t_ms": 14865, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "我"}}
+{"t_ms": 14882, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "做了"}}
+{"t_ms": 14900, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "回答"}}
+{"t_ms": 14905, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 14906, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "防水"}}
+{"t_ms": 14906, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "这个问题"}}
+{"t_ms": 14924, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "知识"}}
+{"t_ms": 14942, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "库里"}}
+{"t_ms": 14942, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "没有"}}
+{"t_ms": 14942, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "相关"}}
+{"t_ms": 14946, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "依据"}}
+{"t_ms": 14947, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "，"}}
+{"t_ms": 14947, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "暂时"}}
+{"t_ms": 14965, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "没能"}}
+{"t_ms": 14982, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "给您"}}
+{"t_ms": 14993, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "答复"}}
+{"t_ms": 15005, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "。"}}
+{"t_ms": 15006, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "需要"}}
+{"t_ms": 15006, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "我"}}
+{"t_ms": 15022, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "帮"}}
+{"t_ms": 15022, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "您"}}
+{"t_ms": 15023, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "查"}}
+{"t_ms": 15032, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "订单"}}
+{"t_ms": 15049, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "或"}}
+{"t_ms": 15050, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "看"}}
+{"t_ms": 15061, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "保修"}}
+{"t_ms": 15084, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "状态"}}
+{"t_ms": 15087, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "吗"}}
+{"t_ms": 15087, "lane": "customer", "channel": "sse", "event": "token", "data": {"text": "？"}}
+{"t_ms": 15104, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "agent_model", "t_ms": 2952, "data": {"ms": 1538}}}
+{"t_ms": 15105, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "llm", "node": "agent_model", "data": {"node": "agent_model", "model": "deepseek-flash", "input_tokens": 2432, "output_tokens": 126, "cache_read_tokens": 2048, "reasoning_tokens": 61, "ms": 1507}, "t_ms": 2952}}
+{"t_ms": 15110, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_start", "node": "finalize", "t_ms": 2959, "data": {}}}
+{"t_ms": 15130, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "context", "node": "finalize", "t_ms": 2979, "data": {"layer1_tokens": 376, "layer1_budget": 6300, "layer2_tokens": 0, "layer2_budget": 2700, "summary_triggered": false}}}
+{"t_ms": 15130, "lane": "customer", "channel": "sse", "event": "trace", "data": {"kind": "node_end", "node": "finalize", "t_ms": 2979, "data": {"ms": 23}}}
+{"t_ms": 15131, "lane": "customer", "channel": "sse", "event": "done", "data": {"finish_reason": "stop", "message_id": 1181}}

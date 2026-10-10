@@ -101,6 +101,7 @@ async def test_api_resolve_missing_is_404(client, db):
     assert r.status_code == 404
 
 
-async def test_admin_page_served(client):
-    r = await client.get("/admin/faith-cases")
-    assert r.status_code == 200 and "编造个案台账" in r.text
+async def test_admin_page_redirects_to_frontend(client):
+    r = await client.get("/admin/faith-cases", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "/#/ops/faith"

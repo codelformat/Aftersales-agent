@@ -1,0 +1,8 @@
+scene: mcp-timeout
+title_zh: MCP 超时：重试与降级
+title_en: MCP timeout and retries
+steps:
+  - inject: {server: logistics, delay_seconds: 10}
+  - chat: {lane: customer, text: 订单 1001 的快递到哪了}
+  - wait_done: {}
+  - snapshot: {lane: ops, path: '/api/tool-audit?limit=50&status=超时'}

@@ -4,10 +4,13 @@ import logging
 
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.context import count_tokens
+from app.context.budget import get_budget
+from app.context.layers import render_layer2, split_layers
 from app.context.maintain import maintain
 from app.db.engine import get_sessionmaker
 from app.graph import events
-from app.repositories import messages
+from app.repositories import conversations, messages
 from app.services.history import final_rows, msg_id
 
 logger = logging.getLogger("app.graph")
@@ -37,7 +40,21 @@ async def finalize(state, runtime):
         state.get("write_decision") or "-",
     )
     try:
-        await maintain(cid, [*state.get("messages", []), *new])
+        history = [*state.get("messages", []), *new]
+        triggered = await maintain(cid, history)
+        if runtime.context.debug:
+            # 维护会推进锚点，调试用量按维护后的边界计数。
+            async with get_sessionmaker()() as s:
+                anchors = await conversations.get_context(s, cid)
+            layers = split_layers(history, anchors.summary_upto, anchors.layer1_from)
+            layer2 = render_layer2(layers.layer2)
+            budget = get_budget()
+            events.trace("context", {
+                "layer1_tokens": count_tokens(layers.layer1) if layers.layer1 else 0,
+                "layer1_budget": budget.layer1,
+                "layer2_tokens": count_tokens(layer2) if layer2 else 0,
+                "layer2_budget": budget.layer2, "summary_triggered": triggered,
+            }, node="finalize")
     except Exception:
         logger.exception("context_maintain_failed conversation=%s", cid)
     return {"messages": new, "trace": trace}

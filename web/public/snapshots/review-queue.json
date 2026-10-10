@@ -1,0 +1,22 @@
+[
+  {
+    "id": 7,
+    "normalized_question": "X3 Pro 耳机防水吗？",
+    "ai_suggested_answer": "（待核实）X3 Pro 防水性能请以商品详情页或官方参数说明为准。参考片段中未提及 X3 Pro 的防水等级或是否支持防水，无法确认。进水不属于免费维修范围，建议日常避免接触液体，具体防护能力请咨询店铺客服核实。",
+    "occurrence_count": 1,
+    "review_status": "待审",
+    "approved_answer": null,
+    "created_at": "2026-10-10T02:41:00",
+    "updated_at": "2026-10-10T02:41:00"
+  },
+  {
+    "id": 6,
+    "normalized_question": "L2 台灯可以用小爱同学语音控制吗？",
+    "ai_suggested_answer": "（待核实）参考片段中未提及 L2 台灯是否支持小爱同学语音控制，建议以商品详情页或官方客服确认的信息为准。",
+    "occurrence_count": 1,
+    "review_status": "通过",
+    "approved_answer": "L2 台灯不支持小爱同学等语音助手控制，请用灯身触控按键调节亮度和色温。",
+    "created_at": "2026-10-10T02:40:09",
+    "updated_at": "2026-10-10T02:40:09"
+  }
+]

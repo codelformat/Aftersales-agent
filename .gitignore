@@ -3,4 +3,13 @@
 __pycache__/
 .pytest_cache/
 data/
+!web/src/data/
+!web/src/data/**
 log/
+app/web/dist/
+web/node_modules/
+web/dist-replay/
+web/test-results/
+web/playwright-report/
+test-results/
+playwright-report/

@@ -47,7 +47,7 @@ def _cut(value: str | None, limit: int) -> str | None:
     return value if value is None or len(value) <= limit else value[:limit]
 
 
-async def record(rec: AuditRecord) -> None:
+async def record(rec: AuditRecord) -> AuditRecord:
     rec = replace(rec, result_summary=_cut(rec.result_summary, AUDIT_SUMMARY_MAX_CHARS),
                   error_message=_cut(rec.error_message, AUDIT_ERROR_MAX_CHARS))
     try:
@@ -55,3 +55,4 @@ async def record(rec: AuditRecord) -> None:
     except Exception as exc:
         logger.warning("audit_write_failed tool=%s call=%s error=%s", rec.tool_name, rec.tool_call_id,
                        type(exc).__name__)
+    return rec

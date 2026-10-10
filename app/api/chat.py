@@ -1,7 +1,9 @@
+import asyncio
 import json
 import logging
+import time
 from collections.abc import AsyncIterable, AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Annotated, Any
 
@@ -22,6 +24,7 @@ from app.repositories import conversations
 from app.schemas import ChatRequest, ResumeRequest
 from app.tools import audit
 from app.tools.audit import AuditRecord
+from app.tracing import UsageCollector
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -39,28 +42,50 @@ class ChatTurn:
     user_id: str
     resume_value: Any = None
     intent: str | None = None
+    debug: bool = False
+    started_at: float = field(default_factory=time.monotonic)
 
 
 def sse(name: str, data: dict) -> ServerSentEvent:
     return ServerSentEvent(raw_data=json.dumps(data, ensure_ascii=False), event=name)
 
 
+async def _drain_usage(queue: asyncio.Queue | None, started_at: float) -> AsyncIterator[ServerSentEvent]:
+    if queue is None:
+        return
+    # 先执行回调通过 call_soon_threadsafe 排入本轮 loop 的 put_nowait。
+    await asyncio.sleep(0)
+    while not queue.empty():
+        event = queue.get_nowait()
+        yield sse("trace", {**event, "t_ms": int((time.monotonic() - started_at) * 1000)})
+
+
 async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterator[ServerSentEvent]:
     yield sse("session", {"session_id": str(turn.conversation_id)})
-    ctx = GraphContext(conversation_id=turn.conversation_id, today=turn.today, model=model, user_id=turn.user_id)
+    ctx = GraphContext(conversation_id=turn.conversation_id, today=turn.today, model=model, user_id=turn.user_id,
+                       debug=turn.debug, started_at=turn.started_at)
     interrupted = False
     saved_id = None
+    config = thread_config(turn.conversation_id, turn.user_id, intent=turn.intent)
+    usage_queue = None
+    if turn.debug:
+        usage_queue = asyncio.Queue()
+        # LangGraph 合并本次 callbacks 和 with_config 绑定的 Langfuse callbacks。
+        config["callbacks"] = [UsageCollector(usage_queue, asyncio.get_running_loop())]
     try:
         async for mode, chunk in graph.astream(
-            graph_input, thread_config(turn.conversation_id, turn.user_id, intent=turn.intent),
+            graph_input, config,
             context=ctx, stream_mode=["custom", "updates"],
         ):
             if mode == "custom":
                 name, data = chunk
                 if name == "saved":
                     saved_id = data["message_id"]
-                    continue
-                yield sse(name, data)
+                else:
+                    if name == "trace":
+                        # 所有 trace 在 SSE 发出时计时，避免排队后时间倒退。
+                        data = {**data, "t_ms": int((time.monotonic() - turn.started_at) * 1000)}
+                    yield sse(name, data)
             elif mode == "updates" and "__interrupt__" in chunk:
                 # 节点恢复时会重新执行，卡片由这里发出。
                 value = chunk["__interrupt__"][0].value
@@ -69,6 +94,10 @@ async def stream_graph(graph, graph_input, turn: ChatTurn, model) -> AsyncIterat
                 else:
                     yield sse("order_picker", {"orders": value["orders"]})
                 interrupted = True
+            async for event in _drain_usage(usage_queue, turn.started_at):
+                yield event
+        async for event in _drain_usage(usage_queue, turn.started_at):
+            yield event
     except Exception:
         logger.exception("对话图执行失败")
         yield sse("error", UPSTREAM_ERROR)
@@ -124,7 +153,8 @@ async def prepare_chat_turn(
                     result_summary=None, status="权限拒绝", error_message="用户未确认，已被新消息取代",
                     retry_count=0, duration_ms=None,
                 ))
-        yield ChatTurn(conversation_id=conversation_id, user_input=req.message, today=today, user_id=req.user_id)
+        yield ChatTurn(conversation_id=conversation_id, user_input=req.message, today=today, user_id=req.user_id,
+                       debug=req.debug)
     finally:
         lock.release()
 
@@ -174,7 +204,7 @@ async def prepare_resume(
                 raise HTTPException(409, detail=NO_PENDING_CONFIRMATION)
             resume_value = {"confirmed": req.ticket_confirm}
         yield ChatTurn(conversation_id=cid, user_input="", today=today, user_id=req.user_id,
-                       resume_value=resume_value, intent=state.values.get("intent"))
+                       resume_value=resume_value, intent=state.values.get("intent"), debug=req.debug)
     finally:
         lock.release()
 

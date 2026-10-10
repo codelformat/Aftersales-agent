@@ -1,10 +1,14 @@
 from contextlib import asynccontextmanager
+from functools import wraps
 from pathlib import Path
+import time
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
 
 from app.config import CHECKPOINT_DB_PATH, GRAPH_RECURSION_LIMIT
+from app.graph import events
 from app.graph.nodes.agent import agent_model, agent_tools
 from app.graph.nodes.aftersales import ensure_order, expand_query, fetch_order, retrieve_multi_evidence
 from app.graph.nodes.confirm import confirm_write, ticket_reply
@@ -20,6 +24,24 @@ from app.observability import TRACE_NAME, get_langfuse_handler
 _graph = None
 
 
+def timed(name, fn):
+    """统一记录节点耗时；interrupt 保留原异常供 LangGraph 处理。"""
+    @wraps(fn)
+    async def run(state, runtime):
+        started_at = time.monotonic()
+        events.trace("node_start", {}, node=name)
+        try:
+            result = await fn(state, runtime)
+        except GraphInterrupt:
+            events.trace("node_end", {"ms": int((time.monotonic() - started_at) * 1000),
+                                      "interrupted": True}, node=name)
+            raise
+        events.trace("node_end", {"ms": int((time.monotonic() - started_at) * 1000)}, node=name)
+        return result
+
+    return run
+
+
 def build_graph(checkpointer, callbacks: list | None = None):
     g = StateGraph(ChatState, context_schema=GraphContext)
     for name, fn in (
@@ -33,7 +55,7 @@ def build_graph(checkpointer, callbacks: list | None = None):
         ("complaint_reply", complaint_reply), ("chitchat_reply", chitchat_reply),
         ("finalize", finalize),
     ):
-        g.add_node(name, fn)
+        g.add_node(name, timed(name, fn))
     g.add_edge(START, "start_turn")
     g.add_edge("start_turn", "resolve_reference")
     g.add_edge("resolve_reference", "classify_intent")

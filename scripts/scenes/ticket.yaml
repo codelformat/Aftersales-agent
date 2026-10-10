@@ -1,0 +1,11 @@
+scene: ticket
+title_zh: 工单：预览与人工确认
+title_en: Ticket with human confirmation
+steps:
+  - chat: {lane: customer, text: 帮我建个工单}
+  - wait_done: {}
+  - chat: {lane: customer, text: X3 Pro 耳机左耳没有声音，我要维修，请创建售后工单。}
+  - wait_done: {}
+  - confirm_ticket: {confirmed: true}
+  - wait_done: {}
+  - snapshot: {lane: ops, path: '/api/tool-audit?limit=50'}
