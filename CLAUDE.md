@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch08：即插即用的工具系统。内置工具放 `app/tools/builtin/`，启动时扫描登记；MCP 工具每轮从 `config/tools.json` 列出的 Server 动态发现（`MultiServerMCPClient`，Streamable HTTP），与内置工具合成一份本轮工具集。所有调用只走执行引擎 `execute_tool_calls`：查找 → JSON Schema 校验 → 写工具确认 → 超时/重试（只读工具、暂时性故障）→ 分诊（参数不合法、查询落空、真故障）→ 格式化 → 审计（`tool_audit_logs`）。自建两个 MCP Server：物流 8101（`query_logistics`，内置版下线）、售后 8102（`query_warranty`、`query_return_progress`）。用户明确要求建工单时，解析器设 `ticket_request`，Agent 补齐信息后发起 `create_ticket`，`confirm_write` 用 interrupt 推预览卡片，`/chat/resume`（`ticket_confirm`）确认或取消。
 - ch09：可观测性与知识飞轮。Langfuse 记录每轮 trace、节点和 LLM 调用，按意图汇总 token。置信度闸用 `evidence_confidence`。低置信度问题与用户 👎 反馈保存召回快照，经单 worker 标准化、查重进入 `/admin/review-queue`；人工核准后入库并同步向量化。评估流水线写 `eval_runs`，`/admin/eval-runs` 显示趋势。
 - ch10：展示型前端。`web/` 用 React + TypeScript + Vite，提供客服工作台、运营台和回放剧场。工程视角用 `debug=true` 获取 `trace`，显示节点、检索、置信度闸和 LLM 用量。7 个场景使用真实录制和评估快照。live 构建由 FastAPI 服务；replay 构建只读静态文件，用于 Pages。Docker `full` profile 启动完整系统；Playwright 与 3 条 CI workflow 负责验收。replay 首页为英文欢迎页 `#/welcome`（面向招聘方）；剧场深链接支持 `lang=en`、`autoplay=1`；OG 元数据（`web/replayMeta.ts`、`web/public/og.png`）只加在 replay 构建。
+- ch12：扩充知识库与 v2 评估集（不含 ch11）。商品手册新增 16 个形近型号（共 40 个），新增《配送与签收政策》《预售与缺货政策》和 12 条 FAQ；`scripts/check_kb_v2.py` 检查新增内容与 spec 附录一致、不改已有行、不出现旧 D 桶的词。v2 题集 `evals/rag_eval_v2.jsonl`（A 40 / B 50 / C 50 / E 100 / D 60）按出题清单 `evals/v2/targets.jsonl` 编写，冻结于 `da67f2b`（`evals/v2/manifest.json`）；`run_rag_eval.py --set v2` 校验 SHA-256 并在报告末尾对照 `evals/v2/expectations.py` 的 6 条预期。新旧知识库上 3 套题集的对比见 `evals/reports/ch12_comparison.md`。
 - README：英文 `README.md` + 中文 `README.zh-CN.md`，MIT `LICENSE`。README 中的数字都来自 `evals/reports/` 和实测测试数；数字变化时两份 README 和 `web/src/welcome/facts.ts` 一起改。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
@@ -59,6 +60,11 @@ uv run python evals/run_token_calibration.py         # 字符/token 口径校准
 uv run python evals/run_expand_eval.py               # Query 扩写（15 条，真实上游；解析、条数、型号数字保留全部通过才退出码 0）
 uv run python scripts/bare_agent.py "订单 1001 到哪了"   # 热身裸 Agent 循环（只用 openai SDK，真实上游）
 uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
+uv run python evals/run_rag_eval.py --set v2 --stage retrieval --concurrency 3   # v2 题集检索评估（SHA-256 与 manifest 不一致时退出码 1）；--set v2 --check 只校验
+uv run python scripts/check_kb_v2.py                 # ch12 知识库扩充检查（对照 spec 附录与基线提交 cd7a110）
+uv run python evals/v2/make_targets.py --keys <新键清单> --old-keys <旧键清单> --out evals/v2/targets.jsonl   # 固定种子生成出题清单
+uv run python evals/v2/check_d_evidence.py           # 两套题集 D 桶依据：关键词在 knowledge/docs 与 db/seed.sql 中必须 0 命中
+uv run python evals/v2/new_chunk_audit.py --rankings <rankings.json> --old-keys <旧> --new-keys <新>   # 列出新增小节排在标注命中之前的题
 uv run python evals/run_rag_eval.py --check          # 检查 300 题评估集（来源键、题号、桶和难度计数）；--list-keys 列出来源键
 uv run python evals/run_rag_eval.py --stage retrieval # 四策略检索对比 + 门槛扫描（真实上游 + 生产集合）；--stage generation 评 Faithfulness 并写 faith_cases
 uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurrency 3   # 完整报告，写入 evals/reports/（并发高于 4 会触发上游限流）
@@ -172,6 +178,7 @@ scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export
 - **置信度闸（`confidence_gate`）：证据为空或 `evidence_confidence` < `GATE_CONF_THRESHOLD` → 入池 `retrieval_low_conf`、不调自评；否则调自评，`useful=false` → 入池 `self_check`。不通过时回 `GATE_FALLBACK_REPLY`，不进 Agent。自评失败按通过处理。** 自评要求证据覆盖问题的全部要点，部分可答的问题整句兜底（见 `docs/backlog/`）。 引用编号 `[n]` 为首尾排列后的全局序号；越界编号只记日志。
 - **`evidence_confidence` 参数来自校准报告** `evals/reports/gate_calibration_20261009-125757.md`。`GATE_WEIGHTS`、`GATE_EFFECTIVE_N`、`GATE_CONF_THRESHOLD` 放在 `app/config.py`，不得凭经验改值。
 - **飞轮只用一个 worker 串行处理**，避免并发查重新建重复行。失败或进程退出时，`matched_review_id` 留 NULL；用 `scripts/run_flywheel.py` 补跑。
+- **v2 评估集冻结后不改题、不删题、不改标注**（`evals/v2/manifest.json` 记录 SHA-256）。评估运行的日志中不得有余额错误：Query 改写失败时 `understand()` 退回原话检索，退出码仍为 0，必须查日志。
 - **`build_kb.py --rebuild` 保留 `flywheel` 和 `mined` 块并重新向量化**。评估检索同时排除两种来源，避免新增答案污染评估基线。
 - **`query_product` 只接受 `^P\d{3,8}$` 商品号**（模型曾把型号当商品号，mock 返回随机品类）。
 - **评估生成段必须做真实的第 1 次调用**，沿用模型给出的 tool_call id（DeepSeek 思考模式下自造 id 返回 400）；评估集 `relevant` 为分组格式，Recall 按组计算。
