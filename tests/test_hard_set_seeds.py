@@ -98,6 +98,20 @@ def test_pool_round_robin_across_categories():
     assert set(first_two) == {"蓝牙耳机", "台灯"}
 
 
+@pytest.mark.parametrize(("target_key", "expected"), [
+    ("商品手册 > 蓝牙耳机 > X3 保修", (
+        "售后手册 > 维修 > 保修期", "常见问答 > 售后维修 > 商品坏了怎么保修？")),
+    ("商品手册 > 台灯 > L2 退换规则", (
+        "退货政策 > 退货条件 > 七天无理由退货", "退货政策 > 退货条件 > 质量问题退货",
+        "退货政策 > 品类退换货规则", "常见问答 > 退换货 > 退货政策是什么？")),
+    ("商品手册 > 蓝牙耳机 > X3 Pro 续航", ("商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？",)),
+])
+def test_topic_keys_for_preserves_distractor_rules(target_key, expected):
+    all_chunks = chunks()
+    target = next(c for c in all_chunks if c.key == target_key)
+    assert seeds.topic_keys_for(target, all_chunks) == expected
+
+
 @pytest.mark.anyio
 async def test_load_chunks_reads_doc_sources_only(db):
     async with db() as s:

@@ -26,7 +26,7 @@ class Seed:
     distractor_keys: tuple[str, ...]
 
 
-def _h4_distractors(target: Chunk, chunks: list[Chunk]) -> tuple[str, ...]:
+def topic_keys_for(target: Chunk, chunks: list[Chunk]) -> tuple[str, ...]:
     keys = {c.key for c in chunks}
     if target.aspect == "保修":
         extra = [c.key for c in chunks if c.key.startswith("常见问答 > 售后维修 > ")]
@@ -58,7 +58,7 @@ def _targets(bucket: str, chunks: list[Chunk]) -> list[tuple[Chunk, tuple[str, .
                 c.aspect in POLICY_ASPECTS
                 or (c.model not in DEFAULT_MODELS and c.category in default_categories
                     and c.aspect != "常见故障")):
-            distractors = _h4_distractors(c, chunks)
+            distractors = topic_keys_for(c, chunks)
             if distractors:
                 out.append((c, distractors))
     return out

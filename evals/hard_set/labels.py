@@ -4,8 +4,26 @@
 from app.config import GENERAL_CATEGORY
 from app.knowledge.query import Lexicon, model_category, normalize_models
 from evals.hard_set.corpus import Chunk
+from evals.hard_set.filters import models_in
+from evals.hard_set.seeds import topic_keys_for
 
 MAX_GROUP_KEYS = 3
+
+
+def model_info(query: str, lexicon: Lexicon) -> str:
+    models = models_in(normalize_models(query, lexicon), lexicon)
+    if not models:
+        return "问题中没有型号。"
+    return "问题中的型号：" + "；".join(
+        f"{model}（品类：{lexicon.model_categories[model]}）" for model in models)
+
+
+def same_topic_keys(target: Chunk, chunks: list[Chunk]) -> list[str]:
+    if target.model is None:
+        return []
+    siblings = [c.key for c in chunks if c.category == target.category and c.aspect == target.aspect
+                and c.model is not None and c.model != target.model]
+    return list(dict.fromkeys(k for k in siblings + list(topic_keys_for(target, chunks)) if k != target.key))
 
 
 def candidates_for(query: str, chunks: list[Chunk], lexicon: Lexicon) -> list[Chunk]:

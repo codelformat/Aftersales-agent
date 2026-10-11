@@ -11,7 +11,7 @@ from langchain_core.runnables import Runnable
 from app.knowledge.query import Lexicon
 from evals.hard_set.corpus import Chunk
 from evals.hard_set.filters import check_query
-from evals.hard_set.labels import answer_keys, candidates_for, check_labels, render_candidates
+from evals.hard_set.labels import answer_keys, candidates_for, check_labels, model_info, render_candidates, same_topic_keys
 from evals.hard_set.seeds import BUCKETS, Seed
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,8 @@ def _format_keys(keys, by_key) -> str:
     return "\n\n".join(f"{by_key[k].key}\n{by_key[k].text}" for k in keys if k in by_key) or "（无）"
 
 
-async def _run_seed(seed: Seed, *, by_key, chunks, lexicon, generator, labeler, existing: set[str],
+async def _run_seed(seed: Seed, *, by_key, chunks, lexicon, generator, labeler, pair_checker: Runnable,
+                    existing: set[str],
                     avoid: list[str], max_attempts: int, stats: BucketStats, rejected: Counter,
                     semaphore: asyncio.Semaphore) -> _Accepted | None:
     target = by_key[seed.target_key]
@@ -74,13 +75,30 @@ async def _run_seed(seed: Seed, *, by_key, chunks, lexicon, generator, labeler, 
                 continue
             cands = candidates_for(query, chunks, lexicon)
             async with semaphore:
-                label = await labeler.ainvoke({"candidates": render_candidates(cands), "query": query})
+                label = await labeler.ainvoke({"candidates": render_candidates(cands), "query": query,
+                                              "model_info": model_info(query, lexicon)})
             if label["parsed"] is None:
                 rejected["标注解析失败"] += 1
                 continue
             keys = answer_keys(label["parsed"].answers, cands)
             if keys is None:
                 rejected["标注编号无效"] += 1
+                continue
+            cand_keys = {c.key for c in cands}
+            pair_failed = False
+            for key in same_topic_keys(target, chunks):
+                if key in keys or key not in cand_keys:
+                    continue
+                async with semaphore:
+                    pair = await pair_checker.ainvoke({"chunk_title": key, "chunk_text": by_key[key].text,
+                                                       "query": query, "model_info": model_info(query, lexicon)})
+                if pair["parsed"] is None:
+                    rejected["复核解析失败"] += 1
+                    pair_failed = True
+                    break
+                if pair["parsed"].answerable:
+                    keys.append(key)
+            if pair_failed:
                 continue
             reason = check_labels(seed.bucket, target, keys, by_key)
             if reason:
@@ -94,7 +112,8 @@ async def _run_seed(seed: Seed, *, by_key, chunks, lexicon, generator, labeler, 
 
 
 async def _bucket(bucket: str, pool: list[Seed], need: int, *, by_key, chunks, lexicon, generator,
-                  labeler, max_attempts, semaphore) -> tuple[list[tuple[int, Seed, _Accepted]], BucketStats]:
+                  labeler, pair_checker: Runnable, max_attempts,
+                  semaphore) -> tuple[list[tuple[int, Seed, _Accepted]], BucketStats]:
     stats, rejected = BucketStats(), Counter()
     accepted: list[tuple[int, Seed, _Accepted]] = []
     existing: set[str] = set()
@@ -106,7 +125,7 @@ async def _bucket(bucket: str, pool: list[Seed], need: int, *, by_key, chunks, l
         snapshot = set(existing)
         results = await asyncio.gather(*(
             _run_seed(seed, by_key=by_key, chunks=chunks, lexicon=lexicon, generator=generator,
-                      labeler=labeler, existing=snapshot,
+                      labeler=labeler, pair_checker=pair_checker, existing=snapshot,
                       avoid=[a.query for _, s, a in accepted if s.target_key == seed.target_key],
                       max_attempts=max_attempts, stats=stats, rejected=rejected, semaphore=semaphore)
             for _, seed in batch))
@@ -125,7 +144,7 @@ async def _bucket(bucket: str, pool: list[Seed], need: int, *, by_key, chunks, l
 
 
 async def synthesize(pools: dict[str, list[Seed]], chunks: list[Chunk], lexicon: Lexicon, *,
-                     generators: dict[str, Runnable], labeler: Runnable,
+                     generators: dict[str, Runnable], labeler: Runnable, pair_checker: Runnable,
                      per_bucket: int | dict[str, int] = 60, max_attempts: int = 3,
                      concurrency: int = 4) -> tuple[list[HardSample], dict[str, BucketStats]]:
     by_key = {c.key: c for c in chunks}
@@ -138,6 +157,7 @@ async def synthesize(pools: dict[str, list[Seed]], chunks: list[Chunk], lexicon:
             continue
         accepted, stats = await _bucket(bucket, pools[bucket], need, by_key=by_key, chunks=chunks,
                                         lexicon=lexicon, generator=generators[bucket], labeler=labeler,
+                                        pair_checker=pair_checker,
                                         max_attempts=max_attempts, semaphore=semaphore)
         all_stats[bucket] = stats
         samples.extend(HardSample(f"{ID_PREFIX[bucket]}_{n:02d}", bucket, a.query, a.keys, seed.target_key, a.term)

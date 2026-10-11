@@ -6,7 +6,7 @@ import pytest
 from langchain_core.runnables import RunnableLambda
 
 from app.knowledge.query import load_lexicon
-from evals.hard_set import pipeline
+from evals.hard_set import pipeline, prompts
 from evals.hard_set.corpus import Chunk
 from evals.hard_set.filters import models_in
 from evals.hard_set.prompts import GeneratedQuery, LabelAnswer
@@ -57,11 +57,16 @@ def labeler_target_only():
     return RunnableLambda(run)
 
 
+def pair_checker_false():
+    return RunnableLambda(lambda _: {"parsed": prompts.PairAnswer(answerable=False), "raw": "r"})
+
+
 async def synth(script, per_bucket, n_targets=3, labeler=None):
     gen, calls = gen_for(script)
     gens = {b: gen for b in ("H1_sibling", "H2_colloquial", "H3_buried", "H4_specific")}
     samples, stats = await pipeline.synthesize(
         pools(n_targets), CHUNKS, LEX, generators=gens, labeler=labeler or labeler_target_only(),
+        pair_checker=pair_checker_false(),
         per_bucket={"H1_sibling": per_bucket, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0},
         concurrency=2)
     return samples, stats, calls
@@ -76,6 +81,21 @@ async def test_retries_then_accepts_and_assigns_ids():
     assert calls["X3 Pro 续航"] == 3 and "X5 续航" not in calls
     st = stats["H1_sibling"]
     assert st.rejected == {"含其他型号": 1} and st.errors == 1 and st.attempts == 4
+
+
+async def test_labeler_receives_model_info():
+    received = []
+
+    def label(inputs):
+        received.append(inputs)
+        return {"parsed": LabelAnswer(answers=[1]), "raw": "r"}
+
+    samples, _, _ = await synth({"X3 续航": ["X3 能用多久"]}, 1, n_targets=1,
+                                labeler=RunnableLambda(label))
+    assert len(samples) == 1
+    assert len(received) == 1
+    assert "model_info" in received[0]
+    assert received[0]["model_info"] == "问题中的型号：X3（品类：蓝牙耳机）"
 
 
 async def test_replaces_failed_seed_in_order():
@@ -101,9 +121,73 @@ async def test_duplicate_query_in_same_batch_is_dropped():
     samples, stats = await pipeline.synthesize(
         {"H1_sibling": seeds, "H2_colloquial": [], "H3_buried": [], "H4_specific": []}, CHUNKS, LEX,
         generators={"H1_sibling": gen}, labeler=labeler_target_only(),
+        pair_checker=pair_checker_false(),
         per_bucket={"H1_sibling": 2, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert [s.query for s in samples] == ["X3 能用多久", "X3 Pro 能用多久"]
     assert stats["H1_sibling"].rejected.get("问题重复", 0) >= 1
+
+
+async def test_pair_review_rejects_h1_when_sibling_can_answer():
+    gen, _ = gen_for({"X3 续航": ["X3 能用多久"]})
+    checker = RunnableLambda(lambda inputs: {
+        "parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] == CHUNKS[1].key), "raw": "r"})
+    samples, stats = await pipeline.synthesize(
+        pools(1), CHUNKS, LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
+        pair_checker=checker,
+        per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
+    assert samples == []
+    assert stats["H1_sibling"].rejected == {"同系列其他型号也能回答": 3}
+
+
+async def test_pair_review_rejects_h4_when_general_policy_can_answer():
+    target = Chunk("商品手册 > 蓝牙耳机 > X3 保修", "商品手册 > 蓝牙耳机 > X3 保修",
+                   "X3 保修", "保修一年", "蓝牙耳机", "商品手册", "X3", "保修")
+    general = Chunk("售后手册 > 维修 > 保修期", "售后手册 > 维修 > 保修期",
+                    "保修期", "所有商品保修一年", "通用", "售后手册", None, None)
+    gen, _ = gen_for({"X3 保修": ["X3 保多久？"]})
+    checker = RunnableLambda(lambda inputs: {
+        "parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] == general.key), "raw": "r"})
+    samples, stats = await pipeline.synthesize(
+        {"H1_sibling": [], "H2_colloquial": [], "H3_buried": [],
+         "H4_specific": [Seed("H4_specific", target.key, 1, (general.key,))]},
+        [target, general], LEX, generators={"H4_specific": gen},
+        labeler=RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1]), "raw": "r"}),
+        pair_checker=checker,
+        per_bucket={"H1_sibling": 0, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 1})
+    assert samples == []
+    assert stats["H4_specific"].rejected == {"通用段落也能回答": 3}
+
+
+async def test_pair_review_adds_answerable_product_faq_to_h1():
+    faq = Chunk("商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？", "商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？",
+                "耳机充满电能用多久？", "约 6 小时", "蓝牙耳机", "商品FAQ", None, None)
+    gen, _ = gen_for({"X3 续航": ["X3 能用多久"]})
+
+    def check(inputs):
+        if inputs["chunk_title"] == faq.key:
+            assert inputs == {"chunk_title": faq.key, "chunk_text": faq.text, "query": "X3 能用多久",
+                              "model_info": "问题中的型号：X3（品类：蓝牙耳机）"}
+        return {"parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] == faq.key), "raw": "r"}
+
+    samples, stats = await pipeline.synthesize(
+        pools(1), CHUNKS + [faq], LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
+        pair_checker=RunnableLambda(check),
+        per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
+    assert len(samples) == 1
+    assert samples[0].keys == (CHUNKS[0].key, faq.key)
+    assert stats["H1_sibling"].rejected == {}
+
+
+async def test_pair_review_parse_failure_retries_and_rejects_attempt():
+    gen, calls = gen_for({"X3 续航": ["X3 能用多久"]})
+    samples, stats = await pipeline.synthesize(
+        pools(1), CHUNKS, LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
+        pair_checker=RunnableLambda(lambda _: {"parsed": None, "raw": "r"}),
+        per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
+    assert samples == []
+    assert stats["H1_sibling"].rejected == {"复核解析失败": 3}
+    assert calls == {"X3 续航": 3}
+    assert stats["H1_sibling"].errors == 0
 
 
 def test_spotcheck_ids_deterministic():
@@ -148,7 +232,7 @@ async def test_cli_writes_nothing_when_bucket_short(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "load_chunks", fake_load)
     monkeypatch.setattr(cli, "synthesize", fake_synth)
-    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None))
+    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None, pair_checker_false()))
     monkeypatch.setattr(cli, "dispose_engine", noop)
     assert await cli.run(cli.build_parser().parse_args([])) == 1
     assert list(tmp_path.iterdir()) == []

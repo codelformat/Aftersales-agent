@@ -16,6 +16,10 @@ class LabelAnswer(BaseModel):
     answers: list[int] = Field(description="能完整回答问题的候选编号")
 
 
+class PairAnswer(BaseModel):
+    answerable: bool = Field(description="该段落能否完整回答问题")
+
+
 _COMMON = """你在为电商售后客服的检索系统编写测试问题。只输出 JSON 对象，不输出其他文字。
 目标段落：
 标题：{target_title}
@@ -87,6 +91,9 @@ GEN_PROMPTS = {
 
 _LABEL = """你在为检索测试集做标注。下面是知识库候选段落，每段以 [编号] 开头。
 读完顾客问题后，找出所有能完整回答这个问题的段落。只回答了一部分、讲的是其他型号、或只说"以详情页为准"的段落不算。
+{model_info}
+通用政策（退货政策、售后手册、常见问答）适用于所有商品；通用段落给出的答案对问题中的型号同样成立时，算能回答。
+知识库约定：商品FAQ 中未注明型号的耳机、电动牙刷、台灯、保温杯参数分别对应 X3、T3、L1、C5；问其他型号时，这些 FAQ 段落不算能回答。按品类列出的规则表，对该品类的所有型号成立。
 只输出 JSON 对象：{{"answers": [编号, ...]}}；没有能回答的段落时输出 {{"answers": []}}。
 
 候选段落：
@@ -95,6 +102,21 @@ _LABEL = """你在为检索测试集做标注。下面是知识库候选段落�
 LABEL_PROMPT = ChatPromptTemplate.from_messages([("system", _LABEL), ("human", "顾客问题：{query}")])
 
 
+_PAIR = """你在为检索测试集做成对复核。判断下面这一个知识库段落能否完整回答顾客问题。
+{model_info}
+段落给出的事实对问题中的型号成立，并且覆盖问题要点时，算能回答。
+讲的是其他型号、只回答了一部分、或只说"以详情页为准"的段落不算。
+通用政策（退货政策、售后手册、常见问答）适用于所有商品；通用段落给出的答案对问题中的型号同样成立时，算能回答。
+知识库约定：商品FAQ 中未注明型号的耳机、电动牙刷、台灯、保温杯参数分别对应 X3、T3、L1、C5；问其他型号时，这些 FAQ 段落不算能回答。按品类列出的规则表，对该品类的所有型号成立。
+只输出 JSON 对象 {{"answerable": true}} 或 {{"answerable": false}}，不输出其他文字。
+
+段落标题：{chunk_title}
+段落正文：{chunk_text}"""
+
+PAIR_PROMPT = ChatPromptTemplate.from_messages([("system", _PAIR), ("human", "顾客问题：{query}")])
+
+
 def prompt_sha256() -> dict[str, str]:
-    texts = {"H1_sibling": _H1, "H2_colloquial": _H2, "H3_buried": _H3, "H4_specific": _H4, "label": _LABEL}
+    texts = {"H1_sibling": _H1, "H2_colloquial": _H2, "H3_buried": _H3, "H4_specific": _H4,
+             "label": _LABEL, "pair": _PAIR}
     return {k: hashlib.sha256(v.encode("utf-8")).hexdigest() for k, v in texts.items()}
