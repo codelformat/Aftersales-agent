@@ -166,9 +166,11 @@ async def test_pair_review_adds_answerable_product_faq_to_h1():
     faq = Chunk("商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？", "商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？",
                 "耳机充满电能用多久？", "约 6 小时", "蓝牙耳机", "商品FAQ", None, None)
     gen, _ = gen_for({"X3 续航": ["X3 能用多久"]})
+    checked = []
 
     def check(inputs):
         if inputs["chunk_title"] == faq.key:
+            checked.append(inputs)
             assert inputs == {"chunk_title": faq.key, "chunk_text": faq.text, "query": "X3 能用多久",
                               "model_info": "问题中的型号：X3（品类：蓝牙耳机）"}
         return {"parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] == faq.key), "raw": "r"}
@@ -179,18 +181,28 @@ async def test_pair_review_adds_answerable_product_faq_to_h1():
         per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert len(samples) == 1
     assert samples[0].keys == (CHUNKS[0].key, faq.key)
+    assert len(checked) == 2 and checked[0] == checked[1]
     assert stats["H1_sibling"].rejected == {}
 
 
-async def test_pair_review_parse_failure_retries_and_rejects_attempt():
+@pytest.mark.parametrize("fail_on", [1, 2])
+async def test_pair_review_parse_failure_retries_and_rejects_attempt(fail_on):
     gen, calls = gen_for({"X3 续航": ["X3 能用多久"]})
+    checked = []
+
+    def check(inputs):
+        checked.append(inputs["chunk_title"])
+        parsed = None if len(checked) % fail_on == 0 else prompts.PairAnswer(answerable=True)
+        return {"parsed": parsed, "raw": "r"}
+
     samples, stats = await pipeline.synthesize(
         pools(1), CHUNKS, LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
-        recall_labeler=recall_labeler_empty(), pair_checker=RunnableLambda(lambda _: {"parsed": None, "raw": "r"}),
+        recall_labeler=recall_labeler_empty(), pair_checker=RunnableLambda(check),
         per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert samples == []
     assert stats["H1_sibling"].rejected == {"复核解析失败": 3}
     assert calls == {"X3 续航": 3}
+    assert checked == [CHUNKS[1].key] * (3 * fail_on)
     assert stats["H1_sibling"].errors == 0
 
 
@@ -216,6 +228,32 @@ async def synth_exchange(recall_labeler, pair_checker):
     return samples, stats["H4_specific"], calls
 
 
+@pytest.mark.parametrize("answers, rejected, pair_calls, attempts", [
+    pytest.param((True, False), {}, 2, 1, id="true-then-false"),
+    pytest.param((False,), {}, 1, 1, id="false-short-circuits"),
+    pytest.param((True, True), {"通用段落也能回答": 3}, 6, 3, id="two-trues-reject-h4"),
+])
+async def test_pair_review_requires_two_trues_for_general_chunk(answers, rejected, pair_calls, attempts):
+    target, general = exchange_chunks()
+    checked = []
+
+    def check(inputs):
+        answerable = answers[len(checked) % len(answers)]
+        checked.append(inputs)
+        return {"parsed": prompts.PairAnswer(answerable=answerable), "raw": "r"}
+
+    samples, stats, calls = await synth_exchange(
+        RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1]), "raw": "r"}), RunnableLambda(check))
+    if rejected:
+        assert samples == []
+    else:
+        assert len(samples) == 1 and samples[0].keys == (target.key,)
+    assert stats.rejected == rejected and stats.errors == 0
+    assert calls == {"X3 退换规则": attempts}
+    assert checked == [{"chunk_title": general.key, "chunk_text": general.text,
+                        "query": "X3 换货只能换同款吗？", "model_info": "问题中的型号：X3（品类：蓝牙耳机）"}] * pair_calls
+
+
 async def test_recall_rejects_h4_when_unrelated_general_chunk_can_answer():
     _, general = exchange_chunks()
     checked = []
@@ -229,7 +267,7 @@ async def test_recall_rejects_h4_when_unrelated_general_chunk_can_answer():
     assert samples == []
     assert stats.rejected == {"通用段落也能回答": 3}
     assert stats.errors == 0
-    assert checked == [general.key] * 3
+    assert checked == [general.key] * 6
     assert calls == {"X3 退换规则": 3}
 
 
@@ -312,7 +350,7 @@ async def test_recall_and_same_topic_reviews_merge_in_order_without_duplicates()
         pair_checker=RunnableLambda(check),
         per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert len(samples) == 1 and samples[0].keys == (CHUNKS[0].key, faq.key, general.key)
-    assert checked == [faq.key, general.key, CHUNKS[1].key, CHUNKS[2].key]
+    assert checked == [faq.key, faq.key, general.key, general.key, CHUNKS[1].key, CHUNKS[2].key]
     assert stats["H1_sibling"].rejected == {}
 
 

@@ -123,6 +123,7 @@ def test_pair_prompt_renders_chunk_and_query_with_json():
     messages = prompts.PAIR_PROMPT.format_messages(
         chunk_title="保修期", chunk_text="保修一年", query="X3 保多久？", model_info=info)
     assert info in messages[0].content
+    assert "段落主题与问题不同的不算" in messages[0].content
     assert "X3、T3、L1、C5" in messages[0].content
     assert "按品类列出的规则表，对该品类的所有型号成立。" in messages[0].content
     assert "段落标题：保修期" in messages[0].content

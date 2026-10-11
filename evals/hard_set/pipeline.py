@@ -105,9 +105,18 @@ async def _run_seed(seed: Seed, *, by_key, chunks, lexicon, generator, labeler,
                 key for key in recalled + same_topic_keys(target, chunks) if key in cand_keys and key not in keys))
             pair_failed = False
             for key in review_keys:
+                pair_inputs = {"chunk_title": key, "chunk_text": by_key[key].text,
+                               "query": query, "model_info": model_info(query, lexicon)}
                 async with semaphore:
-                    pair = await pair_checker.ainvoke({"chunk_title": key, "chunk_text": by_key[key].text,
-                                                       "query": query, "model_info": model_info(query, lexicon)})
+                    pair = await pair_checker.ainvoke(pair_inputs)
+                if pair["parsed"] is None:
+                    rejected["复核解析失败"] += 1
+                    pair_failed = True
+                    break
+                if not pair["parsed"].answerable:
+                    continue
+                async with semaphore:
+                    pair = await pair_checker.ainvoke(pair_inputs)
                 if pair["parsed"] is None:
                     rejected["复核解析失败"] += 1
                     pair_failed = True
