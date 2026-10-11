@@ -16,6 +16,8 @@ SAMPLES_PATH = Path(__file__).resolve().parent / "rag_eval.jsonl"
 HARD_SAMPLES_PATH = SAMPLES_PATH.parent / "rag_eval_hard.jsonl"
 BUCKET_SIZES = {"A_policy": 70, "B_model": 60, "C_colloquial": 60,
                 "D_unanswerable": 60, "E_multi": 50}
+HARD_BUCKET_SIZES = {"H1_sibling": 60, "H2_colloquial": 60, "H3_buried": 60, "H4_specific": 60}
+HARD_MAX_GROUP_KEYS = 3
 DIFFICULTY_SIZES = {"A_policy": (25, 25, 20), "B_model": (20, 20, 20),
                     "C_colloquial": (15, 25, 20), "D_unanswerable": (20, 20, 20),
                     "E_multi": (10, 20, 20)}
@@ -47,7 +49,40 @@ def load_samples(path: Path = SAMPLES_PATH) -> list[EvalSample]:
     return samples
 
 
-def validate(samples: list[EvalSample], known_keys: set[str] | None, *, full: bool = True) -> list[str]:
+def _validate_hard(samples, known_keys, full):
+    errors, seen = [], set()
+    for s in samples:
+        if s.id in seen:
+            errors.append(f"题号重复：{s.id}")
+        seen.add(s.id)
+        if s.bucket not in HARD_BUCKET_SIZES:
+            errors.append(f"{s.id}：桶无效 {s.bucket}")
+        elif not re.fullmatch(r"H[1-4]_\d{2}", s.id) or s.id[:2] != s.bucket[:2]:
+            errors.append(f"题号与桶不符：{s.id}（{s.bucket}）")
+        if s.difficulty != "hard":
+            errors.append(f"{s.id}：难度必须为 hard")
+        if not s.query.strip() or len(s.query) > 512:
+            errors.append(f"{s.id}：问题为空或超过 512 字")
+        if len(s.relevant) != 1:
+            errors.append(f"{s.id}：必须恰好 1 组来源键")
+        for group in s.relevant:
+            if not group or len(set(group)) != len(group) or len(group) > HARD_MAX_GROUP_KEYS:
+                errors.append(f"{s.id}：来源键组为空、重复或超过 {HARD_MAX_GROUP_KEYS} 个")
+        if known_keys is not None:
+            errors.extend(f"{s.id}：来源键不存在 {key}"
+                          for key in dict.fromkeys(k for g in s.relevant for k in g) if key not in known_keys)
+    if full:
+        buckets = Counter(s.bucket for s in samples)
+        for bucket, expected in HARD_BUCKET_SIZES.items():
+            if buckets[bucket] != expected:
+                errors.append(f"{bucket}：题数 {buckets[bucket]}，应为 {expected}")
+    return errors
+
+
+def validate(samples: list[EvalSample], known_keys: set[str] | None, *, full: bool = True,
+             eval_set: str = "base") -> list[str]:
+    if eval_set == "hard":
+        return _validate_hard(samples, known_keys, full)
     errors = []
     seen = set()
     for s in samples:

@@ -6,8 +6,9 @@ from statistics import mean
 
 from app.prompts import REFUSAL_PREFIX
 
-BUCKETS = ("A_policy", "B_model", "C_colloquial", "D_unanswerable", "E_multi")
-ANSWERABLE = ("A_policy", "B_model", "C_colloquial", "E_multi")
+HARD_BUCKETS = ("H1_sibling", "H2_colloquial", "H3_buried", "H4_specific")
+BUCKETS = ("A_policy", "B_model", "C_colloquial", "D_unanswerable", "E_multi") + HARD_BUCKETS
+ANSWERABLE = ("A_policy", "B_model", "C_colloquial", "E_multi") + HARD_BUCKETS
 DIFFICULTIES = ("easy", "medium", "hard")
 KS = (1, 3, 5, 10)
 THRESHOLDS = tuple(i / 100 for i in range(5, 81, 5))
@@ -96,9 +97,10 @@ class GenResult:
     faithful: bool | None
     unsupported: list[str]
     reason: str
+    run: int = 1
 
 
-def generation_summary(results: list[GenResult]) -> dict[str, dict[str, float]]:
+def generation_summary(results: list[GenResult]) -> dict[str, dict[str, float | list[float]]]:
     grouped = defaultdict(list)
     for result in results:
         grouped[result.strategy].append(result)
@@ -106,9 +108,14 @@ def generation_summary(results: list[GenResult]) -> dict[str, dict[str, float]]:
     for strategy, items in grouped.items():
         answerable = [r for r in items if r.bucket in ANSWERABLE]
         unanswerable = [r for r in items if r.bucket == "D_unanswerable"]
-        judged = [r for r in answerable if r.retrieved and not r.refused and r.faithful is not None]
+        per_run = []
+        for run in sorted({r.run for r in items}):
+            judged = [r for r in answerable if r.run == run and r.retrieved and not r.refused
+                      and r.faithful is not None]
+            per_run.append(sum(r.faithful is True for r in judged) / len(judged) if judged else 0.0)
         out[strategy] = {
-            "faithfulness": sum(r.faithful is True for r in judged) / len(judged) if judged else 0.0,
+            "faithfulness": mean(per_run) if per_run else 0.0,
+            "runs": per_run,
             "false_refusal": sum(r.refused for r in answerable) / len(answerable) if answerable else 0.0,
             "d_refusal": sum(r.refused for r in unanswerable) / len(unanswerable) if unanswerable else 0.0,
             "no_retrieval": sum(not r.retrieved for r in items),
@@ -148,11 +155,19 @@ def render_report(*, retrieval_by_bucket, retrieval_by_difficulty, post_threshol
         lines.extend(["", f"当前 RERANK_MIN_SCORE：{current}；按校准规则建议：{suggestion}"])
         sections.append("\n".join(lines))
     if generation is not None:
+        summary = generation_summary(generation)
+        repeated = any(len(values["runs"]) > 1 for values in summary.values())
         lines = ["## 生成", "", "| 策略 | Faithfulness | 误拒率 | D 正确拒答率 | 未检索 | 裁判失败 |",
                  "| --- | --- | --- | --- | --- | --- |"]
-        for strategy, values in generation_summary(generation).items():
-            lines.append(f"| {strategy} | {values['faithfulness']:.3f} | {values['false_refusal']:.3f} | "
-                         f"{values['d_refusal']:.3f} | {values['no_retrieval']} | {values['judge_failed']} |")
+        if repeated:
+            lines[2] += " 各次 Faithfulness |"
+            lines[3] += " --- |"
+        for strategy, values in summary.items():
+            row = (f"| {strategy} | {values['faithfulness']:.3f} | {values['false_refusal']:.3f} | "
+                   f"{values['d_refusal']:.3f} | {values['no_retrieval']} | {values['judge_failed']} |")
+            if repeated:
+                row += " " + " / ".join(f"{x:.3f}" for x in values["runs"]) + " |"
+            lines.append(row)
         sections.append("\n".join(lines))
         cases = []
         for r in generation:

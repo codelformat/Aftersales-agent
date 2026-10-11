@@ -2,8 +2,9 @@
 
 import argparse
 import asyncio
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -31,7 +32,11 @@ from app.services.grounding import (
 )
 from app.tools.executor import execute_tool_calls
 from app.tools.registry import ch04_tools, ch04_toolset
-from evals.rag_eval_set import BUCKET_SIZES, EvalSample, known_source_keys, load_samples, validate
+from evals.hard_set.expectations import check_expectations, render_expectations
+from evals.rag_eval_set import (
+    BUCKET_SIZES, HARD_BUCKET_SIZES, HARD_SAMPLES_PATH, EvalSample, known_source_keys,
+    load_samples, validate,
+)
 from evals.rag_metrics import (
     ANSWERABLE, GenResult, ThresholdRow, is_refusal, render_report, score_retrieval,
     summarize, threshold_sweep,
@@ -146,7 +151,8 @@ class Collected:
 
 
 async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
-                  do_generation: bool, concurrency: int, write_cases: bool) -> Collected:
+                  do_generation: bool, concurrency: int, write_cases: bool,
+                  gen_repeat: int = 1) -> Collected:
     semaphore = asyncio.Semaphore(concurrency)
     failures = []
     plans = {}
@@ -193,25 +199,28 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
         model, judge = get_chat_model(), get_faith_judge()
         today = date.today()
 
-        async def generate(sample, strategy):
+        async def generate(sample, strategy, run):
             async with semaphore:
+                label = f"{sample.id}/{strategy}" + (f"#{run}" if gen_repeat > 1 else "")
                 try:
                     result = await generate_one(sample, plans[sample.id], strategy,
                                                 model=model, judge=judge, today=today)
+                    result = replace(result, run=run)
                     if result.retrieved and not result.refused and result.faithful is None:
-                        failures.append(f"{sample.id}/{strategy}：裁判失败")
+                        failures.append(f"{label}：裁判失败")
                     return result
                 except Exception as exc:
                     logger.exception("生成评估失败：%s/%s", sample.id, strategy)
-                    failures.append(f"{sample.id}/{strategy}：{type(exc).__name__}")
+                    failures.append(f"{label}：{type(exc).__name__}")
                     return None
 
-        generated = await asyncio.gather(*(generate(s, strategy) for s in samples if s.id in plans
-                                          for strategy in gen_strategies))
+        generated = await asyncio.gather(*(generate(s, strategy, run) for s in samples if s.id in plans
+                                          for strategy in gen_strategies
+                                          for run in range(1, gen_repeat + 1)))
         results = [r for r in generated if r is not None]
         if write_cases:
             try:
-                count = await write_faith_cases(results, get_settings().chat_model)
+                count = await write_faith_cases([r for r in results if r.run == 1], get_settings().chat_model)
                 print(f"编造个案写入条数：{count}")
             except Exception as exc:
                 logger.exception("编造个案写入失败")
@@ -222,14 +231,19 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
 
 async def run_eval(args: argparse.Namespace) -> int:
     try:
+        hard = args.eval_set == "hard"
+        sizes = HARD_BUCKET_SIZES if hard else BUCKET_SIZES
+        if args.bucket is not None and args.bucket not in sizes:
+            print(f"桶 {args.bucket} 不属于题集 {args.eval_set}")
+            return 1
         await ensure_collection()
         keys = await known_source_keys()
         if args.list_keys:
             for key, preview in keys.items():
                 print(f"{key}\t{preview}")
             return 0
-        all_samples = load_samples()
-        errors = validate(all_samples, set(keys), full=True)
+        all_samples = load_samples(HARD_SAMPLES_PATH) if hard else load_samples()
+        errors = validate(all_samples, set(keys), full=True, eval_set=args.eval_set)
         if errors:
             for error in errors:
                 print(error)
@@ -246,7 +260,7 @@ async def run_eval(args: argparse.Namespace) -> int:
             samples, strategies=STRATEGIES,
             gen_strategies=STRATEGIES if args.gen_strategies == "all" else ("hybrid_rerank",),
             do_retrieval=do_retrieval, do_generation=do_generation,
-            concurrency=args.concurrency, write_cases=not args.no_write,
+            concurrency=args.concurrency, write_cases=not args.no_write, gen_repeat=args.gen_repeat,
         )
         scores, post_scores, rows = got.scores, got.post_scores, got.rows
         results, failures = got.results, got.failures
@@ -269,14 +283,24 @@ async def run_eval(args: argparse.Namespace) -> int:
         failures.sort()
         report = render_report(
             retrieval_by_bucket=summarize(scores, "bucket") if do_retrieval else None,
-            retrieval_by_difficulty=summarize(scores, "difficulty") if do_retrieval else None,
+            retrieval_by_difficulty=summarize(scores, "difficulty") if do_retrieval and not hard else None,
             post_threshold=summarize(post_scores, "bucket") if do_retrieval else None,
-            sweep=threshold_sweep(rows) if do_retrieval else None, current_threshold=RERANK_MIN_SCORE,
+            sweep=threshold_sweep(rows) if do_retrieval and not hard else None, current_threshold=RERANK_MIN_SCORE,
             generation=results if do_generation else None, failures=failures,
         )
+        if hard and do_retrieval:
+            try:
+                expectations = render_expectations(check_expectations(summarize(scores, "bucket")))
+            except KeyError:
+                expectations = "## 冻结前写定的预期\n\n预期对照需要全部 4 个桶，本次跳过。\n"
+            report += "\n" + expectations
         params = json.dumps(vars(args), ensure_ascii=False, sort_keys=True)
-        report = (f"# RAG 评估报告\n\n运行参数：`{params}`\n\n"
-                  f"评估集题数：{len(all_samples)}；本次题数：{len(samples)}\n\n" + report)
+        title = "# RAG 评估报告（困难题集）" if hard else "# RAG 评估报告"
+        dataset = f"评估集题数：{len(all_samples)}；本次题数：{len(samples)}\n"
+        if hard:
+            digest = hashlib.sha256(HARD_SAMPLES_PATH.read_bytes()).hexdigest() if HARD_SAMPLES_PATH.exists() else "未找到"
+            dataset += f"题集文件：rag_eval_hard.jsonl，SHA-256 {digest}\n"
+        report = f"{title}\n\n运行参数：`{params}`\n\n{dataset}\n" + report
         print(report)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         report_path = REPORTS_DIR / f"rag_eval_{datetime.now():%Y%m%d-%H%M%S}.md"
@@ -302,12 +326,14 @@ def _positive(value: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="评估 RAG，正常运行会调用上游模型并写入编造个案。")
     parser.add_argument("--stage", choices=("retrieval", "generation", "all"), default="all")
+    parser.add_argument("--set", dest="eval_set", choices=("base", "hard"), default="base")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--list-keys", action="store_true")
     parser.add_argument("--gen-strategies", choices=("hybrid_rerank", "all"), default="hybrid_rerank")
+    parser.add_argument("--gen-repeat", type=_positive, default=1)
     parser.add_argument("--concurrency", type=_positive, default=8)
     parser.add_argument("--limit", type=_positive)
-    parser.add_argument("--bucket", choices=tuple(BUCKET_SIZES))
+    parser.add_argument("--bucket", choices=tuple(BUCKET_SIZES) + tuple(HARD_BUCKET_SIZES))
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--save-rankings", help="保存门槛前 Top-5 来源键和逐题标注")
     return parser

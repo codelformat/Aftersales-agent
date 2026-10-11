@@ -72,8 +72,8 @@ def test_threshold_sweep_and_pick():
     assert len(rm.THRESHOLDS) == 16 and rm.THRESHOLDS[0] == 0.05 and rm.THRESHOLDS[-1] == 0.8
 
 
-def gen(bucket, *, retrieved=True, refused=False, faithful=True, strategy="hybrid_rerank"):
-    return rm.GenResult("X01", bucket, "easy", strategy, "q", retrieved, refused, "a", [], faithful, [], "")
+def gen(bucket, *, retrieved=True, refused=False, faithful=True, strategy="hybrid_rerank", run=1):
+    return rm.GenResult("X01", bucket, "easy", strategy, "q", retrieved, refused, "a", [], faithful, [], "", run)
 
 
 def test_generation_summary():
@@ -99,3 +99,46 @@ def test_render_report_sections():
     assert "## 检索：策略 × 桶" in md and "## 检索：策略 × 难度" in md and "## 门槛扫描" in md
     assert "| bm25 | ALL | 0.500 |" in md
     assert "## 生成" not in md
+
+
+def test_hard_buckets_are_answerable():
+    assert set(rm.HARD_BUCKETS) <= set(rm.ANSWERABLE) and set(rm.HARD_BUCKETS) <= set(rm.BUCKETS)
+
+
+def test_generation_summary_averages_runs_and_report_lists_each_run():
+    results = [gen("H1_sibling", strategy="dense", run=1, faithful=True), gen("H1_sibling", strategy="dense", run=1, faithful=True), gen("H1_sibling", strategy="dense", run=2, faithful=True), gen("H1_sibling", strategy="dense", run=2, faithful=False)]
+    summary = rm.generation_summary(results)
+    assert summary["dense"]["faithfulness"] == 0.75          # (1.0 + 0.5) / 2
+    assert summary["dense"]["runs"] == [1.0, 0.5]
+    md = rm.render_report(retrieval_by_bucket=None, retrieval_by_difficulty=None, post_threshold=None,
+                          sweep=None, current_threshold=None, generation=results, failures=[])
+    assert "| dense | 0.750 |" in md and "1.000 / 0.500" in md
+
+
+def test_generation_summary_single_run_unchanged():
+    summary = rm.generation_summary([gen("H1_sibling", strategy="dense", run=1, faithful=True), gen("H1_sibling", strategy="dense", run=1, faithful=False)])
+    assert summary["dense"]["faithfulness"] == 0.5 and summary["dense"]["runs"] == [0.5]
+
+
+def test_generation_summary_weights_runs_equally_with_different_judged_counts():
+    results = [gen("H1_sibling", strategy="dense", run=2, faithful=False),
+               gen("H1_sibling", strategy="dense", run=1, faithful=True),
+               gen("H1_sibling", strategy="dense", run=1, faithful=True),
+               gen("H1_sibling", strategy="dense", run=2, faithful=None)]
+    summary = rm.generation_summary(results)["dense"]
+    assert summary["faithfulness"] == 0.5
+    assert summary["runs"] == [1.0, 0.0]
+    assert summary["judge_failed"] == 1
+
+
+def test_generation_single_run_table_matches_original_exactly():
+    md = rm.render_report(retrieval_by_bucket=None, retrieval_by_difficulty=None,
+                          post_threshold=None, sweep=None, current_threshold=None,
+                          generation=[gen("A_policy")], failures=[])
+    assert md == (
+        "## 生成\n\n"
+        "| 策略 | Faithfulness | 误拒率 | D 正确拒答率 | 未检索 | 裁判失败 |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| hybrid_rerank | 1.000 | 0.000 | 0.000 | 0 | 0 |\n\n"
+        "## 编造个案与 D 误答\n\n无\n"
+    )
