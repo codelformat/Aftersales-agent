@@ -178,7 +178,7 @@ scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export
 - **置信度闸（`confidence_gate`）：证据为空或 `evidence_confidence` < `GATE_CONF_THRESHOLD` → 入池 `retrieval_low_conf`、不调自评；否则调自评，`useful=false` → 入池 `self_check`。不通过时回 `GATE_FALLBACK_REPLY`，不进 Agent。自评失败按通过处理。** 自评要求证据覆盖问题的全部要点，部分可答的问题整句兜底（见 `docs/backlog/`）。 引用编号 `[n]` 为首尾排列后的全局序号；越界编号只记日志。
 - **`evidence_confidence` 参数来自校准报告** `evals/reports/gate_calibration_20261009-125757.md`。`GATE_WEIGHTS`、`GATE_EFFECTIVE_N`、`GATE_CONF_THRESHOLD` 放在 `app/config.py`，不得凭经验改值。
 - **飞轮只用一个 worker 串行处理**，避免并发查重新建重复行。失败或进程退出时，`matched_review_id` 留 NULL；用 `scripts/run_flywheel.py` 补跑。
-- **v2 评估集冻结后不改题、不删题、不改标注**（`evals/v2/manifest.json` 记录 SHA-256）。评估运行的日志中不得有余额错误：Query 改写失败时 `understand()` 退回原话检索，退出码仍为 0，必须查日志。
+- **v2 评估集冻结后不改题、不删题、不改标注**（`evals/v2/manifest.json` 记录 SHA-256）。Query 改写失败时 `understand()` 退回原话检索；`run_rag_eval.py` 在报告头部写退回题数，超过 3 题退出码 1（DeepSeek 余额耗尽时曾 540 题全部退回）。
 - **`build_kb.py --rebuild` 保留 `flywheel` 和 `mined` 块并重新向量化**。评估检索同时排除两种来源，避免新增答案污染评估基线。
 - **`query_product` 只接受 `^P\d{3,8}$` 商品号**（模型曾把型号当商品号，mock 返回随机品类）。
 - **评估生成段必须做真实的第 1 次调用**，沿用模型给出的 tool_call id（DeepSeek 思考模式下自造 id 返回 400）；评估集 `relevant` 为分组格式，Recall 按组计算。
