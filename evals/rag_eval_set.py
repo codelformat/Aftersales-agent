@@ -10,10 +10,10 @@ from sqlalchemy import select
 
 from app.db.engine import get_sessionmaker
 from app.db.models import KnowledgeChunk
-from app.knowledge.retrieval import source_key
 from evals.rag_metrics import DIFFICULTIES
 
 SAMPLES_PATH = Path(__file__).resolve().parent / "rag_eval.jsonl"
+HARD_SAMPLES_PATH = SAMPLES_PATH.parent / "rag_eval_hard.jsonl"
 BUCKET_SIZES = {"A_policy": 70, "B_model": 60, "C_colloquial": 60,
                 "D_unanswerable": 60, "E_multi": 50}
 DIFFICULTY_SIZES = {"A_policy": (25, 25, 20), "B_model": (20, 20, 20),
@@ -91,6 +91,8 @@ def validate(samples: list[EvalSample], known_keys: set[str] | None, *, full: bo
 
 
 async def known_source_keys() -> dict[str, str]:
+    # 延迟导入：合成脚本导入本模块时不能传递导入检索模块。
+    from app.knowledge.retrieval import source_key
     async with get_sessionmaker()() as s:
         rows = await s.scalars(select(KnowledgeChunk).where(
             KnowledgeChunk.vectorize_status == "done", KnowledgeChunk.content_type != "mined",
