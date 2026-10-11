@@ -1,0 +1,300 @@
+{"id": "A001", "bucket": "A_policy", "difficulty": "hard", "query": "已经签收第十天，商品坏了但不是不喜欢想退，质量退货要提交什么证据，商家多久审核？", "relevant": [["退货政策 > 退货条件 > 质量问题退货"]]}
+{"id": "A002", "bucket": "A_policy", "difficulty": "hard", "query": "换货已过审核也寄回了，偏偏同款没货；别按新购缺货补券算，接下来商家如何处理？", "relevant": [["售后手册 > 换货 > 换货流程"]]}
+{"id": "A003", "bucket": "A_policy", "difficulty": "hard", "query": "电子票开了二十天，税号填错且只想改一次，能换开吗；如果商品已经退了票会怎样？", "relevant": [["售后手册 > 发票 > 发票换开"]]}
+{"id": "A004", "bucket": "A_policy", "difficulty": "hard", "query": "原订单是微信付款且退货已受理，我不想领券抵钱，退款会退到哪里？", "relevant": [["退货政策 > 退款 > 退款方式"]]}
+{"id": "A005", "bucket": "A_policy", "difficulty": "hard", "query": "预售款定金和尾款都付了，签收后办理退货，别按没付尾款算，退的钱包括哪两部分？", "relevant": [["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "A006", "bucket": "A_policy", "difficulty": "medium", "query": "预售订单已付尾款，页面写了发货日期，最迟可以拖到付款后多少天？", "relevant": [["预售与缺货政策 > 预售 > 预售发货时间"]]}
+{"id": "A007", "bucket": "A_policy", "difficulty": "hard", "query": "订单已经完成，我要给公司开电子票，既不是退款也不是补开税号，在哪申请、填什么、多久发送？", "relevant": [["售后手册 > 发票 > 开具发票", "常见问答 > 发票 > 怎么开发票？"]]}
+{"id": "A008", "bucket": "A_policy", "difficulty": "medium", "query": "维修审核通过但页面没有取件选项，能直接预约上门吗，应怎样寄修？", "relevant": [["售后手册 > 维修 > 上门取件"]]}
+{"id": "A009", "bucket": "A_policy", "difficulty": "medium", "query": "只退订单里一件商品，之前这件已领过保价差额，退款计算还会重复退那笔差额吗？", "relevant": [["退货政策 > 特殊情况 > 部分退款"]]}
+{"id": "A010", "bucket": "A_policy", "difficulty": "hard", "query": "同账户三十天已拒收四次，退回包裹还要退款，下次下单发货前多了什么步骤？", "relevant": [["配送与签收政策 > 签收 > 拒收"]]}
+{"id": "A011", "bucket": "A_policy", "difficulty": "hard", "query": "买的是扫地机器人，已经发货，我想指定一家快递并约下午送达，配送政策支持哪些安排？", "relevant": [["配送与签收政策 > 配送 > 配送方式"]]}
+{"id": "A012", "bucket": "A_policy", "difficulty": "hard", "query": "我买的都是实物，另有一张电子券和定制件，这份退货政策覆盖哪些商品，哪些另有规定？", "relevant": [["退货政策"]]}
+{"id": "A013", "bucket": "A_policy", "difficulty": "medium", "query": "订单需要办理维修或开票时，统一从哪个页面入口提交售后申请？", "relevant": [["售后手册"]]}
+{"id": "A014", "bucket": "A_policy", "difficulty": "medium", "query": "预订商品因我自己忘付尾款而失去订单，定金还退不退？", "relevant": [["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"]]}
+{"id": "A015", "bucket": "A_policy", "difficulty": "medium", "query": "银行卡支付的退货已被商家确认收货，商家退款与银行到账各通常需要多久？", "relevant": [["退货政策 > 退款 > 退款时间"]]}
+{"id": "A016", "bucket": "A_policy", "difficulty": "medium", "query": "刚签收五天发现同款同规格降价，用过优惠券，价格保护按什么差额算、能申请几次？", "relevant": [["退货政策 > 特殊情况 > 价格保护"]]}
+{"id": "A017", "bucket": "A_policy", "difficulty": "hard", "query": "订单已经发货但还没签收，我想直接取消并不是质量退货，这时应该走哪种办理路径？", "relevant": [["退货政策 > 订单取消", "常见问答 > 支付 > 订单可以取消吗？"]]}
+{"id": "A018", "bucket": "A_policy", "difficulty": "hard", "query": "收货地是西藏，页面预计明天送达，我知道现货有发货时效，配送预计还要增加几天？", "relevant": [["配送与签收政策 > 配送 > 偏远地区配送"]]}
+{"id": "A019", "bucket": "A_policy", "difficulty": "medium", "query": "订单尚未出库，我填错了收货地址，在哪改、最多能改几次？", "relevant": [["配送与签收政策 > 发货 > 修改收货地址"]]}
+{"id": "A020", "bucket": "A_policy", "difficulty": "medium", "query": "现货付款超过四十八小时还没发货，可以在哪申请什么补偿，券能用多久？", "relevant": [["配送与签收政策 > 发货 > 延迟发货补偿"]]}
+{"id": "A021", "bucket": "A_policy", "difficulty": "medium", "query": "我买的是预售，想查发货日期和签收后退款，配送与签收政策导言分别指向哪份政策？", "relevant": [["配送与签收政策"]]}
+{"id": "A022", "bucket": "A_policy", "difficulty": "medium", "query": "机器修好了，换过的部件另享多久保修，原商品的保修从哪天开始算？", "relevant": [["售后手册 > 维修 > 保修期"]]}
+{"id": "A023", "bucket": "A_policy", "difficulty": "medium", "query": "商品完好且配件齐全，在七天无理由期内退回，吊牌、包装、说明书和赠品需要怎样处理？", "relevant": [["退货政策 > 退货条件 > 七天无理由退货"]]}
+{"id": "A024", "bucket": "A_policy", "difficulty": "hard", "query": "付款后才发现缺货，我既没申请换货也没收到包裹，商家多久用什么方式通知，可选什么处理？", "relevant": [["预售与缺货政策 > 缺货 > 缺货通知", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "A025", "bucket": "A_policy", "difficulty": "medium", "query": "箱子明显变形但我选择拍照签收，之后应在多长时间内、在哪上传照片反馈？", "relevant": [["配送与签收政策 > 签收 > 签收验货"]]}
+{"id": "A026", "bucket": "A_policy", "difficulty": "hard", "query": "一单买了两件且用了优惠券，现在只退一件，不是整单取消，优惠怎么分摊、退款按什么金额算？", "relevant": [["退货政策 > 退款 > 部分退款", "退货政策 > 特殊情况 > 部分退款"]]}
+{"id": "A027", "bucket": "A_policy", "difficulty": "hard", "query": "买的鞋颜色不喜欢，想换颜色也想顺便换另一款；别把退货当换货，换货允许换哪些内容？", "relevant": [["售后手册 > 换货 > 申请换货", "商品手册 > 运动鞋 > R1 退换规则", "商品手册 > 运动鞋 > R1 Pro 退换规则", "商品手册 > 运动鞋 > R2 退换规则", "商品手册 > 运动鞋 > R1 Plus 退换规则", "商品手册 > 运动鞋 > R2 Pro 退换规则"]]}
+{"id": "A028", "bucket": "A_policy", "difficulty": "medium", "query": "商品仍在保修期内并出现质量故障，申请免费维修需要在哪选择什么、提交什么材料？", "relevant": [["售后手册 > 维修 > 申请维修"]]}
+{"id": "A029", "bucket": "A_policy", "difficulty": "hard", "query": "付款后缺货，我选了等待却十天仍没补上，别按换货缺货处理，这单接下来怎么结算和补偿？", "relevant": [["商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "A030", "bucket": "A_policy", "difficulty": "medium", "query": "寄修审核通过后发现是人为损坏，我不同意报价，维修流程会怎样处理商品？", "relevant": [["售后手册 > 维修 > 维修流程"]]}
+{"id": "A031", "bucket": "A_policy", "difficulty": "hard", "query": "退货赠品丢了且标价高于商品实付金额，又不是赠品坏了，最多扣多少钱？", "relevant": [["退货政策 > 特殊情况 > 赠品退回"]]}
+{"id": "A032", "bucket": "A_policy", "difficulty": "hard", "query": "已经投诉且仍不满意，不是普通退货审核，客服多久联系、多久给结果，还能申请几次复核？", "relevant": [["售后手册 > 投诉 > 投诉处理时限"]]}
+{"id": "A033", "bucket": "A_policy", "difficulty": "hard", "query": "邻居昨天帮我代签，我今天才拿到货，别用我的取件时间算，政策认哪个签收时间？", "relevant": [["配送与签收政策 > 签收 > 快递柜与代签", "商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"]]}
+{"id": "A034", "bucket": "A_policy", "difficulty": "hard", "query": "快递柜昨天显示签收，我今天才去拿且想退货，别按付款日算，签收时间与期限起算日怎么定？", "relevant": [["商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"]]}
+{"id": "A035", "bucket": "A_policy", "difficulty": "hard", "query": "物流昨晚显示签收但本人没拿到，也不是外箱破损，多久内在哪申请，商家多久核实？", "relevant": [["配送与签收政策 > 签收 > 显示签收但未收到"]]}
+{"id": "A036", "bucket": "A_policy", "difficulty": "medium", "query": "送修需要从厂家调配件，完成检测维修的期限会从通常多久延长到多久？", "relevant": [["售后手册 > 维修 > 维修时间"]]}
+{"id": "A037", "bucket": "A_policy", "difficulty": "medium", "query": "现货在下午五点付款，应该当天还是次日出库，付款后发货上限是多少小时？", "relevant": [["配送与签收政策 > 发货 > 发货时效", "商品FAQ > 配送与签收 > 下单后多久能发货啊？"]]}
+{"id": "A038", "bucket": "A_policy", "difficulty": "medium", "query": "对物流服务不满意且不想退商品，可以从哪些渠道投诉，会有工单号吗？", "relevant": [["售后手册 > 投诉 > 怎么投诉"]]}
+{"id": "A039", "bucket": "A_policy", "difficulty": "medium", "query": "预售商品已经签收后要退换，按预售付款规则还是所属品类规则处理，查哪份政策？", "relevant": [["预售与缺货政策"]]}
+{"id": "A040", "bucket": "A_policy", "difficulty": "medium", "query": "下午三点付了现货订单的款，出库安排是什么，发货最迟在多久内？", "relevant": [["商品FAQ > 配送与签收 > 下单后多久能发货啊？", "配送与签收政策 > 发货 > 发货时效"]]}
+{"id": "B001", "bucket": "B_model", "difficulty": "hard", "query": "别把 X5 Pro 的长续航套过来，我这副是 x3，半音量充满一回及连盒一共能听多久？", "relevant": [["商品手册 > 蓝牙耳机 > X3 续航", "商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？"]]}
+{"id": "B002", "bucket": "B_model", "difficulty": "hard", "query": "朋友买 X5 Pro，我盒子写 x3pro；到底这副的质保几天，进水能算免费修吗？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Pro 保修"]]}
+{"id": "B003", "bucket": "B_model", "difficulty": "medium", "query": "我的是 X5，邻居用 X5 Pro；关降噪半音量时，单次和含盒续航分别是多少？", "relevant": [["商品手册 > 蓝牙耳机 > X5 续航"]]}
+{"id": "B004", "bucket": "B_model", "difficulty": "medium", "query": "X3 的耳塞拆过还能退，我买的是 X3 Lite，只拆耳塞套的话无理由退货要满足什么、寄回什么？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Lite 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "B005", "bucket": "B_model", "difficulty": "hard", "query": "店员一直讲 X3 Lite，我想核对 X5PRO 的蓝牙版本、单耳重量以及支持的音效和连接功能，分别是什么？", "relevant": [["商品手册 > 蓝牙耳机 > X5 Pro 参数"]]}
+{"id": "B006", "bucket": "B_model", "difficulty": "medium", "query": "不要拿 W2 Plus 的尺寸给我，W1 的 M 码衣长、胸围和领型是什么？", "relevant": [["商品手册 > 羊毛衫 > W1 参数"]]}
+{"id": "B007", "bucket": "B_model", "difficulty": "hard", "query": "家里 W1 Pro 袖口松了，但我穿 w1plus 是领口起球；怎样处理，领口缝线裂了又该怎么办？", "relevant": [["商品手册 > 羊毛衫 > W1 Plus 常见故障"]]}
+{"id": "B008", "bucket": "B_model", "difficulty": "hard", "query": "不是 W1 Pro 袖口的问题，我的 w2 纽扣缝线松了，应该怎么处理、避免什么动作？", "relevant": [["商品手册 > 羊毛衫 > W2 常见故障"]]}
+{"id": "B009", "bucket": "B_model", "difficulty": "hard", "query": "W2 的纽扣没事，我这件 w1pro 袖口松弛，熨斗该离多远、能直接压烫吗？", "relevant": [["商品手册 > 羊毛衫 > W1 Pro 常见故障"]]}
+{"id": "B010", "bucket": "B_model", "difficulty": "easy", "query": "W2 Plus 口袋边缘变形怎么整理，缝线开裂怎么处理？", "relevant": [["商品手册 > 羊毛衫 > W2 Plus 常见故障"]]}
+{"id": "B011", "bucket": "B_model", "difficulty": "hard", "query": "别拿 S10 Pro 跟我混着讲，我这台 s10 已建过图，要退回前先做哪些清理账号的操作？", "relevant": [["商品手册 > 扫地机器人 > S10 退换规则"]]}
+{"id": "B012", "bucket": "B_model", "difficulty": "easy", "query": "S10 Max 主机保修期多少天？", "relevant": [["商品手册 > 扫地机器人 > S10 Max 保修"]]}
+{"id": "B013", "bucket": "B_model", "difficulty": "medium", "query": "S10 Pro 没存楼层图，我的 S20 已存地图，按退换规则寄回前要处理哪些数据？", "relevant": [["商品手册 > 扫地机器人 > S20 退换规则"]]}
+{"id": "B014", "bucket": "B_model", "difficulty": "medium", "query": "同事买 S20 Max，我买 S10 Pro 已开机建图，七天内完好想退，需要先重置并退出账号吗？", "relevant": [["商品手册 > 扫地机器人 > S10 Pro 退换规则"]]}
+{"id": "B015", "bucket": "B_model", "difficulty": "hard", "query": "S10 只有旧款参数，我问 s20-max 主机保修到底几天，刷子正常磨损能免费保修吗？", "relevant": [["商品手册 > 扫地机器人 > S20 Max 保修"]]}
+{"id": "B016", "bucket": "B_model", "difficulty": "medium", "query": "T5 Pro 是旅行盒款，我的 T3 按键没反应，先排查什么，充电后还不启动怎么报修？", "relevant": [["商品手册 > 电动牙刷 > T3 常见故障"]]}
+{"id": "B017", "bucket": "B_model", "difficulty": "hard", "query": "别按 T5 Pro 的盒子算，我用 t3pro 刷头已经拆开但主机完好，能退哪些部分？", "relevant": [["商品手册 > 电动牙刷 > T3 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "B018", "bucket": "B_model", "difficulty": "hard", "query": "我这不是 T3 Lite 晃刷头，是 t5 电量显示全黑，先怎么检查，充多久还没显示才报修？", "relevant": [["商品手册 > 电动牙刷 > T5 常见故障"]]}
+{"id": "B019", "bucket": "B_model", "difficulty": "medium", "query": "朋友 T5 档位多，我用 T3 Lite，每次刷牙有几档力度、多久结束、多久提醒换区？", "relevant": [["商品手册 > 电动牙刷 > T3 Lite 参数"]]}
+{"id": "B020", "bucket": "B_model", "difficulty": "hard", "query": "不是 T3 的底座，我的 t5pro 旅行盒给手柄充不上电，线要接什么规格电源、手柄怎么放？", "relevant": [["商品手册 > 电动牙刷 > T5 Pro 常见故障"]]}
+{"id": "B021", "bucket": "B_model", "difficulty": "easy", "query": "L1 台灯不亮时先检查什么，仍不亮要上传什么视频？", "relevant": [["商品手册 > 台灯 > L1 常见故障"]]}
+{"id": "B022", "bucket": "B_model", "difficulty": "hard", "query": "L1 Plus 的期限别照搬，我买 l1pro 线材被拉断；这款质保多久，这种损坏算免费修吗？", "relevant": [["商品手册 > 台灯 > L1 Pro 保修"]]}
+{"id": "B023", "bucket": "B_model", "difficulty": "easy", "query": "L2 台灯灯罩、底座分别是什么材料，灯臂多长？", "relevant": [["商品手册 > 台灯 > L2 材质"]]}
+{"id": "B024", "bucket": "B_model", "difficulty": "hard", "query": "同桌的是 L2，我这盏 l1plus 摔坏灯罩了；它本来保修几天，摔坏能免费修不？", "relevant": [["商品手册 > 台灯 > L1 Plus 保修"]]}
+{"id": "B025", "bucket": "B_model", "difficulty": "medium", "query": "不要用 L1 的期限，L2 Pro 质量故障的保修期是多少天？", "relevant": [["商品手册 > 台灯 > L2 Pro 保修"]]}
+{"id": "B026", "bucket": "B_model", "difficulty": "medium", "query": "C8 Plus 的吸管还好，我的 C5 杯盖漏水，先检查哪里，处理后还漏怎么办？", "relevant": [["商品手册 > 保温杯 > C5 常见故障"]]}
+{"id": "B027", "bucket": "B_model", "difficulty": "medium", "query": "C8 Plus 有吸管，我买 C5 Plus 杯身已经有使用划痕，无理由退货还支持吗？", "relevant": [["商品手册 > 保温杯 > C5 Plus 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "B028", "bucket": "B_model", "difficulty": "easy", "query": "C8 的提手松动时应该怎么处理？", "relevant": [["商品手册 > 保温杯 > C8 常见故障"]]}
+{"id": "B029", "bucket": "B_model", "difficulty": "easy", "query": "C5 Pro 杯身有使用划痕，还能无理由退货吗？", "relevant": [["商品手册 > 保温杯 > C5 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "B030", "bucket": "B_model", "difficulty": "medium", "query": "不是 C5 Pro 的弹扣，我用 C8 Plus 吸管漏水，硅胶阀该怎样清洗装回？", "relevant": [["商品手册 > 保温杯 > C8 Plus 常见故障"]]}
+{"id": "B031", "bucket": "B_model", "difficulty": "easy", "query": "R1 鞋垫滑动要怎么处理，鞋底开胶又怎么办？", "relevant": [["商品手册 > 运动鞋 > R1 常见故障"]]}
+{"id": "B032", "bucket": "B_model", "difficulty": "medium", "query": "R2 Pro 锁扣没问题，我的 R1 Pro 鞋面缝线开裂，要拍哪里申请售后？", "relevant": [["商品手册 > 运动鞋 > R1 Pro 常见故障"]]}
+{"id": "B033", "bucket": "B_model", "difficulty": "medium", "query": "别拿 R1 Plus 的期限套用，R2 开胶质量问题的保修期是几天？", "relevant": [["商品手册 > 运动鞋 > R2 保修"]]}
+{"id": "B034", "bucket": "B_model", "difficulty": "hard", "query": "不是 R2 Pro 的徒步款，我想买 r1plus 慢跑，42 码单只重量和鞋底厚度究竟多少？", "relevant": [["商品手册 > 运动鞋 > R1 Plus 参数"]]}
+{"id": "B035", "bucket": "B_model", "difficulty": "medium", "query": "我不是买 R1 Plus，想选 R2 Pro，鞋面、中底、外底分别是什么材料？", "relevant": [["商品手册 > 运动鞋 > R2 Pro 材质"]]}
+{"id": "B036", "bucket": "B_model", "difficulty": "hard", "query": "别把 K1 Plus 的磨砂壳说过来，我要 k1 透明软壳的边框厚度是多少？", "relevant": [["商品手册 > 手机壳 > K1 参数"]]}
+{"id": "B037", "bucket": "B_model", "difficulty": "medium", "query": "K2 Pro 是支架异响，我的 K1 Pro 背板和边框分离了，要怎样报售后，能自己粘胶吗？", "relevant": [["商品手册 > 手机壳 > K1 Pro 常见故障"]]}
+{"id": "B038", "bucket": "B_model", "difficulty": "hard", "query": "K2 Pro 是展开异响，我这 k2 的支架收不回，转轴先查什么、还能硬折吗？", "relevant": [["商品手册 > 手机壳 > K2 常见故障"]]}
+{"id": "B039", "bucket": "B_model", "difficulty": "medium", "query": "我拿的是 K1 Plus 半透明壳而非 K1 Pro，壳体用料和四角缓冲层厚度是什么？", "relevant": [["商品手册 > 手机壳 > K1 Plus 材质"]]}
+{"id": "B040", "bucket": "B_model", "difficulty": "hard", "query": "别讲 K1 装不上手机，我用 k2pro 支架展开吱吱响，先清理哪里，处理后还响怎么办？", "relevant": [["商品手册 > 手机壳 > K2 Pro 常见故障"]]}
+{"id": "B041", "bucket": "B_model", "difficulty": "medium", "query": "C5 Plus 杯子里是茶渍，我的 C5 Pro 弹扣打不开，开盖动作应如何配合？", "relevant": [["商品手册 > 保温杯 > C5 Pro 常见故障"]]}
+{"id": "B042", "bucket": "B_model", "difficulty": "hard", "query": "别把 K2 的支架壳混进来，我买 k1plus，它的外观类型及边框厚度到底是什么？", "relevant": [["商品手册 > 手机壳 > K1 Plus 参数"]]}
+{"id": "B043", "bucket": "B_model", "difficulty": "hard", "query": "T5 续航我看过，我问 t5pro 每天两回每回两分钟，充满一次能用多少天，充电需多久？", "relevant": [["商品手册 > 电动牙刷 > T5 Pro 续航"]]}
+{"id": "B044", "bucket": "B_model", "difficulty": "medium", "query": "朋友 T3 没旅行充电盒，我的 T5 Pro 退货时这只盒子算配件要寄回吗？", "relevant": [["商品手册 > 电动牙刷 > T5 Pro 退换规则"]]}
+{"id": "B045", "bucket": "B_model", "difficulty": "easy", "query": "X5 Pro 的保修期是多少天？", "relevant": [["商品手册 > 蓝牙耳机 > X5 Pro 保修"]]}
+{"id": "B046", "bucket": "B_model", "difficulty": "easy", "query": "W2 Plus 剪掉吊牌或洗过以后还支持无理由退货吗？", "relevant": [["商品手册 > 羊毛衫 > W2 Plus 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "B047", "bucket": "B_model", "difficulty": "medium", "query": "T3 Pro 只用底座，我想确认 T5 Pro 附带的旅行充电盒能干什么？", "relevant": [["商品手册 > 电动牙刷 > T5 Pro 参数"]]}
+{"id": "B048", "bucket": "B_model", "difficulty": "easy", "query": "X3 Lite 只拆耳塞套还能无理由退货吗？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Lite 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "B049", "bucket": "B_model", "difficulty": "medium", "query": "我的是 T5 Pro，别按 T3 Lite 的普通配件讲，已拆刷头但主机完好的情况下，主机、刷头和旅行盒各怎么退？", "relevant": [["商品手册 > 电动牙刷 > T5 Pro 退换规则"]]}
+{"id": "B050", "bucket": "B_model", "difficulty": "hard", "query": "R2 Pro 的皮面先放一边，我问 r1plus 那双慢跑鞋面、中底用什么，鞋垫有什么特点？", "relevant": [["商品手册 > 运动鞋 > R1 Plus 材质"]]}
+{"id": "C001", "bucket": "C_colloquial", "difficulty": "medium", "query": "我这副 X3 Lite 想把地铁轰隆声压下去，它有主动降噪这玩意儿吗？", "relevant": [["商品FAQ > 蓝牙耳机 > X3 Lite 能降噪吗？", "商品手册 > 蓝牙耳机 > X3 Lite 参数"]]}
+{"id": "C002", "bucket": "C_colloquial", "difficulty": "easy", "query": "X5 Pro 把降噪打开听歌，一次大概能撑几个钟头呀？", "relevant": [["商品FAQ > 蓝牙耳机 > X5 Pro 开降噪能撑多久？", "商品手册 > 蓝牙耳机 > X5 Pro 续航"]]}
+{"id": "C003", "bucket": "C_colloquial", "difficulty": "easy", "query": "扫地那家伙老回不了充电窝，周围怎么腾位置、触点怎么擦呀？", "relevant": [["商品FAQ > 扫地机器人 > 扫地机老是找不到充电座咋办？", "商品手册 > 扫地机器人 > S10 Pro 常见故障"]]}
+{"id": "C004", "bucket": "C_colloquial", "difficulty": "hard", "query": "家里 t3 lite、T3 和 T5 的刷头堆一块儿了，别让我硬插，哪几款能串着用，哪款接口另算？", "relevant": [["商品FAQ > 电动牙刷 > T3 Lite 和 T3 的刷头能混用吗？"]]}
+{"id": "C005", "bucket": "C_colloquial", "difficulty": "medium", "query": "L2 Pro 接充电宝就暗一截，真烦！我用 5V 2A，亮度会卡到多少，想更亮该换啥输出？", "relevant": [["商品FAQ > 台灯 > L2 Pro 插充电宝为啥不够亮？", "商品手册 > 台灯 > L2 Pro 材质", "商品手册 > 台灯 > L2 Pro 常见故障"]]}
+{"id": "C006", "bucket": "C_colloquial", "difficulty": "medium", "query": "想多保热一点，C5 Pro 跟 C5 都灌九十五度热水，六小时、十二小时后分别差几度啊？", "relevant": [["商品FAQ > 保温杯 > C5 Pro 比 C5 保温好多少？"]]}
+{"id": "C007", "bucket": "C_colloquial", "difficulty": "medium", "query": "K2 Pro 背后那块撑手机的小架子能掰到几度呀？", "relevant": [["商品FAQ > 手机壳 > K2 Pro 的支架能撑多大角度？", "商品手册 > 手机壳 > K2 Pro 参数"]]}
+{"id": "C008", "bucket": "C_colloquial", "difficulty": "medium", "query": "我下午五点付了现货的钱，今天还会出库不，多久能给我发出来呀？", "relevant": [["商品FAQ > 配送与签收 > 下单后多久能发货啊？", "配送与签收政策 > 发货 > 发货时效"]]}
+{"id": "C009", "bucket": "C_colloquial", "difficulty": "medium", "query": "东西进柜子那天我没去拿，退货倒计时到底认柜子的记录还是我取出来那天呀？", "relevant": [["商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？", "配送与签收政策 > 签收 > 快递柜与代签"]]}
+{"id": "C010", "bucket": "C_colloquial", "difficulty": "medium", "query": "现货钱付了两天多还没发，气死了，能领啥补偿，券多久过期？", "relevant": [["商品FAQ > 配送与签收 > 超过两天还没发货有补偿吗？", "配送与签收政策 > 发货 > 延迟发货补偿"]]}
+{"id": "C011", "bucket": "C_colloquial", "difficulty": "hard", "query": "预订的钱先交了，我自己漏付尾款和店家发不出来这两种别混着说，订金各退不退？", "relevant": [["商品FAQ > 预售与缺货 > 预售交的定金还能退吗？", "预售与缺货政策 > 预售 > 定金退还"]]}
+{"id": "C012", "bucket": "C_colloquial", "difficulty": "hard", "query": "钱都付完才说断货，等了十天还没补上！不是换货呀，新买这单最后咋退钱、给啥补偿？", "relevant": [["商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "C013", "bucket": "C_colloquial", "difficulty": "medium", "query": "坏了要修、票也要开，我在订单里翻晕了，售后统一从哪儿点进去呀？", "relevant": [["售后手册"]]}
+{"id": "C014", "bucket": "C_colloquial", "difficulty": "hard", "query": "朋友把 S10 跟 s10-pro 讲混了，我要后面这台的吸力多少、机身多高，别再抄旧款！", "relevant": [["商品手册 > 扫地机器人 > S10 Pro 参数"]]}
+{"id": "C015", "bucket": "C_colloquial", "difficulty": "easy", "query": "贴身衣服包装撕了，没毛病但不想要，能走无理由退不？", "relevant": [["退货政策 > 退货条件 > 不支持退货的情形"]]}
+{"id": "C016", "bucket": "C_colloquial", "difficulty": "easy", "query": "R1 Plus 那双鞋啥料做的呀，鞋垫有啥特别的？", "relevant": [["商品手册 > 运动鞋 > R1 Plus 材质"]]}
+{"id": "C017", "bucket": "C_colloquial", "difficulty": "hard", "query": "w1pro 的吊牌我手欠剪了，可衣服没洗没穿，别拿七天就能退糊弄我，还能无理由退吗？", "relevant": [["商品手册 > 羊毛衫 > W1 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "C018", "bucket": "C_colloquial", "difficulty": "hard", "query": "S10 Max 滚刷磨旧了，我以为跟主机一起保；主机到底保几天，滚刷正常磨损算质量毛病不？", "relevant": [["商品手册 > 扫地机器人 > S10 Max 保修"]]}
+{"id": "C019", "bucket": "C_colloquial", "difficulty": "easy", "query": "修东西能让人上门拿走不，页面有取件选项时咋约呀？", "relevant": [["售后手册 > 维修 > 上门取件"]]}
+{"id": "C020", "bucket": "C_colloquial", "difficulty": "hard", "query": "l2pro 的灯罩收货就碎了，我想着等周末再说，别只讲十五天质量退货，这个得啥时候反馈？", "relevant": [["商品手册 > 台灯 > L2 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "C021", "bucket": "C_colloquial", "difficulty": "medium", "query": "东西都已经发出来了，我现在反悔，订单还能一键撤掉不？", "relevant": [["常见问答 > 支付 > 订单可以取消吗？", "退货政策 > 订单取消"]]}
+{"id": "C022", "bucket": "C_colloquial", "difficulty": "hard", "query": "桌上是最普通的 l1，别报 L1 Plus 那个数，它最亮多少、色温几种？", "relevant": [["商品手册 > 台灯 > L1 参数"]]}
+{"id": "C023", "bucket": "C_colloquial", "difficulty": "hard", "query": "k1pro 晒久了泛黄，我很不爽；到底原本质保几天，这种黄算免费修不？", "relevant": [["商品手册 > 手机壳 > K1 Pro 保修"]]}
+{"id": "C024", "bucket": "C_colloquial", "difficulty": "medium", "query": "R1 Pro 鞋面缝线裂开了，要拍哪里给售后看呀？", "relevant": [["商品手册 > 运动鞋 > R1 Pro 常见故障"]]}
+{"id": "C025", "bucket": "C_colloquial", "difficulty": "hard", "query": "l1plus 和 L1 Pro 我越看越晕，前面这个最亮多少，带多久自动关灯的功能啊？", "relevant": [["商品手册 > 台灯 > L1 Plus 参数"]]}
+{"id": "C026", "bucket": "C_colloquial", "difficulty": "hard", "query": "l2 摔了把灯罩摔破，质保期限我记乱了，它保几天，这种破损能白修吗？", "relevant": [["商品手册 > 台灯 > L2 保修"]]}
+{"id": "C027", "bucket": "C_colloquial", "difficulty": "medium", "query": "K1 Pro 边框看着不厚，实际几毫米、是什么外形的壳呀？", "relevant": [["商品手册 > 手机壳 > K1 Pro 参数"]]}
+{"id": "C028", "bucket": "C_colloquial", "difficulty": "medium", "query": "我买 K2 Pro 拿来看视频，边框多厚，小支架能撑几度啊？", "relevant": [["商品手册 > 手机壳 > K2 Pro 参数"]]}
+{"id": "C029", "bucket": "C_colloquial", "difficulty": "easy", "query": "我脚背高，球鞋该选平时码还是加半码呀？", "relevant": [["商品FAQ > 运动鞋 > 运动鞋尺码怎么选？", "商品手册 > 运动鞋 > R1 参数", "商品手册 > 运动鞋 > R1 Pro 参数", "商品手册 > 运动鞋 > R2 参数", "商品手册 > 运动鞋 > R1 Plus 参数", "商品手册 > 运动鞋 > R2 Pro 参数"]]}
+{"id": "C030", "bucket": "C_colloquial", "difficulty": "medium", "query": "C5 Pro 这杯能灌多少水，里面是啥号不锈钢啊？", "relevant": [["商品手册 > 保温杯 > C5 Pro 容量"]]}
+{"id": "C031", "bucket": "C_colloquial", "difficulty": "hard", "query": "t3pro 一刷重了会提醒不，力度几档、隔多久提示换地方刷？别把 T3 Lite 的档位算进来！", "relevant": [["商品手册 > 电动牙刷 > T3 Pro 参数"]]}
+{"id": "C032", "bucket": "C_colloquial", "difficulty": "medium", "query": "这普通电动牙刷每天早晚各刷两分钟，充满要多久、能撑多少天呀？", "relevant": [["商品FAQ > 电动牙刷 > 电动牙刷充一次电能用多久？", "商品手册 > 电动牙刷 > T3 续航"]]}
+{"id": "C033", "bucket": "C_colloquial", "difficulty": "hard", "query": "我看配送那份规则越看越乱，现货那套发货配送签收和预订发货到底谁管，退款又看哪份？", "relevant": [["配送与签收政策"]]}
+{"id": "C034", "bucket": "C_colloquial", "difficulty": "medium", "query": "K1 Plus 四角那圈缓冲有多厚，壳用的啥料呀？", "relevant": [["商品手册 > 手机壳 > K1 Plus 材质"]]}
+{"id": "C035", "bucket": "C_colloquial", "difficulty": "easy", "query": "带电的牙刷上飞机会不会被拦呀，随身还是托运，出门前咋收拾？", "relevant": [["商品FAQ > 电动牙刷 > 电动牙刷可以带上飞机吗？"]]}
+{"id": "C036", "bucket": "C_colloquial", "difficulty": "hard", "query": "w1pro 的袖口越穿越松，我想直接熨斗压一下，又怕烫坏，正确的处理动作是啥？", "relevant": [["商品手册 > 羊毛衫 > W1 Pro 常见故障"]]}
+{"id": "C037", "bucket": "C_colloquial", "difficulty": "easy", "query": "C5 灌热水以后保热怎么样呀，九十五度水放六小时和十二小时大概还几度？", "relevant": [["商品手册 > 保温杯 > C5 参数", "商品FAQ > 保温杯 > 保温杯保温效果能维持多久？", "商品FAQ > 保温杯 > C5 Pro 比 C5 保温好多少？"]]}
+{"id": "C038", "bucket": "C_colloquial", "difficulty": "hard", "query": "预订一千块的东西不是一次全交吧？先交多少，尾款窗口几天、看哪里，我可不想错过！", "relevant": [["预售与缺货政策 > 预售 > 定金与尾款"]]}
+{"id": "C039", "bucket": "C_colloquial", "difficulty": "easy", "query": "S10 Max 拖地怎么不喷水了呀，先查哪儿？", "relevant": [["商品手册 > 扫地机器人 > S10 Max 常见故障"]]}
+{"id": "C040", "bucket": "C_colloquial", "difficulty": "medium", "query": "同一件先拿了降价补差，现在又只退它，别把差额再退一遍，退款咋算呀？", "relevant": [["退货政策 > 特殊情况 > 部分退款"]]}
+{"id": "C041", "bucket": "C_colloquial", "difficulty": "medium", "query": "我想拿保温杯闷热茶上班，隔多久最好喝掉，闷太久会咋样？", "relevant": [["商品FAQ > 保温杯 > 保温杯能装热茶吗？", "商品手册 > 保温杯 > C5 容量", "商品手册 > 保温杯 > C5 Plus 容量", "商品手册 > 保温杯 > C8 容量", "商品手册 > 保温杯 > C5 Pro 容量", "商品手册 > 保温杯 > C8 Plus 容量"]]}
+{"id": "C042", "bucket": "C_colloquial", "difficulty": "hard", "query": "我这 t3lite 不是 T3，每天早晚刷两分钟，插电充满要多久，到底能扛多少天啊？", "relevant": [["商品手册 > 电动牙刷 > T3 Lite 续航"]]}
+{"id": "C043", "bucket": "C_colloquial", "difficulty": "easy", "query": "K2 Pro 那个支架坏了，质量问题能保多少天呀？", "relevant": [["商品手册 > 手机壳 > K2 Pro 保修"]]}
+{"id": "C044", "bucket": "C_colloquial", "difficulty": "hard", "query": "组合装我只想留一件退一件，明明都没用！无理由能拆开退吗，需要一起寄啥？", "relevant": [["退货政策 > 特殊情况 > 套装退货"]]}
+{"id": "C045", "bucket": "C_colloquial", "difficulty": "medium", "query": "扫地那小家伙的灰盒、滤网和刷子，分别多勤快清理或换掉呀？", "relevant": [["商品FAQ > 扫地机器人 > 扫地机器人需要多久清理一次尘盒？"]]}
+{"id": "C046", "bucket": "C_colloquial", "difficulty": "hard", "query": "等维修等得火大，不是问配件调货，我这普通寄修从商家收货算要几天？", "relevant": [["常见问答 > 售后维修 > 维修需要多长时间？", "售后手册 > 维修 > 维修时间"]]}
+{"id": "C047", "bucket": "C_colloquial", "difficulty": "medium", "query": "C5 Pro 杯子被我用出划痕了，不想要还走得了无理由退吗？", "relevant": [["商品手册 > 保温杯 > C5 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "C048", "bucket": "C_colloquial", "difficulty": "hard", "query": "x3pro 耳塞套我拆了，别拿 X5 拆封不能退套我，七天内完好想退要注意啥？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "C049", "bucket": "C_colloquial", "difficulty": "medium", "query": "S10 Pro 老找不到充电窝，旁边和前面得留多远呀？", "relevant": [["商品手册 > 扫地机器人 > S10 Pro 常见故障", "商品FAQ > 扫地机器人 > 扫地机老是找不到充电座咋办？"]]}
+{"id": "C050", "bucket": "C_colloquial", "difficulty": "hard", "query": "刚签收就开始算保修我不服！到底从哪天起算，修过的零件另外能保多久？", "relevant": [["售后手册 > 维修 > 保修期"]]}
+{"id": "D001", "bucket": "D_unanswerable", "difficulty": "medium", "query": "看到 X5 Lite 比 X3 Lite 便宜，想确认 X5 Lite 开降噪单次能听多久？", "relevant": []}
+{"id": "D002", "bucket": "D_unanswerable", "difficulty": "hard", "query": "S10 Pro 只支持 2.4GHz 我知道，但广告写 s10ultra，别拿 Pro 答，这款能保存几张地图？", "relevant": []}
+{"id": "D003", "bucket": "D_unanswerable", "difficulty": "hard", "query": "K2 Pro 支架九十度我看过，我这个 k3 支架能展开多少，别给我旧款角度。", "relevant": []}
+{"id": "D004", "bucket": "D_unanswerable", "difficulty": "medium", "query": "想买 W2 Lite 开衫送人，它的 M 码胸围有多大？", "relevant": []}
+{"id": "D005", "bucket": "D_unanswerable", "difficulty": "hard", "query": "T5 Pro 能用旅行盒充电，我问 t5ultra 是几档清洁力度，别抄 Pro。", "relevant": []}
+{"id": "D006", "bucket": "D_unanswerable", "difficulty": "easy", "query": "L3 台灯最大亮度多少流明？", "relevant": []}
+{"id": "D007", "bucket": "D_unanswerable", "difficulty": "medium", "query": "C8 Pro 的杯盖有提手吗，适合我每天提着走不？", "relevant": []}
+{"id": "D008", "bucket": "D_unanswerable", "difficulty": "easy", "query": "R3 运动鞋 42 码单只重多少？", "relevant": []}
+{"id": "D009", "bucket": "D_unanswerable", "difficulty": "hard", "query": "R2 Pro 有防泼水鞋面我知道，我要 r2max 的外底用料，别再说 Pro。", "relevant": []}
+{"id": "D010", "bucket": "D_unanswerable", "difficulty": "easy", "query": "K2 Lite 的四角缓冲层厚度是多少？", "relevant": []}
+{"id": "D011", "bucket": "D_unanswerable", "difficulty": "hard", "query": "W1 Pro 袖口处理我看了，我这个 w1max 的材质配比是什么，不是问熨衣服。", "relevant": []}
+{"id": "D012", "bucket": "D_unanswerable", "difficulty": "medium", "query": "X3 Ultra 充一次加上盒子总共能听几小时？", "relevant": []}
+{"id": "D013", "bucket": "D_unanswerable", "difficulty": "hard", "query": "C5 Pro 六小时保热七十五度我知道，我问 c5lite 同样装热水十二小时多少度。", "relevant": []}
+{"id": "D014", "bucket": "D_unanswerable", "difficulty": "easy", "query": "S20 Lite 尘盒容量是多少毫升？", "relevant": []}
+{"id": "D015", "bucket": "D_unanswerable", "difficulty": "hard", "query": "L2 Pro 能到八百流明，但我想核对 l2max 的灯臂长度，别拿 Pro 那个数。", "relevant": []}
+{"id": "D016", "bucket": "D_unanswerable", "difficulty": "hard", "query": "X5 Pro 的空间音频我懂，别绕回这点，我想知道 x5pro 玩游戏时音频延迟具体是多少毫秒？", "relevant": []}
+{"id": "D017", "bucket": "D_unanswerable", "difficulty": "hard", "query": "W2 Plus 写了美利奴羊毛，但我关心 w2plus 的面料克重是多少克每平方米，别拿成分比例代替。", "relevant": []}
+{"id": "D018", "bucket": "D_unanswerable", "difficulty": "easy", "query": "S10 Pro 的最大越障高度是多少厘米？", "relevant": []}
+{"id": "D019", "bucket": "D_unanswerable", "difficulty": "medium", "query": "T5 Pro 每天刷两回时，刷头的震动振幅有多少毫米？", "relevant": []}
+{"id": "D020", "bucket": "D_unanswerable", "difficulty": "medium", "query": "L2 Pro 放在书桌上照明时，光束角是多少度？", "relevant": []}
+{"id": "D021", "bucket": "D_unanswerable", "difficulty": "easy", "query": "C5 Pro 的空杯重量是多少克？", "relevant": []}
+{"id": "D022", "bucket": "D_unanswerable", "difficulty": "easy", "query": "R2 Pro 中底的邵氏硬度是多少？", "relevant": []}
+{"id": "D023", "bucket": "D_unanswerable", "difficulty": "easy", "query": "K2 Pro 的热变形温度是多少摄氏度？", "relevant": []}
+{"id": "D024", "bucket": "D_unanswerable", "difficulty": "medium", "query": "X3 Lite 连电脑开会时，麦克风灵敏度的规格是多少？", "relevant": []}
+{"id": "D025", "bucket": "D_unanswerable", "difficulty": "hard", "query": "S20 Max 能存五张图我看到了，但 s20max 电机的额定功率是多少瓦，别拿吸力数值代替。", "relevant": []}
+{"id": "D026", "bucket": "D_unanswerable", "difficulty": "medium", "query": "T3 Lite 换刷头时，连接刷头的金属轴直径是多少毫米？", "relevant": []}
+{"id": "D027", "bucket": "D_unanswerable", "difficulty": "medium", "query": "W1 Pro 的羊毛成分我知道，贴身穿时用的染料种类是什么？", "relevant": []}
+{"id": "D028", "bucket": "D_unanswerable", "difficulty": "hard", "query": "L1 Plus 三十分钟定时我知道，但熬夜用这盏 l1plus 的频闪检测值是多少？", "relevant": []}
+{"id": "D029", "bucket": "D_unanswerable", "difficulty": "medium", "query": "C8 Plus 装饮用水时，密封圈的食品接触迁移量测试结果是多少？", "relevant": []}
+{"id": "D030", "bucket": "D_unanswerable", "difficulty": "medium", "query": "K1 Plus 用 TPU 我看过，我想知道 k1plus 表面的摩擦系数具体是多少，别用缓冲层厚度代替。", "relevant": []}
+{"id": "D031", "bucket": "D_unanswerable", "difficulty": "easy", "query": "商城礼品包装服务怎么收费？", "relevant": []}
+{"id": "D032", "bucket": "D_unanswerable", "difficulty": "hard", "query": "现货四十八小时发货我知道，买 X3 Lite 送人想让你们代写贺卡，字数上限和收费怎么定？", "relevant": []}
+{"id": "D033", "bucket": "D_unanswerable", "difficulty": "hard", "query": "新疆会晚几天我知道，公司买 S10 Pro 想预约视频培训，使用教学多长时间、收多少钱？", "relevant": []}
+{"id": "D034", "bucket": "D_unanswerable", "difficulty": "medium", "query": "下单送人想隐藏价格，商城的订单代赠隐藏价格服务要怎么申请？", "relevant": []}
+{"id": "D035", "bucket": "D_unanswerable", "difficulty": "medium", "query": "装修书房买 L2 Pro，想预约上门布光方案设计服务，费用怎样计算？", "relevant": []}
+{"id": "D036", "bucket": "D_unanswerable", "difficulty": "easy", "query": "商城旧包装回收奖励怎么领取？", "relevant": []}
+{"id": "D037", "bucket": "D_unanswerable", "difficulty": "hard", "query": "电子普通票会开我知道，公司还想申请商品说明书翻译服务，能翻成哪几种语言、怎样收费？", "relevant": []}
+{"id": "D038", "bucket": "D_unanswerable", "difficulty": "hard", "query": "同款换货能换颜色我知道，但买 R1 Plus 后想预约付费鞋履清洁服务，怎么预约、收费怎么算？", "relevant": []}
+{"id": "D039", "bucket": "D_unanswerable", "difficulty": "hard", "query": "维修进度能在订单页看我清楚，公司还要办检测报告盖章服务，怎么申请、收多少钱？", "relevant": []}
+{"id": "D040", "bucket": "D_unanswerable", "difficulty": "hard", "query": "预售定金二成我明白，买 X5 Pro 前想预约视频验货服务，怎样预约、服务费是多少？", "relevant": []}
+{"id": "D041", "bucket": "D_unanswerable", "difficulty": "easy", "query": "商城的商品图片商用授权服务怎么申请？", "relevant": []}
+{"id": "D042", "bucket": "D_unanswerable", "difficulty": "medium", "query": "我想先看实物颜色再买 W1 Pro，色卡寄送服务如何申请？", "relevant": []}
+{"id": "D043", "bucket": "D_unanswerable", "difficulty": "hard", "query": "买扫地机的大件配送我知道，拆箱后想预约包装清运服务，怎么预约、费用怎么收？", "relevant": []}
+{"id": "D044", "bucket": "D_unanswerable", "difficulty": "hard", "query": "以旧换新抵扣不现金退我懂，但新买 S20 Max 的国补资格怎样审核？", "relevant": []}
+{"id": "D045", "bucket": "D_unanswerable", "difficulty": "medium", "query": "买 R2 Pro 前想预约步态测评服务，在哪预约、一次多少钱？", "relevant": []}
+{"id": "D046", "bucket": "D_unanswerable", "difficulty": "medium", "query": "每天穿 R1 Plus 训练，你们能承诺我的五公里跑步成绩必定提高吗？", "relevant": []}
+{"id": "D047", "bucket": "D_unanswerable", "difficulty": "medium", "query": "我买 W2 Plus 是为了拍照，你们能保证每次上身都显瘦吗？", "relevant": []}
+{"id": "D048", "bucket": "D_unanswerable", "difficulty": "easy", "query": "用 X3 Lite 听外语，你们能保证每句外语都听懂吗？", "relevant": []}
+{"id": "D049", "bucket": "D_unanswerable", "difficulty": "hard", "query": "S20 Max 能存五张图我知道，但木地板缝里总有灰，你们能保证每次清扫都把所有地板缝隙扫净吗？", "relevant": []}
+{"id": "D050", "bucket": "D_unanswerable", "difficulty": "easy", "query": "W1 Pro 能保证每个人穿都贴合肩线吗？", "relevant": []}
+{"id": "D051", "bucket": "D_unanswerable", "difficulty": "hard", "query": "L2 Pro 亮度能调我知道，我用手机拍作业，你们能承诺每张照片都没有阴影吗？", "relevant": []}
+{"id": "D052", "bucket": "D_unanswerable", "difficulty": "easy", "query": "T5 Pro 能保证用一周牙齿必定变白吗？", "relevant": []}
+{"id": "D053", "bucket": "D_unanswerable", "difficulty": "hard", "query": "C5 Pro 十二小时约六十度我知道，我想要的是 c5pro 全年使用杯身外壁绝不结露的承诺，能给吗？", "relevant": []}
+{"id": "D054", "bucket": "D_unanswerable", "difficulty": "hard", "query": "R2 Pro 鞋面防泼水我知道，但我走十公里很累，你们敢保证每次穿它徒步都省力一半吗？", "relevant": []}
+{"id": "D055", "bucket": "D_unanswerable", "difficulty": "medium", "query": "手机套上 K2 Pro 后，你们能承诺任何光照下拍照绝无反光吗？", "relevant": []}
+{"id": "D056", "bucket": "D_unanswerable", "difficulty": "easy", "query": "S10 Pro 清扫时能保证绝不误吸首饰吗？", "relevant": []}
+{"id": "D057", "bucket": "D_unanswerable", "difficulty": "medium", "query": "今天买 X5 Pro 开线上会议，你们能承诺对方每个字都听清吗？", "relevant": []}
+{"id": "D058", "bucket": "D_unanswerable", "difficulty": "medium", "query": "我总忘记喝水，换 C8 Plus 后你们能保证我每天自觉喝够八杯水吗？", "relevant": []}
+{"id": "D059", "bucket": "D_unanswerable", "difficulty": "hard", "query": "L2 Pro 保修五百四十天我知道，但我天天调 l2pro 的灯臂，你们能承诺调好后一年内灯臂始终保持原位吗？", "relevant": []}
+{"id": "D060", "bucket": "D_unanswerable", "difficulty": "hard", "query": "T3 Pro 有压力提醒我清楚，但我关心口气，你们能保证刷一次就口气全天清新吗？", "relevant": []}
+{"id": "E001", "bucket": "E_multi", "difficulty": "hard", "query": "别把 R1 Plus 那个期限抄来，r1、R2、r2pro 三双都可能开胶，我想按质保长短选，分别保几天、谁最长？", "relevant": [["商品手册 > 运动鞋 > R1 保修"], ["商品手册 > 运动鞋 > R2 保修"], ["商品手册 > 运动鞋 > R2 Pro 保修"]]}
+{"id": "E002", "bucket": "E_multi", "difficulty": "hard", "query": "我家三副耳机各闹各的：X3 单边哑、x3lite 盒灯黑、X5PRO 空间音频没效果，别套 X3 Pro 的招，分别先排查什么？", "relevant": [["商品手册 > 蓝牙耳机 > X3 常见故障"], ["商品手册 > 蓝牙耳机 > X3 Lite 常见故障"], ["商品手册 > 蓝牙耳机 > X5 Pro 常见故障"]]}
+{"id": "E003", "bucket": "E_multi", "difficulty": "medium", "query": "给家人挑壳，要比 K2、K1 Plus、K2 Pro 的边框厚度和外观，带支架的还要比较展开角度，各是什么？", "relevant": [["商品手册 > 手机壳 > K2 参数"], ["商品手册 > 手机壳 > K1 Plus 参数"], ["商品手册 > 手机壳 > K2 Pro 参数"]]}
+{"id": "E004", "bucket": "E_multi", "difficulty": "medium", "query": "皮肤怕混纺，想在 W1、W1 Pro、W2 Plus 中按羊毛比例和羊毛种类挑一件，三款的成分各是什么？", "relevant": [["商品手册 > 羊毛衫 > W1 材质"], ["商品手册 > 羊毛衫 > W1 Pro 材质"], ["商品手册 > 羊毛衫 > W2 Plus 材质"]]}
+{"id": "E005", "bucket": "E_multi", "difficulty": "hard", "query": "朋友只记住 X3 Pro 那个期限，把 x3、X5、X5PRO 也混了；三款都因质量毛病想修，保修天数各多少？", "relevant": [["商品手册 > 蓝牙耳机 > X3 保修"], ["商品手册 > 蓝牙耳机 > X5 保修"], ["商品手册 > 蓝牙耳机 > X5 Pro 保修"]]}
+{"id": "E006", "bucket": "E_multi", "difficulty": "medium", "query": "家里三个壳分别是 K1 Pro 背板分离、K2 支架收不回、K2 Pro 展开异响，为避免把排查动作混用，各该先怎样处理？", "relevant": [["商品手册 > 手机壳 > K1 Pro 常见故障"], ["商品手册 > 手机壳 > K2 常见故障"], ["商品手册 > 手机壳 > K2 Pro 常见故障"]]}
+{"id": "E007", "bucket": "E_multi", "difficulty": "hard", "query": "T3 Pro、t5、t3lite 都说能保修，别把 T3 也混进来，我按主机质保期选，三款分别多少天？", "relevant": [["商品手册 > 电动牙刷 > T3 Pro 保修"], ["商品手册 > 电动牙刷 > T5 保修"], ["商品手册 > 电动牙刷 > T3 Lite 保修"]]}
+{"id": "E008", "bucket": "E_multi", "difficulty": "medium", "query": "一天听歌很久，X3、X3 Pro、X3 Lite 都把音量调到一半，Pro 关降噪，三款单次和带盒续航怎样排序？", "relevant": [["商品手册 > 蓝牙耳机 > X3 续航", "商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？"], ["商品手册 > 蓝牙耳机 > X3 Pro 续航"], ["商品手册 > 蓝牙耳机 > X3 Lite 续航"]]}
+{"id": "E009", "bucket": "E_multi", "difficulty": "medium", "query": "预算之外也在意维修期限，X3 Pro、X3 Lite、X5 Pro 出质量故障，各保修多少天，哪个最短？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Pro 保修"], ["商品手册 > 蓝牙耳机 > X3 Lite 保修"], ["商品手册 > 蓝牙耳机 > X5 Pro 保修"]]}
+{"id": "E010", "bucket": "E_multi", "difficulty": "medium", "query": "办公室 L1 不亮、L1 Plus 定时关闭后点不亮、L2 Pro 无法调到最亮，想先自己排查，三种分别做什么？", "relevant": [["商品手册 > 台灯 > L1 常见故障"], ["商品手册 > 台灯 > L1 Plus 常见故障"], ["商品手册 > 台灯 > L2 Pro 常见故障", "商品FAQ > 台灯 > L2 Pro 插充电宝为啥不够亮？", "商品手册 > 台灯 > L2 Pro 材质"]]}
+{"id": "E011", "bucket": "E_multi", "difficulty": "medium", "query": "给三个人买 W1、W1 Plus、W1 Pro，都想剪吊牌试穿后再无理由退货，三款允许吗，质量退换期限又各是多少？", "relevant": [["商品手册 > 羊毛衫 > W1 退换规则", "退货政策 > 品类退换货规则"], ["商品手册 > 羊毛衫 > W1 Plus 退换规则", "退货政策 > 品类退换货规则"], ["商品手册 > 羊毛衫 > W1 Pro 退换规则", "退货政策 > 品类退换货规则"]]}
+{"id": "E012", "bucket": "E_multi", "difficulty": "medium", "query": "洗漱台上 T3 Pro 压力灯常亮、T5 电量显示黑、T5 Pro 旅行盒充不上，为免处理错配件，分别先检查什么？", "relevant": [["商品手册 > 电动牙刷 > T3 Pro 常见故障"], ["商品手册 > 电动牙刷 > T5 常见故障"], ["商品手册 > 电动牙刷 > T5 Pro 常见故障"]]}
+{"id": "E013", "bucket": "E_multi", "difficulty": "medium", "query": "三双鞋分别是 R1 Pro 鞋面缝线裂、R1 Plus 鞋垫异味、R2 Pro 锁扣松，要按故障安排处理，分别应怎样做？", "relevant": [["商品手册 > 运动鞋 > R1 Pro 常见故障"], ["商品手册 > 运动鞋 > R1 Plus 常见故障"], ["商品手册 > 运动鞋 > R2 Pro 常见故障"]]}
+{"id": "E014", "bucket": "E_multi", "difficulty": "medium", "query": "买鞋想兼顾用料和鞋面防泼水，R2、R1 Plus、R2 Pro 的鞋面、中底、外底分别是什么，哪双鞋面写了防泼水？", "relevant": [["商品手册 > 运动鞋 > R2 材质"], ["商品手册 > 运动鞋 > R1 Plus 材质"], ["商品手册 > 运动鞋 > R2 Pro 材质"]]}
+{"id": "E015", "bucket": "E_multi", "difficulty": "medium", "query": "L1 全不亮、L2 接充电宝闪、L2 Pro 亮不到最高，都是供电问题吗，三款各先检查什么电源规格或线材？", "relevant": [["商品手册 > 台灯 > L1 常见故障"], ["商品手册 > 台灯 > L2 常见故障"], ["商品手册 > 台灯 > L2 Pro 常见故障", "商品FAQ > 台灯 > L2 Pro 插充电宝为啥不够亮？", "商品手册 > 台灯 > L2 Pro 材质"]]}
+{"id": "E016", "bucket": "E_multi", "difficulty": "hard", "query": "C8 Plus 先别管，我的 c5 漏杯盖、C5 Plus 内胆茶渍、c5pro 弹扣打不开，别让我三只都硬拧，分别怎么处理？", "relevant": [["商品手册 > 保温杯 > C5 常见故障"], ["商品手册 > 保温杯 > C5 Plus 常见故障"], ["商品手册 > 保温杯 > C5 Pro 常见故障"]]}
+{"id": "E017", "bucket": "E_multi", "difficulty": "hard", "query": "别拿 K1 Plus 的边框来凑数，我比较 k1pro、K2、k2pro，边框各几毫米，两款支架又各能撑几度？", "relevant": [["商品手册 > 手机壳 > K1 Pro 参数"], ["商品手册 > 手机壳 > K2 参数"], ["商品手册 > 手机壳 > K2 Pro 参数"]]}
+{"id": "E018", "bucket": "E_multi", "difficulty": "easy", "query": "比较 S20、S10 Pro、S20 Max 的退换规则：建过图退回前各要恢复设置、退出账号和删除地图吗？", "relevant": [["商品手册 > 扫地机器人 > S20 退换规则"], ["商品手册 > 扫地机器人 > S10 Pro 退换规则"], ["商品手册 > 扫地机器人 > S20 Max 退换规则"]]}
+{"id": "E019", "bucket": "E_multi", "difficulty": "hard", "query": "不是 R1 鞋垫滑动，我三双分别是 r1pro 鞋面裂线、R2 夹石子、r1plus 鞋垫异味；分别怎么处理才不把损伤扩大？", "relevant": [["商品手册 > 运动鞋 > R1 Pro 常见故障"], ["商品手册 > 运动鞋 > R2 常见故障"], ["商品手册 > 运动鞋 > R1 Plus 常见故障"]]}
+{"id": "E020", "bucket": "E_multi", "difficulty": "easy", "query": "S10、S10 Pro、S20 Max 已建图后的退货准备有什么异同，三款无理由、质量退货和质量换货期限各是多少？", "relevant": [["商品手册 > 扫地机器人 > S10 退换规则"], ["商品手册 > 扫地机器人 > S10 Pro 退换规则"], ["商品手册 > 扫地机器人 > S20 Max 退换规则"]]}
+{"id": "E021", "bucket": "E_multi", "difficulty": "hard", "query": "c5 的盖漏了，C5 Plus 茶渍难看，c5pro 弹扣又卡死；C8 Plus 的吸管方法别给我，按三种故障分别怎么处理和报售后？", "relevant": [["商品手册 > 保温杯 > C5 常见故障"], ["商品手册 > 保温杯 > C5 Plus 常见故障"], ["商品手册 > 保温杯 > C5 Pro 常见故障"]]}
+{"id": "E022", "bucket": "E_multi", "difficulty": "hard", "query": "S20 的地图数先放一边，我怕把 s10、s10-pro、S20MAX 的吸力和机身高度记反，三款各是多少？", "relevant": [["商品手册 > 扫地机器人 > S10 参数"], ["商品手册 > 扫地机器人 > S10 Pro 参数"], ["商品手册 > 扫地机器人 > S20 Max 参数"]]}
+{"id": "E023", "bucket": "E_multi", "difficulty": "medium", "query": "给家人选 T3 Pro、T3 Lite 或 T5 Pro，三款主机质保期如何比较，最短的与最长的差几天？", "relevant": [["商品手册 > 电动牙刷 > T3 Pro 保修"], ["商品手册 > 电动牙刷 > T3 Lite 保修"], ["商品手册 > 电动牙刷 > T5 Pro 保修"]]}
+{"id": "E024", "bucket": "E_multi", "difficulty": "easy", "query": "比较 X3、X5、X3 Lite 的蓝牙版本和单耳重量，三款各是多少？", "relevant": [["商品手册 > 蓝牙耳机 > X3 参数"], ["商品手册 > 蓝牙耳机 > X5 参数"], ["商品手册 > 蓝牙耳机 > X3 Lite 参数"]]}
+{"id": "E025", "bucket": "E_multi", "difficulty": "medium", "query": "按每天刷两次、每次两分钟规划充电，T3、T3 Pro、T5 Pro 各充多久、满电可用多少天？", "relevant": [["商品手册 > 电动牙刷 > T3 续航"], ["商品手册 > 电动牙刷 > T3 Pro 续航"], ["商品手册 > 电动牙刷 > T5 Pro 续航"]]}
+{"id": "E026", "bucket": "E_multi", "difficulty": "medium", "query": "用支付宝预订 R1 Pro 想按 42 码重量挑鞋，收到后退货时定金尾款怎么退、回支付宝哪里，能把规格与退款路径说清吗？", "relevant": [["商品手册 > 运动鞋 > R1 Pro 参数"], ["退货政策 > 退款 > 退款方式"], ["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "E027", "bucket": "E_multi", "difficulty": "medium", "query": "因 T3 Lite 每天两次两分钟的续航不合需求想取消已发货订单，若处理不满再投诉，能用多少天、该走什么退单路径、投诉多久回应？", "relevant": [["商品手册 > 电动牙刷 > T3 Lite 续航"], ["退货政策 > 订单取消", "常见问答 > 支付 > 订单可以取消吗？"], ["售后手册 > 投诉 > 投诉处理时限"]]}
+{"id": "E028", "bucket": "E_multi", "difficulty": "easy", "query": "T3 Lite 预订到快递柜后想先核对清洁档位，再退货且赠品丢了，档位多少、签收认哪个时间、赠品怎样扣款？", "relevant": [["商品手册 > 电动牙刷 > T3 Lite 参数"], ["退货政策 > 特殊情况 > 赠品退回"], ["配送与签收政策 > 签收 > 快递柜与代签", "商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"]]}
+{"id": "E029", "bucket": "E_multi", "difficulty": "hard", "query": "s10-pro 是不是像 S20 那样保修我记混了；质量故障保几天，拒收后退款依哪份政策，已经退货的电子票又会怎样？", "relevant": [["商品手册 > 扫地机器人 > S10 Pro 保修"], ["配送与签收政策 > 签收 > 拒收"], ["售后手册 > 发票 > 发票换开"]]}
+{"id": "E030", "bucket": "E_multi", "difficulty": "hard", "query": "缺货的 l2pro 我还想等，别按 L2 的色温算；补货最多等几天，收到后色温几种，完好不喜欢退货要在几天内申请？", "relevant": [["商品手册 > 台灯 > L2 Pro 参数"], ["退货政策 > 退货条件 > 七天无理由退货", "退货政策 > 品类退换货规则", "常见问答 > 退换货 > 退货政策是什么？", "商品手册 > 台灯 > L2 Pro 退换规则"], ["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E031", "bucket": "E_multi", "difficulty": "hard", "query": "X5 Pro 先别混进来，我比较两种买 x5 的风险：预订因商家发不了货定金咋退、现货超时未发给啥券，收到后质量保修几天？", "relevant": [["商品手册 > 蓝牙耳机 > X5 保修"], ["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"], ["配送与签收政策 > 发货 > 延迟发货补偿", "商品FAQ > 配送与签收 > 超过两天还没发货有补偿吗？"]]}
+{"id": "E032", "bucket": "E_multi", "difficulty": "easy", "query": "打算买 X3，想知道蓝牙版本；若付款后缺货取消能获什么补偿，若后来买到却显示签收没拿到又要多久内申请核实？", "relevant": [["商品手册 > 蓝牙耳机 > X3 参数"], ["配送与签收政策 > 签收 > 显示签收但未收到"], ["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E033", "bucket": "E_multi", "difficulty": "hard", "query": "r1plus 和 R1 Pro 料子容易记反，我看前者用料和鞋垫特点；预订签收后退换依什么规则，若改买现货超时未发能领啥补偿？", "relevant": [["商品手册 > 运动鞋 > R1 Plus 材质"], ["配送与签收政策 > 发货 > 延迟发货补偿", "商品FAQ > 配送与签收 > 超过两天还没发货有补偿吗？"], ["预售与缺货政策"]]}
+{"id": "E034", "bucket": "E_multi", "difficulty": "medium", "query": "订 K1 Plus 前想确认外观及边框厚度，给公司留电子普通票；收到外箱破损但拍照签收，票按什么金额开、照片多久内反馈？", "relevant": [["商品手册 > 手机壳 > K1 Plus 参数"], ["售后手册 > 发票 > 发票类型"], ["配送与签收政策 > 签收 > 签收验货"]]}
+{"id": "E035", "bucket": "E_multi", "difficulty": "hard", "query": "C5 Pro 先放旁边，我要 c5plus 的容量和内胆材料；新购断货取消有啥券，后来收到且保内质量坏了又从哪提交什么维修证据？", "relevant": [["商品手册 > 保温杯 > C5 Plus 容量"], ["售后手册 > 维修 > 申请维修"], ["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E036", "bucket": "E_multi", "difficulty": "medium", "query": "现货 L1 Plus 下午五点付款，预计何时出库、发货上限多久；若出库前后反悔分别如何取消，收到灯罩破损又应哪天反馈？", "relevant": [["商品手册 > 台灯 > L1 Plus 退换规则", "退货政策 > 品类退换货规则"], ["配送与签收政策 > 发货 > 发货时效", "商品FAQ > 配送与签收 > 下单后多久能发货啊？"], ["退货政策 > 订单取消", "常见问答 > 支付 > 订单可以取消吗？"]]}
+{"id": "E037", "bucket": "E_multi", "difficulty": "hard", "query": "w1plus 跟 W1 Pro 别讲混，我要前者 M 码尺寸；电子票税号错了多久内可换几次，预订发货与签收后退款分别该查哪份政策？", "relevant": [["商品手册 > 羊毛衫 > W1 Plus 参数"], ["售后手册 > 发票 > 发票换开", "常见问答 > 发票 > 发票抬头开错了能改吗？"], ["配送与签收政策"]]}
+{"id": "E038", "bucket": "E_multi", "difficulty": "easy", "query": "想预订 L1 寄到新疆，因商家发不了货定金怎么退；正常配送较预计多几天，若收到灯出现质量问题保修期是多少天？", "relevant": [["商品手册 > 台灯 > L1 保修"], ["配送与签收政策 > 配送 > 偏远地区配送"], ["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"]]}
+{"id": "E039", "bucket": "E_multi", "difficulty": "hard", "query": "我预订的是 x3lite 非 X3，按半音量单次和带盒能听多久；先付多少比例、尾款窗口几天，送柜后签收时间又认什么记录？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Lite 续航"], ["预售与缺货政策 > 预售 > 定金与尾款"], ["配送与签收政策 > 签收 > 快递柜与代签", "商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"]]}
+{"id": "E040", "bucket": "E_multi", "difficulty": "medium", "query": "X3 Lite 和别的商品成套买，盒灯不亮想先排查；发货后能指定快递吗，若整套完好却不喜欢，能只退一件吗？", "relevant": [["商品手册 > 蓝牙耳机 > X3 Lite 常见故障"], ["配送与签收政策 > 配送 > 配送方式"], ["退货政策 > 特殊情况 > 套装退货"]]}
+{"id": "E041", "bucket": "E_multi", "difficulty": "hard", "query": "l1pro 亮半小时就自己关，别套 L1 Plus 的复位招；该先查什么，替换新购订单缺货选等待最多几天，最终售后从哪入口提交？", "relevant": [["商品手册 > 台灯 > L1 Pro 常见故障"], ["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["售后手册"]]}
+{"id": "E042", "bucket": "E_multi", "difficulty": "medium", "query": "买 R1 现货和缺货两种情况怎么安排：下午三点付款何时出库，若缺货取消有什么券，收到鞋底穿出磨损还能无理由退吗？", "relevant": [["商品手册 > 运动鞋 > R1 退换规则", "退货政策 > 品类退换货规则"], ["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["配送与签收政策 > 发货 > 发货时效", "商品FAQ > 配送与签收 > 下单后多久能发货啊？"]]}
+{"id": "E043", "bucket": "E_multi", "difficulty": "medium", "query": "我买 S10 想确认主机保修天数，也在考虑售后路径：同款换货能改颜色吗，新购缺货取消可得什么补偿？", "relevant": [["商品手册 > 扫地机器人 > S10 保修"], ["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["售后手册 > 换货 > 申请换货"]]}
+{"id": "E044", "bucket": "E_multi", "difficulty": "medium", "query": "按 C8 Plus 的高度、杯口和杯盖附件挑预售杯，定金比例和尾款期怎么定，若对预售服务不满可以怎样投诉取得工单？", "relevant": [["商品手册 > 保温杯 > C8 Plus 参数"], ["售后手册 > 投诉 > 怎么投诉"], ["预售与缺货政策 > 预售 > 定金与尾款"]]}
+{"id": "E045", "bucket": "E_multi", "difficulty": "medium", "query": "预订 R2 Pro 尾款付完最迟多久发货；收到有质量毛病能在多久内带什么证据退，错过退货想维修时开胶保修又几天？", "relevant": [["商品手册 > 运动鞋 > R2 Pro 保修"], ["退货政策 > 退货条件 > 质量问题退货"], ["预售与缺货政策 > 预售 > 预售发货时间"]]}
+{"id": "E046", "bucket": "E_multi", "difficulty": "hard", "query": "别把 S10 Max 的性能给我，我预订 s20max 吸力多大、能存几张图；商城实物是否适用退货政策，正常退货定金尾款一起退吗？", "relevant": [["商品手册 > 扫地机器人 > S20 Max 参数"], ["退货政策"], ["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "E047", "bucket": "E_multi", "difficulty": "medium", "query": "想买 K2 看视频，支架可开多大；预订时自己漏付尾款定金退不退，若改买现货已发出还能直接取消吗？", "relevant": [["商品手册 > 手机壳 > K2 参数", "商品FAQ > 手机壳 > K2 Pro 的支架能撑多大角度？"], ["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"], ["退货政策 > 订单取消", "常见问答 > 支付 > 订单可以取消吗？"]]}
+{"id": "E048", "bucket": "E_multi", "difficulty": "hard", "query": "s10-pro 的吸力别套进来，我要 s10 的吸力和高度；新购缺货取消给啥券，另买到后外箱变形选择拍照签收多久内要反馈？", "relevant": [["商品手册 > 扫地机器人 > S10 参数"], ["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["配送与签收政策 > 签收 > 签收验货"]]}
+{"id": "E049", "bucket": "E_multi", "difficulty": "medium", "query": "W2 Plus 口袋变形先怎样整理；同单用了优惠券只退别件如何分摊，留着这件要寄修时不同意非保内报价会怎样？", "relevant": [["商品手册 > 羊毛衫 > W2 Plus 常见故障"], ["退货政策 > 退款 > 部分退款", "退货政策 > 特殊情况 > 部分退款"], ["售后手册 > 维修 > 维修流程"]]}
+{"id": "E050", "bucket": "E_multi", "difficulty": "medium", "query": "S10 Max 建图后退回前怎样处理设备和账号，赠品遗失按什么金额扣；若不满申请投诉，多久联系和给结果？", "relevant": [["商品手册 > 扫地机器人 > S10 Max 退换规则"], ["退货政策 > 特殊情况 > 赠品退回"], ["售后手册 > 投诉 > 投诉处理时限"]]}
+{"id": "E051", "bucket": "E_multi", "difficulty": "easy", "query": "杯子维修期间想用备用杯泡热茶：常规维修多久完成，热茶泡好后建议多久喝完？", "relevant": [["售后手册 > 维修 > 维修时间", "常见问答 > 售后维修 > 维修需要多长时间？"], ["商品FAQ > 保温杯 > 保温杯能装热茶吗？", "商品手册 > 保温杯 > C5 容量", "商品手册 > 保温杯 > C5 Plus 容量", "商品手册 > 保温杯 > C8 容量", "商品手册 > 保温杯 > C5 Pro 容量", "商品手册 > 保温杯 > C8 Plus 容量"]]}
+{"id": "E052", "bucket": "E_multi", "difficulty": "hard", "query": "地址填错了又要给公司留票，别按退款改账户算；未出库收货地址可改几次，订单完成后在哪填什么申请电子票、多久发到账号？", "relevant": [["常见问答 > 发票 > 怎么开发票？", "售后手册 > 发票 > 开具发票"], ["配送与签收政策 > 发货 > 修改收货地址"]]}
+{"id": "E053", "bucket": "E_multi", "difficulty": "hard", "query": "现货扫地机下午五点付款，我想算等待和养护时间，什么时候出库、最多多久发，收到使用后灰盒、滤网及刷子多久清理或更换？", "relevant": [["配送与签收政策 > 发货 > 发货时效", "商品FAQ > 配送与签收 > 下单后多久能发货啊？"], ["商品FAQ > 扫地机器人 > 扫地机器人需要多久清理一次尘盒？"]]}
+{"id": "E054", "bucket": "E_multi", "difficulty": "hard", "query": "预订手机壳怕错过时间，我要先付几成、几天内补尾款，收到后质量退货与换货各几天？别套机器人三十天换货那个数！", "relevant": [["预售与缺货政策 > 预售 > 定金与尾款"], ["退货政策 > 品类退换货规则", "商品手册 > 手机壳 > K1 退换规则", "商品手册 > 手机壳 > K1 Pro 退换规则", "商品手册 > 手机壳 > K2 退换规则", "商品手册 > 手机壳 > K1 Plus 退换规则", "商品手册 > 手机壳 > K2 Pro 退换规则"]]}
+{"id": "E055", "bucket": "E_multi", "difficulty": "easy", "query": "想在预订商品发出前改地址，能改几次；若因商家发不了货而取消，定金怎样退？", "relevant": [["配送与签收政策 > 发货 > 修改收货地址"], ["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"]]}
+{"id": "E056", "bucket": "E_multi", "difficulty": "hard", "query": "临时在外办公想买普通 L1 台灯，别把 L2 Pro 的输入算来；配送能指定快递和预约下午吗，充电宝要满足什么接口及输出？", "relevant": [["配送与签收政策 > 配送 > 配送方式"], ["商品FAQ > 台灯 > 台灯可以用充电宝供电吗？", "商品手册 > 台灯 > L1 材质", "商品手册 > 台灯 > L1 常见故障"]]}
+{"id": "E057", "bucket": "E_multi", "difficulty": "easy", "query": "同件商品缺货与现货时等待安排怎样比较：缺货选等最多几天，现货下午三点付款何时出库、多久发货？", "relevant": [["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["商品FAQ > 配送与签收 > 下单后多久能发货啊？", "配送与签收政策 > 发货 > 发货时效"]]}
+{"id": "E058", "bucket": "E_multi", "difficulty": "medium", "query": "C5 Plus 保温功能坏了，想先判断是否仍在保修期再申请换货，质量保修几天、审核通过后从寄回到发出新品的流程是什么？", "relevant": [["常见问答 > 退换货 > 怎么申请换货？", "售后手册 > 换货 > 换货流程"], ["商品手册 > 保温杯 > C5 Plus 保修"]]}
+{"id": "E059", "bucket": "E_multi", "difficulty": "medium", "query": "预售商品退货已被商家确认收回，定金和尾款是否一起退、通常多久原路退款？", "relevant": [["常见问答 > 退换货 > 退款多久到账？", "退货政策 > 退款 > 退款时间"], ["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "E060", "bucket": "E_multi", "difficulty": "medium", "query": "收到箱子变形拍照签了收，订单用了券只想退其中一件，照片多久内反馈、优惠分摊后退款按什么金额？", "relevant": [["退货政策 > 退款 > 部分退款", "退货政策 > 特殊情况 > 部分退款"], ["配送与签收政策 > 签收 > 签收验货"]]}
+{"id": "E061", "bucket": "E_multi", "difficulty": "hard", "query": "朋友把预售也按四十八小时说，我要区分现货下午五点付款的出库及发货安排，和预售签收后退换应查的政策，各是什么？", "relevant": [["配送与签收政策 > 发货 > 发货时效", "商品FAQ > 配送与签收 > 下单后多久能发货啊？"], ["预售与缺货政策"]]}
+{"id": "E062", "bucket": "E_multi", "difficulty": "medium", "query": "这件缺货我愿意等但不想无限等，最多几天自动取消；如果补到了后来退货赠品遗失，最多扣到什么金额？", "relevant": [["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["退货政策 > 特殊情况 > 赠品退回"]]}
+{"id": "E063", "bucket": "E_multi", "difficulty": "easy", "query": "帮家人一并排查新设备：扫地机连网要怎么设置频段和 App，K1 手机壳下单前该核对什么避免装不上？", "relevant": [["商品FAQ > 扫地机器人 > 扫地机器人连不上 Wi-Fi 怎么办？"], ["商品手册 > 手机壳 > K1 参数"]]}
+{"id": "E064", "bucket": "E_multi", "difficulty": "hard", "query": "c5 摔变形了还以为能白修，原本杯盖密封保几天、摔变形属于保内吗；若申请换货能改成别款吗？", "relevant": [["售后手册 > 换货 > 申请换货"], ["商品手册 > 保温杯 > C5 保修"]]}
+{"id": "E065", "bucket": "E_multi", "difficulty": "medium", "query": "已发货想预约下午送达，同时发现电子票税号填错，预约在哪办、能指定快递吗，票多久内能换几次？", "relevant": [["售后手册 > 发票 > 发票换开", "常见问答 > 发票 > 发票抬头开错了能改吗？"], ["配送与签收政策 > 配送 > 配送方式"]]}
+{"id": "E066", "bucket": "E_multi", "difficulty": "easy", "query": "原新购订单缺货取消获什么券；改买到商品订单完成后，要保留电子票需在哪填什么、多久发到账号？", "relevant": [["常见问答 > 发票 > 怎么开发票？", "售后手册 > 发票 > 开具发票"], ["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E067", "bucket": "E_multi", "difficulty": "hard", "query": "退货确认收回后我既要账款记录又要企业普通票，票按什么金额开、税号抬头怎么填，银行卡退款与到账通常各多久？", "relevant": [["售后手册 > 发票 > 发票类型"], ["退货政策 > 退款 > 退款时间"]]}
+{"id": "E068", "bucket": "E_multi", "difficulty": "medium", "query": "预售 S10 建过图后申请退货，设备账号先怎么处理，退的钱会同时包括定金和尾款吗？", "relevant": [["商品手册 > 扫地机器人 > S10 退换规则"], ["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "E069", "bucket": "E_multi", "difficulty": "medium", "query": "同一预售单自己漏付尾款与收货后退货别混算：前一种定金退不退，后一种赠品丢失怎么扣、上限多少？", "relevant": [["退货政策 > 特殊情况 > 赠品退回"], ["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"]]}
+{"id": "E070", "bucket": "E_multi", "difficulty": "hard", "query": "预订尾款都交了，后来正常退货；配送政策导言把预售发货指向哪份政策，退货定金尾款又怎样退？", "relevant": [["配送与签收政策"], ["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "E071", "bucket": "E_multi", "difficulty": "easy", "query": "用什么支付方式给西藏地址下单，商城支持哪些方式、预计送达比页面多几天？", "relevant": [["常见问答 > 支付 > 支持哪些支付方式？"], ["配送与签收政策 > 配送 > 偏远地区配送"]]}
+{"id": "E072", "bucket": "E_multi", "difficulty": "medium", "query": "想买 C5 泡热茶带去办公室，容量和内胆材料是什么；配送能指定快递、发货后约上午或下午送达吗？", "relevant": [["配送与签收政策 > 配送 > 配送方式"], ["商品手册 > 保温杯 > C5 容量"]]}
+{"id": "E073", "bucket": "E_multi", "difficulty": "medium", "query": "预订运动鞋给宽脚家人，鞋码怎样选才合适，选定后定金比例与补尾款窗口是什么？", "relevant": [["预售与缺货政策 > 预售 > 定金与尾款"], ["商品FAQ > 运动鞋 > 运动鞋尺码怎么选？", "商品手册 > 运动鞋 > R1 参数", "商品手册 > 运动鞋 > R1 Pro 参数", "商品手册 > 运动鞋 > R2 参数", "商品手册 > 运动鞋 > R1 Plus 参数", "商品手册 > 运动鞋 > R2 Pro 参数"]]}
+{"id": "E074", "bucket": "E_multi", "difficulty": "easy", "query": "想取消未发货的新订单，继续用已修商品，怎么取消退款、维修过的部件另享多久保修？", "relevant": [["常见问答 > 支付 > 订单可以取消吗？", "退货政策 > 订单取消"], ["售后手册 > 维修 > 保修期"]]}
+{"id": "E075", "bucket": "E_multi", "difficulty": "hard", "query": "t5 显示黑屏先别急着买新，把充电接触处怎样处理、充多久仍无显示再报修；新购替代品缺货想等最多几天自动取消？", "relevant": [["商品手册 > 电动牙刷 > T5 常见故障"], ["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E076", "bucket": "E_multi", "difficulty": "hard", "query": "r2pro 鞋带锁扣松了，我怕越拉越坏，先怎样处理；若是商城买的实物，普通退货政策适用吗，哪些商品另有规定？", "relevant": [["退货政策"], ["商品手册 > 运动鞋 > R2 Pro 常见故障"]]}
+{"id": "E077", "bucket": "E_multi", "difficulty": "easy", "query": "选 X3 Lite 前确认它是否支持主动降噪；如果买下要开电子票，在哪提交抬头税号、完成订单后多久发送？", "relevant": [["常见问答 > 发票 > 怎么开发票？", "售后手册 > 发票 > 开具发票"], ["商品FAQ > 蓝牙耳机 > X3 Lite 能降噪吗？", "商品手册 > 蓝牙耳机 > X3 Lite 参数"]]}
+{"id": "E078", "bucket": "E_multi", "difficulty": "hard", "query": "两单的钱别混着算：一单签收五天同款同规格降价，保价按什么差额退几次；另一新购单缺货取消补什么券、有效几天？", "relevant": [["退货政策 > 特殊情况 > 价格保护"], ["预售与缺货政策 > 缺货 > 缺货补偿"]]}
+{"id": "E079", "bucket": "E_multi", "difficulty": "easy", "query": "已使用且影响二次销售的预售刷头能无理由退吗；若预售商品正常办理退货，定金和尾款怎样退？", "relevant": [["退货政策 > 退货条件 > 不支持退货的情形", "退货政策 > 品类退换货规则", "商品手册 > 电动牙刷 > T3 退换规则", "商品手册 > 电动牙刷 > T3 Pro 退换规则", "商品手册 > 电动牙刷 > T5 退换规则", "商品手册 > 电动牙刷 > T3 Lite 退换规则", "商品手册 > 电动牙刷 > T5 Pro 退换规则"], ["预售与缺货政策 > 预售 > 预售商品退货"]]}
+{"id": "E080", "bucket": "E_multi", "difficulty": "easy", "query": "定制商品缺货时选择等待，最多等几天自动取消；如果补到后仅不喜欢，是否支持无理由退货？", "relevant": [["退货政策 > 退货条件 > 不支持退货的情形"], ["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E081", "bucket": "E_multi", "difficulty": "medium", "query": "L2 订单已经发货又想取消，应走什么路径；若收到灯罩破损，按这款退换规则应哪天反馈？", "relevant": [["商品手册 > 台灯 > L2 退换规则", "退货政策 > 品类退换货规则"], ["退货政策 > 订单取消", "常见问答 > 支付 > 订单可以取消吗？"]]}
+{"id": "E082", "bucket": "E_multi", "difficulty": "medium", "query": "给平时 M 码、喜欢宽松的家人预订羊毛衫该怎么选码；选好后付款却缺货，愿意等的补货期和超时结果是什么？", "relevant": [["商品FAQ > 羊毛衫 > 羊毛衫尺码偏大还是偏小？", "商品手册 > 羊毛衫 > W1 参数", "商品手册 > 羊毛衫 > W1 Plus 参数", "商品手册 > 羊毛衫 > W2 参数", "商品手册 > 羊毛衫 > W1 Pro 参数"], ["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E083", "bucket": "E_multi", "difficulty": "hard", "query": "现货下午三点付款本来该何时出库、最多多久发；结果付款后说缺货，我选等仍超十天，这单如何取消退款和补偿？", "relevant": [["配送与签收政策 > 发货 > 发货时效", "商品FAQ > 配送与签收 > 下单后多久能发货啊？"], ["商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E084", "bucket": "E_multi", "difficulty": "hard", "query": "我把完成订单开票和付款出库时间混了，现货下午五点付款何时出库、最多多久发，完成后电子票在哪填什么、多久发送？", "relevant": [["常见问答 > 发票 > 怎么开发票？", "售后手册 > 发票 > 开具发票"], ["商品FAQ > 配送与签收 > 下单后多久能发货啊？", "配送与签收政策 > 发货 > 发货时效"]]}
+{"id": "E085", "bucket": "E_multi", "difficulty": "hard", "query": "老设备寄修与预订新机一起等，预售先付几成、尾款几天内付；常规寄修从商家收货算多久完成？别把调厂家配件算进来！", "relevant": [["预售与缺货政策 > 预售 > 定金与尾款"], ["常见问答 > 售后维修 > 维修需要多长时间？", "售后手册 > 维修 > 维修时间"]]}
+{"id": "E086", "bucket": "E_multi", "difficulty": "medium", "query": "想先选支付方式再买定制商品，商城支持哪几种付款，定制商品收货后只因不喜欢能无理由退吗？", "relevant": [["常见问答 > 支付 > 支持哪些支付方式？"], ["退货政策 > 退货条件 > 不支持退货的情形"]]}
+{"id": "E087", "bucket": "E_multi", "difficulty": "medium", "query": "我因无法指定快递想取消订单，发货前后分别如何处理；默认配送能指定公司、发货后能约哪两个时段吗？", "relevant": [["常见问答 > 支付 > 订单可以取消吗？", "退货政策 > 订单取消"], ["配送与签收政策 > 配送 > 配送方式"]]}
+{"id": "E088", "bucket": "E_multi", "difficulty": "hard", "query": "X3 首次配对失败我很恼火，先怎样操作盒子与手机，若仍不满投诉，客服多久联系、多久出结果和能复核几次？", "relevant": [["售后手册 > 投诉 > 投诉处理时限"], ["商品FAQ > 蓝牙耳机 > 耳机怎么连手机？", "商品手册 > 蓝牙耳机 > X3 参数"]]}
+{"id": "E089", "bucket": "E_multi", "difficulty": "medium", "query": "搬家了，未出库订单地址填错，同时电子票税号也错；地址能改几次，已开的票多久内能换几次？", "relevant": [["配送与签收政策 > 发货 > 修改收货地址"], ["售后手册 > 发票 > 发票换开", "常见问答 > 发票 > 发票抬头开错了能改吗？"]]}
+{"id": "E090", "bucket": "E_multi", "difficulty": "hard", "query": "扫地机回充总迷路我想先试摆位和擦触点，具体留多远、擦哪里；常规送修与调厂家配件各要几天？", "relevant": [["商品FAQ > 扫地机器人 > 扫地机老是找不到充电座咋办？", "商品手册 > 扫地机器人 > S10 Pro 常见故障"], ["售后手册 > 维修 > 维修时间"]]}
+{"id": "E091", "bucket": "E_multi", "difficulty": "hard", "query": "两个预订单别算成一种：我自己忘付尾款和商家无法发货，定金各怎样处理，别拿正常收货退货来回答？", "relevant": [["商品FAQ > 预售与缺货 > 预售交的定金还能退吗？", "预售与缺货政策 > 预售 > 定金退还"], ["预售与缺货政策 > 预售 > 定金退还", "商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"]]}
+{"id": "E092", "bucket": "E_multi", "difficulty": "medium", "query": "出差想把电动牙刷带上飞机，随身或托运可行吗、先怎样收拾；若退掉另一商品用银行卡付的钱，确认收退后通常多久退款到账？", "relevant": [["商品FAQ > 电动牙刷 > 电动牙刷可以带上飞机吗？"], ["退货政策 > 退款 > 退款时间"]]}
+{"id": "E093", "bucket": "E_multi", "difficulty": "hard", "query": "定制件断货我愿意等，却担心补到后不喜欢，最多等多久自动取消；真补到了又能无理由退吗？别拿普通实物七天套它！", "relevant": [["退货政策 > 退货条件 > 不支持退货的情形"], ["预售与缺货政策 > 缺货 > 等待补货", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]]}
+{"id": "E094", "bucket": "E_multi", "difficulty": "hard", "query": "出门穿 R2 用保温杯，想省事一起机器洗；R2 鞋面、中底、外底是什么料、应怎样洗晾，保温杯能进洗碗机吗、怎么手洗？", "relevant": [["商品手册 > 运动鞋 > R2 材质"], ["商品FAQ > 保温杯 > 保温杯能放进洗碗机吗？"]]}
+{"id": "E095", "bucket": "E_multi", "difficulty": "hard", "query": "预订付款窗口和改地址次数我总记乱，先付几成、尾款窗口几天，未出库地址最多改几次、出库后还能改吗？", "relevant": [["预售与缺货政策 > 预售 > 定金与尾款"], ["配送与签收政策 > 发货 > 修改收货地址"]]}
+{"id": "E096", "bucket": "E_multi", "difficulty": "easy", "query": "新购缺货取消可得什么补偿；若要继续办理其他售后，售后手册规定统一从哪个页面入口提交？", "relevant": [["预售与缺货政策 > 缺货 > 缺货补偿", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["售后手册"]]}
+{"id": "E097", "bucket": "E_multi", "difficulty": "easy", "query": "快递柜送来 W1 Plus，我要核对 M 码衣长胸围，签收时间按柜子记录还是取件时间？", "relevant": [["配送与签收政策 > 签收 > 快递柜与代签", "商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"], ["商品手册 > 羊毛衫 > W1 Plus 参数"]]}
+{"id": "E098", "bucket": "E_multi", "difficulty": "hard", "query": "钱付完才说扫地机没货，多久通过什么渠道通知、可选哪两种处理；如果等到货，灰盒滤网刷子又多久清理或更换？", "relevant": [["预售与缺货政策 > 缺货 > 缺货通知", "商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"], ["商品FAQ > 扫地机器人 > 扫地机器人需要多久清理一次尘盒？"]]}
+{"id": "E099", "bucket": "E_multi", "difficulty": "easy", "query": "预售商品签收后的退换按什么规则；普通配送能指定快递、发货后能预约哪些送达时段？", "relevant": [["预售与缺货政策"], ["配送与签收政策 > 配送 > 配送方式"]]}
+{"id": "E100", "bucket": "E_multi", "difficulty": "easy", "query": "给平时穿 M 码且喜欢宽松的家人买羊毛衫，尺码怎样选，下单能用哪些支付方式？", "relevant": [["常见问答 > 支付 > 支持哪些支付方式？"], ["商品FAQ > 羊毛衫 > 羊毛衫尺码偏大还是偏小？", "商品手册 > 羊毛衫 > W1 参数", "商品手册 > 羊毛衫 > W1 Plus 参数", "商品手册 > 羊毛衫 > W2 参数", "商品手册 > 羊毛衫 > W1 Pro 参数"]]}

@@ -1,0 +1,6 @@
+{
+  "samples_sha256": "84ef3f2c0ba476dff69043572f857b8ce9ff050bd5306255e4192eaf8f457bb3",
+  "targets_sha256": "eac6d6aef053bc8afc4e6c2e8aeb2e3451ae2e1f0adb3360a17ff948a1495b5b",
+  "frozen_at": "2026-10-11T12:48:15-04:00",
+  "commit_note": "冻结前未运行任何 v2 检索评估"
+}
