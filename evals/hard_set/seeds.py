@@ -9,6 +9,8 @@ from evals.hard_set.corpus import DEFAULT_MODELS, Chunk
 
 SEED = 20261010
 BUCKETS = ("H1_sibling", "H2_colloquial", "H3_buried", "H4_specific")
+# 同一桶内一个目标段落最多出几题；H4 题源不足，2026-10-11 加到 3。
+SLOTS = {"H1_sibling": 2, "H2_colloquial": 2, "H3_buried": 2, "H4_specific": 3}
 # 简介段和整张品类表不出题。
 EXCLUDED_KEYS = frozenset({"商品手册", "售后手册", "退货政策", "退货政策 > 品类退换货规则"})
 H3_SOURCES = ("退货政策", "售后手册", "常见问答", "商品FAQ")
@@ -83,5 +85,6 @@ def build_pools(chunks: list[Chunk], *, seed: int = SEED) -> dict[str, list[Seed
     pools = {}
     for bucket in BUCKETS:
         ordered = _round_robin(_targets(bucket, chunks), f"{seed}:{bucket}")
-        pools[bucket] = [Seed(bucket, c.key, slot, d) for slot in (1, 2) for c, d in ordered]
+        pools[bucket] = [Seed(bucket, c.key, slot, d)
+                         for slot in range(1, SLOTS[bucket] + 1) for c, d in ordered]
     return pools

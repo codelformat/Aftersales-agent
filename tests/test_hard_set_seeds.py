@@ -61,13 +61,16 @@ def test_build_chunks_merges_split_chunks_and_parses_models():
 def test_pools_are_deterministic_and_slot_ordered():
     a, b = seeds.build_pools(chunks()), seeds.build_pools(chunks())
     assert a == b and set(a) == set(seeds.BUCKETS)
-    for pool in a.values():
+    assert any(s.slot == 3 for s in a["H4_specific"])
+    for bucket, pool in a.items():
         slots = [s.slot for s in pool]
-        assert slots == sorted(slots)                     # 全部 slot 1 在 slot 2 之前
+        assert slots == sorted(slots)                     # 全部 slot 1、2、3 依次排列
+        if bucket != "H4_specific":
+            assert 3 not in slots
         per_target = {}
         for s in pool:
             per_target[s.target_key] = per_target.get(s.target_key, 0) + 1
-        assert max(per_target.values()) <= 2
+        assert max(per_target.values()) <= seeds.SLOTS[bucket]
     assert seeds.build_pools(chunks(), seed=1) != a
 
 

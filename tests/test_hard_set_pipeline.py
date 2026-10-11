@@ -238,6 +238,47 @@ async def test_cli_writes_nothing_when_bucket_short(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == []
 
 
+async def test_cli_passes_max_attempts(tmp_path, monkeypatch):
+    from scripts import synth_hard_set as cli
+    monkeypatch.setattr(cli, "HARD_PATH", tmp_path / "rag_eval_hard.jsonl")
+    monkeypatch.setattr(cli, "MANIFEST_PATH", tmp_path / "m.json")
+    monkeypatch.setattr(cli, "SPOTCHECK_PATH", tmp_path / "s.md")
+    received = {}
+
+    async def fake_load(lexicon):
+        return CHUNKS
+
+    async def fake_synth(*args, **kwargs):
+        received.update(kwargs)
+        samples = [pipeline.HardSample(f"H{n}_{i:02d}", bucket, f"问题 {n}-{i}",
+                                       (CHUNKS[0].key,), CHUNKS[0].key, None)
+                   for n, bucket in enumerate(cli.BUCKETS, start=1) for i in range(1, 61)]
+        return samples, {b: pipeline.BucketStats() for b in cli.BUCKETS}
+
+    async def noop():
+        return None
+
+    monkeypatch.setattr(cli, "load_chunks", fake_load)
+    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None, None))
+    monkeypatch.setattr(cli, "dispose_engine", noop)
+    monkeypatch.setattr(cli, "synthesize", fake_synth)
+    assert await cli.run(cli.build_parser().parse_args([])) == 0
+    assert received.get("max_attempts") == 5
+    assert json.loads(cli.MANIFEST_PATH.read_text(encoding="utf-8"))["max_attempts"] == 5
+
+
+async def test_cli_check_missing_file(tmp_path, monkeypatch, capsys):
+    from scripts import synth_hard_set as cli
+    monkeypatch.setattr(cli, "HARD_PATH", tmp_path / "rag_eval_hard.jsonl")
+
+    async def fail_load(lexicon):
+        pytest.fail("文件缺失时不应调用 load_chunks")
+
+    monkeypatch.setattr(cli, "load_chunks", fail_load)
+    assert await cli.run(cli.build_parser().parse_args(["--check"])) == 1
+    assert "未找到" in capsys.readouterr().out
+
+
 async def test_cli_check_detects_hash_mismatch(tmp_path, monkeypatch, capsys):
     from scripts import synth_hard_set as cli
     path, manifest = tmp_path / "rag_eval_hard.jsonl", tmp_path / "m.json"

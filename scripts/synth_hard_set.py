@@ -35,6 +35,7 @@ HARD_PATH = HARD_SAMPLES_PATH
 MANIFEST_PATH = HARD_PATH.with_suffix(".manifest.json")
 SPOTCHECK_PATH = HARD_PATH.with_suffix(".spotcheck.md")
 PER_BUCKET = 60
+MAX_ATTEMPTS = 5  # 同一种子最多尝试次数；2026-10-11 由 3 改为 5（H4 题源不足）
 
 
 def build_runnables():
@@ -90,7 +91,7 @@ async def run(args: argparse.Namespace) -> int:
         gens, labeler, pair_checker = build_runnables()
         samples, stats = await synthesize(build_pools(chunks), chunks, lexicon, generators=gens,
                                           labeler=labeler, pair_checker=pair_checker, per_bucket=PER_BUCKET,
-                                          concurrency=args.concurrency)
+                                          max_attempts=MAX_ATTEMPTS, concurrency=args.concurrency)
     finally:
         await dispose_engine()
     counts = {b: sum(s.bucket == b for s in samples) for b in BUCKETS}
@@ -107,6 +108,7 @@ async def run(args: argparse.Namespace) -> int:
     manifest = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "model": get_settings().chat_model, "git_commit": _git_commit(), "seed": SEED,
+        "max_attempts": MAX_ATTEMPTS,
         "max_group_keys": MAX_GROUP_KEYS, "prompt_sha256": prompt_sha256(),
         "stats": {b: {"accepted": counts[b], "seeds_tried": stats[b].seeds_tried,
                       "attempts": stats[b].attempts, "errors": stats[b].errors,
@@ -120,6 +122,9 @@ async def run(args: argparse.Namespace) -> int:
 
 
 async def _check() -> int:
+    if not HARD_PATH.exists():
+        print("未找到 rag_eval_hard.jsonl，请先运行合成。")
+        return 1
     try:
         keys = {c.key for c in await load_chunks(load_lexicon())}
     finally:
