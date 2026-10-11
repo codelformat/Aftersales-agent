@@ -7,14 +7,14 @@ from app.knowledge.ingest import DOCS_DIR, load_doc_sources
 
 LEXICON = DOCS_DIR.parent / "lexicon.json"
 MODELS = {
-    "蓝牙耳机": ["X3", "X3 Pro", "X5"],
-    "羊毛衫": ["W1", "W1 Plus", "W2"],
-    "扫地机器人": ["S10", "S10 Max", "S20"],
-    "电动牙刷": ["T3", "T3 Pro", "T5"],
-    "台灯": ["L1", "L1 Pro", "L2"],
-    "保温杯": ["C5", "C5 Plus", "C8"],
-    "运动鞋": ["R1", "R1 Pro", "R2"],
-    "手机壳": ["K1", "K1 Pro", "K2"],
+    "蓝牙耳机": ["X3", "X3 Pro", "X5", "X3 Lite", "X5 Pro"],
+    "羊毛衫": ["W1", "W1 Plus", "W2", "W1 Pro", "W2 Plus"],
+    "扫地机器人": ["S10", "S10 Max", "S20", "S10 Pro", "S20 Max"],
+    "电动牙刷": ["T3", "T3 Pro", "T5", "T3 Lite", "T5 Pro"],
+    "台灯": ["L1", "L1 Pro", "L2", "L1 Plus", "L2 Pro"],
+    "保温杯": ["C5", "C5 Plus", "C8", "C5 Pro", "C8 Plus"],
+    "运动鞋": ["R1", "R1 Pro", "R2", "R1 Plus", "R2 Pro"],
+    "手机壳": ["K1", "K1 Pro", "K2", "K1 Plus", "K2 Pro"],
 }
 
 
@@ -29,7 +29,7 @@ def test_docs_have_no_you_char():
 
 def test_docs_cover_required_structures():
     sources = load_doc_sources()
-    assert sorted(s.content_type for s in sources) == ["faq", "manual", "manual", "policy"]
+    assert sorted(s.content_type for s in sources) == ["faq", "manual", "manual", "policy", "policy", "policy"]
     chunks = [c for s in sources for c in s.chunks]
     assert len(chunks) + 12 >= 49
     assert sum(c.is_key_clause for c in chunks) >= 2
@@ -57,7 +57,7 @@ def test_product_manual_sections():
         for model in models:
             # 短型号不得计入长型号的小节。
             n = len({h for h in headings if h.startswith(model + " ") and not any(
-                h.startswith(o + " ") for o in models if o != model and o.startswith(model))})
+                h.startswith(o + " ") for o in models if o != model and o.startswith(model + " "))})
             assert 4 <= n <= 5, (model, n)
 
 

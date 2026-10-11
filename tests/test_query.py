@@ -119,7 +119,7 @@ async def test_understand_without_rewriter_uses_factory_and_is_blocked_in_tests(
 
 def test_real_lexicon_loads():
     lex = q.load_lexicon()
-    assert len(lex.model_categories) == 24
+    assert len(lex.model_categories) == 40
     assert lex.model_categories["X3 Pro"] == "蓝牙耳机"
     assert "邮费" in lex.synonyms["运费"]
 
