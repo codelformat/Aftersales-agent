@@ -31,11 +31,15 @@ from app.services.grounding import (
 )
 from app.tools.executor import execute_tool_calls
 from app.tools.registry import ch04_tools, ch04_toolset
-from evals.rag_eval_set import BUCKET_SIZES, EvalSample, known_source_keys, load_samples, validate
+from evals.rag_eval_set import (
+    BUCKET_SIZES, V2_MANIFEST_PATH, V2_SAMPLES_PATH, EvalSample, check_manifest,
+    known_source_keys, load_samples, sha256_file, validate,
+)
 from evals.rag_metrics import (
     ANSWERABLE, GenResult, ThresholdRow, is_refusal, render_report, score_retrieval,
     summarize, threshold_sweep,
 )
+from evals.v2.expectations import check_expectations, render_expectations
 
 logger = logging.getLogger(__name__)
 REPORTS_DIR = SCRIPT_DIR / "reports"
@@ -228,8 +232,9 @@ async def run_eval(args: argparse.Namespace) -> int:
             for key, preview in keys.items():
                 print(f"{key}\t{preview}")
             return 0
-        all_samples = load_samples()
-        errors = validate(all_samples, set(keys), full=True)
+        v2 = args.eval_set == "v2"
+        all_samples = load_samples(V2_SAMPLES_PATH) if v2 else load_samples()
+        errors = validate(all_samples, set(keys), full=True, eval_set=args.eval_set)
         if errors:
             for error in errors:
                 print(error)
@@ -237,6 +242,11 @@ async def run_eval(args: argparse.Namespace) -> int:
         if args.check:
             print("评估集检查通过")
             return 0
+        if v2:
+            error = check_manifest(V2_SAMPLES_PATH, V2_MANIFEST_PATH)
+            if error:
+                print(error)
+                return 1
         samples = [s for s in all_samples if args.bucket is None or s.bucket == args.bucket]
         if args.limit is not None:
             samples = samples[:args.limit]
@@ -274,12 +284,19 @@ async def run_eval(args: argparse.Namespace) -> int:
             sweep=threshold_sweep(rows) if do_retrieval else None, current_threshold=RERANK_MIN_SCORE,
             generation=results if do_generation else None, failures=failures,
         )
-        params = json.dumps(vars(args), ensure_ascii=False, sort_keys=True)
-        report = (f"# RAG 评估报告\n\n运行参数：`{params}`\n\n"
-                  f"评估集题数：{len(all_samples)}；本次题数：{len(samples)}\n\n" + report)
+        params = json.dumps({k: v for k, v in vars(args).items() if v2 or k != "eval_set"},
+                            ensure_ascii=False, sort_keys=True)
+        title = "# RAG 评估报告（v2 题集）" if v2 else "# RAG 评估报告"
+        data = f"评估集题数：{len(all_samples)}；本次题数：{len(samples)}\n\n"
+        if v2:
+            data += f"题集文件：rag_eval_v2.jsonl，SHA-256 {sha256_file(V2_SAMPLES_PATH)}\n\n"
+        report = f"{title}\n\n运行参数：`{params}`\n\n" + data + report
+        if v2 and do_retrieval:
+            report += "\n\n" + render_expectations(check_expectations(summarize(scores, "bucket")))
         print(report)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        report_path = REPORTS_DIR / f"rag_eval_{datetime.now():%Y%m%d-%H%M%S}.md"
+        prefix = "rag_eval_v2" if v2 else "rag_eval"
+        report_path = REPORTS_DIR / f"{prefix}_{datetime.now():%Y%m%d-%H%M%S}.md"
         report_path.write_text(report, encoding="utf-8")
         return 1 if failures else 0
     finally:
@@ -301,6 +318,7 @@ def _positive(value: str) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="评估 RAG，正常运行会调用上游模型并写入编造个案。")
+    parser.add_argument("--set", dest="eval_set", choices=("base", "v2"), default="base")
     parser.add_argument("--stage", choices=("retrieval", "generation", "all"), default="all")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--list-keys", action="store_true")

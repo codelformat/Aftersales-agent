@@ -234,6 +234,8 @@ async def test_retrieval_stage_caches_plans_and_uses_ranked_before_threshold(off
     assert "| hybrid_rerank | B_model | 1.000 |" in before
     assert "| hybrid_rerank | B_model | 0.000 |" in after
     assert "评估集题数：300；本次题数：2" in md and "## 生成" not in md
+    assert md.startswith("# RAG 评估报告\n") and report.name.startswith("rag_eval_")
+    assert "eval_set" not in md and "冻结前写定的预期" not in md and "SHA-256" not in md
     assert lifecycle == ["ensure", "milvus", "rerank", "db"]
 
 
@@ -360,3 +362,68 @@ async def test_faith_judge_accuracy_and_any_call_failure(monkeypatch, tmp_path, 
     assert await fje.run_eval() == expected and len(calls) == 10
     assert all(c["evidence"] == "[1] p\n问：q\n答：a" for c in calls)
     assert "忠实度裁判准确率" in capsys.readouterr().out
+
+
+async def test_v2_retrieval_refuses_without_manifest(offline_eval, monkeypatch, tmp_path, capsys):
+    samples, lifecycle, report_dir = offline_eval
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    monkeypatch.setattr(rre, "V2_MANIFEST_PATH", tmp_path / "missing.json")
+    called = []
+    monkeypatch.setattr(rre, "understand", lambda q: called.append(q))
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "retrieval"])
+    assert await rre.run_eval(args) == 1
+    assert "未冻结" in capsys.readouterr().out and not called
+    assert not list(report_dir.glob("*.md"))
+
+
+async def test_v2_check_works_without_manifest(offline_eval, monkeypatch, tmp_path, capsys):
+    samples, _, _ = offline_eval
+    seen = {}
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: seen.setdefault("path", path) and samples)
+    monkeypatch.setattr(rre, "validate", lambda s, k, **kw: seen.setdefault("set", kw.get("eval_set")) and [])
+    monkeypatch.setattr(rre, "V2_MANIFEST_PATH", tmp_path / "missing.json")
+    assert await rre.run_eval(rre.build_parser().parse_args(["--set", "v2", "--check"])) == 0
+    assert seen == {"path": rre.V2_SAMPLES_PATH, "set": "v2"}
+
+
+async def test_v2_report_has_sha_and_expectations(offline_eval, monkeypatch, tmp_path):
+    samples, _, report_dir = offline_eval
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    monkeypatch.setattr(rre, "check_manifest", lambda *a, **k: None)
+    monkeypatch.setattr(rre, "sha256_file", lambda p: "abc123")
+
+    async def understand(query):
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        return Retrieval(PLAN, [ITEM], [])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "retrieval", "--bucket", "B_model",
+                                         "--limit", "1"])
+    assert await rre.run_eval(args) == 0
+    [report] = report_dir.glob("rag_eval_v2_*.md")
+    md = report.read_text()
+    assert md.startswith("# RAG 评估报告（v2 题集）") and "SHA-256 abc123" in md
+    assert "## 冻结前写定的预期" in md
+
+
+async def test_v2_retrieval_refuses_changed_samples(offline_eval, monkeypatch, tmp_path, capsys):
+    samples, _, report_dir = offline_eval
+    path = tmp_path / "v2.jsonl"
+    path.write_text("changed\n", encoding="utf-8")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"samples_sha256": "old"}), encoding="utf-8")
+    monkeypatch.setattr(rre, "V2_SAMPLES_PATH", path)
+    monkeypatch.setattr(rre, "V2_MANIFEST_PATH", manifest)
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    called = []
+    monkeypatch.setattr(rre, "understand", lambda q: called.append(q))
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "retrieval"])
+    assert await rre.run_eval(args) == 1
+    assert "不一致" in capsys.readouterr().out and not called
+    assert not list(report_dir.glob("*.md"))
