@@ -44,6 +44,13 @@ def answer_keys(numbers: list[int], cands: list[Chunk]) -> list[str] | None:
     return list(dict.fromkeys(cands[n - 1].key for n in numbers))
 
 
+def recall_keys(numbers: list[int], cands: list[Chunk]) -> list[str] | None:
+    """召回允许空答案；有效编号映射为去重保序的来源键。"""
+    if any(not 1 <= n <= len(cands) for n in numbers):
+        return None
+    return list(dict.fromkeys(cands[n - 1].key for n in numbers))
+
+
 def check_labels(bucket: str, target: Chunk, keys: list[str], by_key: dict[str, Chunk]) -> str | None:
     if target.key not in keys:
         return "目标段落不在答案中"

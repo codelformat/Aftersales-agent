@@ -55,6 +55,22 @@ def test_render_and_answer_keys():
     assert labels.answer_keys([], CHUNKS[:2]) is None
 
 
+def test_recall_keys_empty_means_no_recall():
+    assert labels.recall_keys([], CHUNKS[:2]) == []
+    assert labels.recall_keys([], []) == []
+
+
+def test_recall_keys_rejects_invalid_numbers():
+    for numbers in ([3], [0], [-1], [1, 3], [2, 0]):
+        assert labels.recall_keys(numbers, CHUNKS[:2]) is None
+    assert labels.recall_keys([1], []) is None
+
+
+def test_recall_keys_maps_and_deduplicates_in_order():
+    assert labels.recall_keys([2, 1, 2], CHUNKS[:2]) == [
+        "商品手册 > 蓝牙耳机 > X3 Pro 续航", "商品手册 > 蓝牙耳机 > X3 续航"]
+
+
 def test_check_labels_rules():
     pro, x3 = BY_KEY["商品手册 > 蓝牙耳机 > X3 Pro 续航"], BY_KEY["商品手册 > 蓝牙耳机 > X3 续航"]
     faq, general = "商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？", "售后手册 > 维修 > 保修期"
@@ -117,6 +133,22 @@ def test_pair_prompt_renders_chunk_and_query_with_json():
     assert messages[-1].content == "顾客问题：X3 保多久？"
 
 
+def test_recall_prompt_renders_general_candidates_and_model_info_with_json():
+    info = "问题中的型号：X3（品类：蓝牙耳机）"
+    messages = prompts.RECALL_PROMPT.format_messages(
+        candidates="[1] 申请换货\n只能换同款", query="X3 换货只能换同款吗？", model_info=info)
+    system = messages[0].content
+    assert info in system
+    assert "退货政策、售后手册、常见问答、商品FAQ" in system
+    assert "X3、T3、L1、C5" in system
+    convention = next(line for line in prompts._LABEL.splitlines() if line.startswith("知识库约定："))
+    assert convention in system
+    assert "宁可多选" in system and "逐段复核" in system
+    assert "JSON" in system and '{"answers": [编号, ...]}' in system and '{"answers": []}' in system
+    assert "候选段落：\n[1] 申请换货\n只能换同款" in system
+    assert messages[-1].content == "顾客问题：X3 换货只能换同款吗？"
+
+
 def test_prompts_render_with_all_variables():
     assert set(prompts.GEN_PROMPTS) == set(BUCKETS)
     for bucket, prompt in prompts.GEN_PROMPTS.items():
@@ -131,4 +163,4 @@ def test_prompts_render_with_all_variables():
     assert "按品类列出的规则表，对该品类的所有型号成立。" in label[0].content
     assert "JSON" in label[0].content and "[1] a" in label[0].content and label[-1].content.endswith("问")
     hashes = prompts.prompt_sha256()
-    assert set(hashes) == set(BUCKETS) | {"label", "pair"} and all(len(v) == 64 for v in hashes.values())
+    assert set(hashes) == set(BUCKETS) | {"label", "recall", "pair"} and all(len(v) == 64 for v in hashes.values())

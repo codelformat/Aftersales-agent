@@ -102,6 +102,19 @@ _LABEL = """你在为检索测试集做标注。下面是知识库候选段落�
 LABEL_PROMPT = ChatPromptTemplate.from_messages([("system", _LABEL), ("human", "顾客问题：{query}")])
 
 
+_RECALL = """你在为检索测试集做通用段落召回。下面每段以 [编号] 开头。
+任务是从下面的通用段落（退货政策、售后手册、常见问答、商品FAQ）中找出所有可能完整回答顾客问题的段落。
+宁可多选，之后会逐段复核。
+{model_info}
+知识库约定：商品FAQ 中未注明型号的耳机、电动牙刷、台灯、保温杯参数分别对应 X3、T3、L1、C5；问其他型号时，这些 FAQ 段落不算能回答。按品类列出的规则表，对该品类的所有型号成立。
+只输出 JSON 对象 {{"answers": [编号, ...]}}，没有时输出 {{"answers": []}}。
+
+候选段落：
+{candidates}"""
+
+RECALL_PROMPT = ChatPromptTemplate.from_messages([("system", _RECALL), ("human", "顾客问题：{query}")])
+
+
 _PAIR = """你在为检索测试集做成对复核。判断下面这一个知识库段落能否完整回答顾客问题。
 {model_info}
 段落给出的事实对问题中的型号成立，并且覆盖问题要点时，算能回答。
@@ -118,5 +131,5 @@ PAIR_PROMPT = ChatPromptTemplate.from_messages([("system", _PAIR), ("human", "�
 
 def prompt_sha256() -> dict[str, str]:
     texts = {"H1_sibling": _H1, "H2_colloquial": _H2, "H3_buried": _H3, "H4_specific": _H4,
-             "label": _LABEL, "pair": _PAIR}
+             "label": _LABEL, "recall": _RECALL, "pair": _PAIR}
     return {k: hashlib.sha256(v.encode("utf-8")).hexdigest() for k, v in texts.items()}

@@ -6,7 +6,7 @@ import pytest
 from langchain_core.runnables import RunnableLambda
 
 from app.knowledge.query import load_lexicon
-from evals.hard_set import pipeline, prompts
+from evals.hard_set import labels, pipeline, prompts
 from evals.hard_set.corpus import Chunk
 from evals.hard_set.filters import models_in
 from evals.hard_set.prompts import GeneratedQuery, LabelAnswer
@@ -57,6 +57,10 @@ def labeler_target_only():
     return RunnableLambda(run)
 
 
+def recall_labeler_empty():
+    return RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[]), "raw": "r"})
+
+
 def pair_checker_false():
     return RunnableLambda(lambda _: {"parsed": prompts.PairAnswer(answerable=False), "raw": "r"})
 
@@ -66,7 +70,7 @@ async def synth(script, per_bucket, n_targets=3, labeler=None):
     gens = {b: gen for b in ("H1_sibling", "H2_colloquial", "H3_buried", "H4_specific")}
     samples, stats = await pipeline.synthesize(
         pools(n_targets), CHUNKS, LEX, generators=gens, labeler=labeler or labeler_target_only(),
-        pair_checker=pair_checker_false(),
+        recall_labeler=recall_labeler_empty(), pair_checker=pair_checker_false(),
         per_bucket={"H1_sibling": per_bucket, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0},
         concurrency=2)
     return samples, stats, calls
@@ -121,7 +125,7 @@ async def test_duplicate_query_in_same_batch_is_dropped():
     samples, stats = await pipeline.synthesize(
         {"H1_sibling": seeds, "H2_colloquial": [], "H3_buried": [], "H4_specific": []}, CHUNKS, LEX,
         generators={"H1_sibling": gen}, labeler=labeler_target_only(),
-        pair_checker=pair_checker_false(),
+        recall_labeler=recall_labeler_empty(), pair_checker=pair_checker_false(),
         per_bucket={"H1_sibling": 2, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert [s.query for s in samples] == ["X3 能用多久", "X3 Pro 能用多久"]
     assert stats["H1_sibling"].rejected.get("问题重复", 0) >= 1
@@ -133,7 +137,7 @@ async def test_pair_review_rejects_h1_when_sibling_can_answer():
         "parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] == CHUNKS[1].key), "raw": "r"})
     samples, stats = await pipeline.synthesize(
         pools(1), CHUNKS, LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
-        pair_checker=checker,
+        recall_labeler=recall_labeler_empty(), pair_checker=checker,
         per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert samples == []
     assert stats["H1_sibling"].rejected == {"同系列其他型号也能回答": 3}
@@ -152,7 +156,7 @@ async def test_pair_review_rejects_h4_when_general_policy_can_answer():
          "H4_specific": [Seed("H4_specific", target.key, 1, (general.key,))]},
         [target, general], LEX, generators={"H4_specific": gen},
         labeler=RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1]), "raw": "r"}),
-        pair_checker=checker,
+        recall_labeler=recall_labeler_empty(), pair_checker=checker,
         per_bucket={"H1_sibling": 0, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 1})
     assert samples == []
     assert stats["H4_specific"].rejected == {"通用段落也能回答": 3}
@@ -171,7 +175,7 @@ async def test_pair_review_adds_answerable_product_faq_to_h1():
 
     samples, stats = await pipeline.synthesize(
         pools(1), CHUNKS + [faq], LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
-        pair_checker=RunnableLambda(check),
+        recall_labeler=recall_labeler_empty(), pair_checker=RunnableLambda(check),
         per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert len(samples) == 1
     assert samples[0].keys == (CHUNKS[0].key, faq.key)
@@ -182,12 +186,146 @@ async def test_pair_review_parse_failure_retries_and_rejects_attempt():
     gen, calls = gen_for({"X3 续航": ["X3 能用多久"]})
     samples, stats = await pipeline.synthesize(
         pools(1), CHUNKS, LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
-        pair_checker=RunnableLambda(lambda _: {"parsed": None, "raw": "r"}),
+        recall_labeler=recall_labeler_empty(), pair_checker=RunnableLambda(lambda _: {"parsed": None, "raw": "r"}),
         per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
     assert samples == []
     assert stats["H1_sibling"].rejected == {"复核解析失败": 3}
     assert calls == {"X3 续航": 3}
     assert stats["H1_sibling"].errors == 0
+
+
+def exchange_chunks():
+    target = Chunk("商品手册 > 蓝牙耳机 > X3 退换规则", "商品手册 > 蓝牙耳机 > X3 退换规则",
+                   "X3 退换规则", "换货只能换同款", "蓝牙耳机", "商品手册", "X3", "退换规则")
+    general = Chunk("售后手册 > 换货 > 申请换货", "售后手册 > 换货 > 申请换货",
+                    "申请换货", "换货只能换同款", "通用", "售后手册", None, None)
+    assert labels.same_topic_keys(target, [target, general]) == []
+    return target, general
+
+
+async def synth_exchange(recall_labeler, pair_checker):
+    target, general = exchange_chunks()
+    gen, calls = gen_for({target.title: ["X3 换货只能换同款吗？"]})
+    samples, stats = await pipeline.synthesize(
+        {"H1_sibling": [], "H2_colloquial": [], "H3_buried": [],
+         "H4_specific": [Seed("H4_specific", target.key, 1, ())]},
+        [target, general], LEX, generators={"H4_specific": gen},
+        labeler=RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1]), "raw": "r"}),
+        recall_labeler=recall_labeler, pair_checker=pair_checker,
+        per_bucket={"H1_sibling": 0, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 1})
+    return samples, stats["H4_specific"], calls
+
+
+async def test_recall_rejects_h4_when_unrelated_general_chunk_can_answer():
+    _, general = exchange_chunks()
+    checked = []
+
+    def check(inputs):
+        checked.append(inputs["chunk_title"])
+        return {"parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] == general.key), "raw": "r"}
+
+    samples, stats, calls = await synth_exchange(
+        RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1, 1]), "raw": "r"}), RunnableLambda(check))
+    assert samples == []
+    assert stats.rejected == {"通用段落也能回答": 3}
+    assert stats.errors == 0
+    assert checked == [general.key] * 3
+    assert calls == {"X3 退换规则": 3}
+
+
+async def test_recall_does_not_add_general_chunk_when_pair_review_is_false():
+    checked = []
+
+    def check(inputs):
+        checked.append(inputs)
+        return {"parsed": prompts.PairAnswer(answerable=False), "raw": "r"}
+
+    samples, stats, _ = await synth_exchange(
+        RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1]), "raw": "r"}), RunnableLambda(check))
+    target, general = exchange_chunks()
+    assert len(samples) == 1 and samples[0].keys == (target.key,)
+    assert stats.rejected == {} and stats.errors == 0
+    assert checked == [{"chunk_title": general.key, "chunk_text": general.text,
+                        "query": "X3 换货只能换同款吗？", "model_info": "问题中的型号：X3（品类：蓝牙耳机）"}]
+
+
+@pytest.mark.parametrize("parsed, reason", [
+    (None, "召回解析失败"),
+    (LabelAnswer(answers=[2]), "召回编号无效"),
+    (LabelAnswer(answers=[0]), "召回编号无效"),
+])
+async def test_recall_failure_rejects_attempt_before_pair_review(parsed, reason):
+    def check(_):
+        pytest.fail("召回失败后不应进行成对复核")
+
+    samples, stats, calls = await synth_exchange(
+        RunnableLambda(lambda _: {"parsed": parsed, "raw": "r"}), RunnableLambda(check))
+    assert samples == []
+    assert stats.rejected == {reason: 3} and stats.errors == 0
+    assert calls == {"X3 退换规则": 3}
+
+
+async def test_recall_receives_only_unlabeled_general_candidates():
+    target, general = exchange_chunks()
+    faq = Chunk("商品FAQ > 蓝牙耳机 > 如何换货？", "商品FAQ > 蓝牙耳机 > 如何换货？",
+                "如何换货？", "申请换货的步骤", "蓝牙耳机", "商品FAQ", None, None)
+    already_labeled = Chunk("售后手册 > 换货 > 换货流程", "售后手册 > 换货 > 换货流程",
+                            "换货流程", "已入选的段落", "通用", "售后手册", None, None)
+    other_category = Chunk("商品FAQ > 台灯 > 如何换货？", "商品FAQ > 台灯 > 如何换货？",
+                           "如何换货？", "台灯申请换货", "台灯", "商品FAQ", None, None)
+    received = []
+
+    def recall(inputs):
+        received.append(inputs)
+        return {"parsed": LabelAnswer(answers=[]), "raw": "r"}
+
+    gen, _ = gen_for({target.title: ["X3 换货可以换别的款吗？"]})
+    samples, _ = await pipeline.synthesize(
+        {"H1_sibling": [], "H2_colloquial": [Seed("H2_colloquial", target.key, 1, ())],
+         "H3_buried": [], "H4_specific": []},
+        [target, general, faq, already_labeled, other_category], LEX,
+        generators={"H2_colloquial": gen},
+        labeler=RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[1, 4]), "raw": "r"}),
+        recall_labeler=RunnableLambda(recall), pair_checker=pair_checker_false(),
+        per_bucket={"H1_sibling": 0, "H2_colloquial": 1, "H3_buried": 0, "H4_specific": 0})
+    assert len(samples) == 1 and samples[0].keys == (target.key, already_labeled.key)
+    assert received == [{"candidates": "[1] 售后手册 > 换货 > 申请换货\n换货只能换同款\n\n"
+                                       "[2] 商品FAQ > 蓝牙耳机 > 如何换货？\n申请换货的步骤",
+                         "query": "X3 换货可以换别的款吗？", "model_info": "问题中的型号：X3（品类：蓝牙耳机）"}]
+
+
+async def test_recall_and_same_topic_reviews_merge_in_order_without_duplicates():
+    _, general = exchange_chunks()
+    faq = Chunk("商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？", "商品FAQ > 蓝牙耳机 > 耳机充满电能用多久？",
+                "耳机充满电能用多久？", "约 6 小时", "蓝牙耳机", "商品FAQ", None, None)
+    checked = []
+
+    def check(inputs):
+        checked.append(inputs["chunk_title"])
+        return {"parsed": prompts.PairAnswer(answerable=inputs["chunk_title"] in (general.key, faq.key)), "raw": "r"}
+
+    gen, _ = gen_for({"X3 续航": ["X3 能用多久"]})
+    samples, stats = await pipeline.synthesize(
+        pools(1), CHUNKS + [general, faq], LEX,
+        generators={"H1_sibling": gen}, labeler=labeler_target_only(),
+        recall_labeler=RunnableLambda(lambda _: {"parsed": LabelAnswer(answers=[2, 1, 2]), "raw": "r"}),
+        pair_checker=RunnableLambda(check),
+        per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
+    assert len(samples) == 1 and samples[0].keys == (CHUNKS[0].key, faq.key, general.key)
+    assert checked == [faq.key, general.key, CHUNKS[1].key, CHUNKS[2].key]
+    assert stats["H1_sibling"].rejected == {}
+
+
+async def test_recall_is_skipped_when_no_unlabeled_general_candidates():
+    def recall(_):
+        pytest.fail("没有通用候选时不应调用召回")
+
+    gen, _ = gen_for({"X3 续航": ["X3 能用多久"]})
+    samples, _ = await pipeline.synthesize(
+        pools(1), CHUNKS, LEX, generators={"H1_sibling": gen}, labeler=labeler_target_only(),
+        recall_labeler=RunnableLambda(recall), pair_checker=pair_checker_false(),
+        per_bucket={"H1_sibling": 1, "H2_colloquial": 0, "H3_buried": 0, "H4_specific": 0})
+    assert len(samples) == 1 and samples[0].keys == (CHUNKS[0].key,)
 
 
 def test_spotcheck_ids_deterministic():
@@ -232,7 +370,7 @@ async def test_cli_writes_nothing_when_bucket_short(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "load_chunks", fake_load)
     monkeypatch.setattr(cli, "synthesize", fake_synth)
-    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None, pair_checker_false()))
+    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None, recall_labeler_empty(), pair_checker_false()))
     monkeypatch.setattr(cli, "dispose_engine", noop)
     assert await cli.run(cli.build_parser().parse_args([])) == 1
     assert list(tmp_path.iterdir()) == []
@@ -244,6 +382,7 @@ async def test_cli_passes_max_attempts(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "MANIFEST_PATH", tmp_path / "m.json")
     monkeypatch.setattr(cli, "SPOTCHECK_PATH", tmp_path / "s.md")
     received = {}
+    recall = recall_labeler_empty()
 
     async def fake_load(lexicon):
         return CHUNKS
@@ -259,10 +398,11 @@ async def test_cli_passes_max_attempts(tmp_path, monkeypatch):
         return None
 
     monkeypatch.setattr(cli, "load_chunks", fake_load)
-    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None, None))
+    monkeypatch.setattr(cli, "build_runnables", lambda: ({}, None, recall, None))
     monkeypatch.setattr(cli, "dispose_engine", noop)
     monkeypatch.setattr(cli, "synthesize", fake_synth)
     assert await cli.run(cli.build_parser().parse_args([])) == 0
+    assert received.get("recall_labeler") is recall
     assert received.get("max_attempts") == 5
     assert json.loads(cli.MANIFEST_PATH.read_text(encoding="utf-8"))["max_attempts"] == 5
 

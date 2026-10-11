@@ -25,7 +25,7 @@ from evals.hard_set.corpus import load_chunks
 from evals.hard_set.labels import MAX_GROUP_KEYS
 from evals.hard_set.pipeline import spotcheck_ids, synthesize
 from evals.hard_set.prompts import (
-    GEN_PROMPTS, LABEL_PROMPT, PAIR_PROMPT, GeneratedQuery, LabelAnswer, PairAnswer, prompt_sha256,
+    GEN_PROMPTS, LABEL_PROMPT, RECALL_PROMPT, PAIR_PROMPT, GeneratedQuery, LabelAnswer, PairAnswer, prompt_sha256,
 )
 from evals.hard_set.seeds import BUCKETS, SEED, build_pools
 from evals.rag_eval_set import HARD_SAMPLES_PATH, load_samples, validate
@@ -43,8 +43,9 @@ def build_runnables():
     gens = {b: p | model.with_structured_output(GeneratedQuery, method="json_mode", include_raw=True)
             for b, p in GEN_PROMPTS.items()}
     labeler = LABEL_PROMPT | model.with_structured_output(LabelAnswer, method="json_mode", include_raw=True)
+    recall_labeler = RECALL_PROMPT | model.with_structured_output(LabelAnswer, method="json_mode", include_raw=True)
     pair_checker = PAIR_PROMPT | model.with_structured_output(PairAnswer, method="json_mode", include_raw=True)
-    return gens, labeler, pair_checker
+    return gens, labeler, recall_labeler, pair_checker
 
 
 def sha256_file(path: Path) -> str:
@@ -88,9 +89,10 @@ async def run(args: argparse.Namespace) -> int:
     try:
         lexicon = load_lexicon()
         chunks = await load_chunks(lexicon)
-        gens, labeler, pair_checker = build_runnables()
+        gens, labeler, recall_labeler, pair_checker = build_runnables()
         samples, stats = await synthesize(build_pools(chunks), chunks, lexicon, generators=gens,
-                                          labeler=labeler, pair_checker=pair_checker, per_bucket=PER_BUCKET,
+                                          labeler=labeler, recall_labeler=recall_labeler,
+                                          pair_checker=pair_checker, per_bucket=PER_BUCKET,
                                           max_attempts=MAX_ATTEMPTS, concurrency=args.concurrency)
     finally:
         await dispose_engine()
