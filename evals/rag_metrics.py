@@ -106,21 +106,27 @@ def generation_summary(results: list[GenResult]) -> dict[str, dict[str, float | 
         grouped[result.strategy].append(result)
     out = {}
     for strategy, items in grouped.items():
-        answerable = [r for r in items if r.bucket in ANSWERABLE]
-        unanswerable = [r for r in items if r.bucket == "D_unanswerable"]
         per_run = []
+        metrics = defaultdict(list)
         for run in sorted({r.run for r in items}):
-            judged = [r for r in answerable if r.run == run and r.retrieved and not r.refused
+            run_items = [r for r in items if r.run == run]
+            answerable = [r for r in run_items if r.bucket in ANSWERABLE]
+            unanswerable = [r for r in run_items if r.bucket == "D_unanswerable"]
+            judged = [r for r in answerable if r.retrieved and not r.refused
                       and r.faithful is not None]
             per_run.append(sum(r.faithful is True for r in judged) / len(judged) if judged else 0.0)
+            for key, value in {
+                "false_refusal": sum(r.refused for r in answerable) / len(answerable) if answerable else 0.0,
+                "d_refusal": sum(r.refused for r in unanswerable) / len(unanswerable) if unanswerable else 0.0,
+                "no_retrieval": sum(not r.retrieved for r in run_items),
+                "judge_failed": sum(r.retrieved and not r.refused and r.faithful is None for r in run_items),
+                "answered": sum(r.retrieved and not r.refused for r in run_items),
+            }.items():
+                metrics[key].append(value)
         out[strategy] = {
             "faithfulness": mean(per_run) if per_run else 0.0,
             "runs": per_run,
-            "false_refusal": sum(r.refused for r in answerable) / len(answerable) if answerable else 0.0,
-            "d_refusal": sum(r.refused for r in unanswerable) / len(unanswerable) if unanswerable else 0.0,
-            "no_retrieval": sum(not r.retrieved for r in items),
-            "judge_failed": sum(r.retrieved and not r.refused and r.faithful is None for r in items),
-            "answered": sum(r.retrieved and not r.refused for r in items),
+            **{key: mean(values) if len(values) > 1 else values[0] for key, values in metrics.items()},
         }
     return out
 
@@ -160,11 +166,14 @@ def render_report(*, retrieval_by_bucket, retrieval_by_difficulty, post_threshol
         lines = ["## 生成", "", "| 策略 | Faithfulness | 误拒率 | D 正确拒答率 | 未检索 | 裁判失败 |",
                  "| --- | --- | --- | --- | --- | --- |"]
         if repeated:
+            lines[2] = lines[2].replace("未检索", "未检索（每次平均）").replace("裁判失败", "裁判失败（每次平均）")
             lines[2] += " 各次 Faithfulness |"
             lines[3] += " --- |"
         for strategy, values in summary.items():
+            no_retrieval = f"{values['no_retrieval']:g}" if repeated else str(values['no_retrieval'])
+            judge_failed = f"{values['judge_failed']:g}" if repeated else str(values['judge_failed'])
             row = (f"| {strategy} | {values['faithfulness']:.3f} | {values['false_refusal']:.3f} | "
-                   f"{values['d_refusal']:.3f} | {values['no_retrieval']} | {values['judge_failed']} |")
+                   f"{values['d_refusal']:.3f} | {no_retrieval} | {judge_failed} |")
             if repeated:
                 row += " " + " / ".join(f"{x:.3f}" for x in values["runs"]) + " |"
             lines.append(row)
@@ -177,7 +186,8 @@ def render_report(*, retrieval_by_bucket, retrieval_by_difficulty, post_threshol
                 detail = f"未找到依据：{'；'.join(r.unsupported)}；{r.reason}"
             else:
                 continue
-            cases.append(f"- {r.sample_id} [{r.strategy}] {_cell(r.query)} → {_cell(detail)}")
+            strategy = f"{r.strategy}#{r.run}" if repeated else r.strategy
+            cases.append(f"- {r.sample_id} [{strategy}] {_cell(r.query)} → {_cell(detail)}")
         sections.append("## 编造个案与 D 误答\n\n" + ("\n".join(cases) or "无"))
     if failures:
         sections.append("## 执行失败\n\n" + "\n".join(f"- {_cell(f)}" for f in failures))

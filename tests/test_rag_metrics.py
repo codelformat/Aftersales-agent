@@ -128,7 +128,85 @@ def test_generation_summary_weights_runs_equally_with_different_judged_counts():
     summary = rm.generation_summary(results)["dense"]
     assert summary["faithfulness"] == 0.5
     assert summary["runs"] == [1.0, 0.0]
-    assert summary["judge_failed"] == 1
+    assert summary["judge_failed"] == 0.5
+
+
+@pytest.mark.parametrize("metric, expected", [
+    ("no_retrieval", 1.5), ("judge_failed", 1.5), ("answered", 2.0),
+])
+def test_generation_summary_averages_counts_per_run(metric, expected):
+    results = [
+        gen("A_policy", run=1, retrieved=False, faithful=None),
+        gen("A_policy", run=1, faithful=None),
+        gen("A_policy", run=2, retrieved=False, faithful=None),
+        gen("A_policy", run=2, retrieved=False, faithful=None),
+        gen("A_policy", run=2, faithful=None),
+        gen("D_unanswerable", run=2, faithful=None),
+        gen("A_policy", run=2),
+    ]
+    assert rm.generation_summary(results)["hybrid_rerank"][metric] == expected
+
+
+@pytest.mark.parametrize("metric, expected", [
+    ("false_refusal", 2 / 3), ("d_refusal", 0.5),
+])
+def test_generation_summary_weights_refusal_rates_equally_per_run(metric, expected):
+    results = [
+        gen("A_policy", run=1, refused=True),
+        gen("D_unanswerable", run=1, refused=True),
+        gen("A_policy", run=2, refused=True),
+        gen("A_policy", run=2), gen("A_policy", run=2),
+        gen("D_unanswerable", run=2), gen("D_unanswerable", run=2),
+        gen("D_unanswerable", run=2),
+    ]
+    assert rm.generation_summary(results)["hybrid_rerank"][metric] == pytest.approx(expected)
+
+
+def test_generation_repeated_report_labels_average_counts():
+    results = [
+        gen("A_policy", strategy="dense", run=1, retrieved=False),
+        gen("A_policy", strategy="dense", run=1, faithful=None),
+        gen("A_policy", strategy="dense", run=2, retrieved=False),
+        gen("A_policy", strategy="dense", run=2, retrieved=False),
+        gen("A_policy", strategy="dense", run=2, faithful=None),
+    ]
+    md = rm.render_report(retrieval_by_bucket=None, retrieval_by_difficulty=None,
+                          post_threshold=None, sweep=None, current_threshold=None,
+                          generation=results, failures=[])
+    assert "| 未检索（每次平均） | 裁判失败（每次平均） |" in md
+    assert "| dense | 0.000 | 0.000 | 0.000 | 1.5 | 1 | 0.000 / 0.000 |" in md
+
+
+@pytest.mark.parametrize("bucket, faithful, detail", [
+    ("H1_sibling", False, "未找到依据：；"),
+    ("D_unanswerable", True, "D 误答：a"),
+])
+def test_generation_repeated_report_identifies_case_runs(bucket, faithful, detail):
+    results = [gen(bucket, strategy="dense", run=1, faithful=faithful),
+               gen(bucket, strategy="dense", run=2, faithful=faithful),
+               gen(bucket, strategy="bm25", faithful=faithful)]
+    md = rm.render_report(retrieval_by_bucket=None, retrieval_by_difficulty=None,
+                          post_threshold=None, sweep=None, current_threshold=None,
+                          generation=results, failures=[])
+    assert f"- X01 [dense#1] q → {detail}" in md
+    assert f"- X01 [dense#2] q → {detail}" in md
+    assert f"- X01 [bm25#1] q → {detail}" in md
+
+
+def test_generation_single_run_cases_keep_original_format():
+    md = rm.render_report(retrieval_by_bucket=None, retrieval_by_difficulty=None,
+                          post_threshold=None, sweep=None, current_threshold=None,
+                          generation=[gen("H1_sibling", faithful=False),
+                                      gen("D_unanswerable")], failures=[])
+    assert md == (
+        "## 生成\n\n"
+        "| 策略 | Faithfulness | 误拒率 | D 正确拒答率 | 未检索 | 裁判失败 |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| hybrid_rerank | 0.000 | 0.000 | 0.000 | 0 | 0 |\n\n"
+        "## 编造个案与 D 误答\n\n"
+        "- X01 [hybrid_rerank] q → 未找到依据：；\n"
+        "- X01 [hybrid_rerank] q → D 误答：a\n"
+    )
 
 
 def test_generation_single_run_table_matches_original_exactly():
