@@ -1,5 +1,6 @@
 import json
 import asyncio
+import logging
 from dataclasses import replace
 from datetime import date
 
@@ -237,6 +238,97 @@ async def test_retrieval_stage_caches_plans_and_uses_ranked_before_threshold(off
     assert md.startswith("# RAG 评估报告\n") and report.name.startswith("rag_eval_")
     assert "eval_set" not in md and "冻结前写定的预期" not in md and "SHA-256" not in md
     assert lifecycle == ["ensure", "milvus", "rerank", "db"]
+
+
+@pytest.mark.parametrize("fallbacks, log_repeats", [(0, 1), (1, 1), (3, 1), (4, 1), (1, 2)])
+async def test_rewrite_fallback_report_and_exit(
+    offline_eval, fake_retrieve, monkeypatch, capsys, fallbacks, log_repeats,
+):
+    _, _, report_dir = offline_eval
+    fallback_queries = {f"B{i:02d} q" for i in range(1, fallbacks + 1)}
+    body = []
+
+    async def understand(query):
+        await asyncio.sleep(0)
+        logging.getLogger("app.knowledge.query").exception("其他改写日志")
+        logging.getLogger("unrelated").exception("Query 改写失败，用原话检索")
+        if query in fallback_queries:
+            for _ in range(log_repeats):
+                logging.getLogger("app.knowledge.query").exception("Query 改写失败，用原话检索")
+        await asyncio.sleep(0)
+        return PLAN
+
+    def render_report(**kwargs):
+        body.append(rm.render_report(**kwargs))
+        return body[-1]
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "render_report", render_report)
+    args = rre.build_parser().parse_args([
+        "--stage", "retrieval", "--bucket", "B_model", "--limit", "4", "--concurrency", "4",
+    ])
+    result = await rre.run_eval(args)
+    md = next(report_dir.glob("*.md")).read_text()
+    params = json.dumps({k: v for k, v in vars(args).items() if k != "eval_set"},
+                        ensure_ascii=False, sort_keys=True)
+    expected = (f"# RAG 评估报告\n\n运行参数：`{params}`\n\n"
+                "评估集题数：300；本次题数：4\n\n")
+    if fallbacks:
+        expected += f"Query 改写退回原话：{fallbacks} 题\n\n"
+    assert md == expected + body[0]
+    assert result == (1 if fallbacks > 3 else 0)
+    assert len(fake_retrieve) == 4 * len(rre.STRATEGIES)
+    warning = f"Query 改写退回原话 {fallbacks} 题，超过上限 3，结果不可用"
+    assert (warning in capsys.readouterr().out) == (fallbacks > 3)
+
+
+async def test_rewrite_fallback_logger_level_and_handler_restored(
+    offline_eval, monkeypatch,
+):
+    _, _, report_dir = offline_eval
+    query_logger = logging.getLogger("app.knowledge.query")
+    original_level = query_logger.level
+    original_handlers = query_logger.handlers[:]
+
+    async def understand(query):
+        query_logger.exception("其他改写日志")
+        logging.getLogger("unrelated").exception("Query 改写失败，用原话检索")
+        query_logger.exception("Query 改写失败，用原话检索")
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        # prepare 结束后相同日志不应计入改写退回题数。
+        query_logger.exception("Query 改写失败，用原话检索")
+        return Retrieval(PLAN, [ITEM], [ITEM])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    query_logger.setLevel(logging.CRITICAL)
+    try:
+        args = rre.build_parser().parse_args(["--stage", "retrieval", "--limit", "1"])
+        assert await rre.run_eval(args) == 0
+        md = next(report_dir.glob("*.md")).read_text()
+        assert "Query 改写退回原话：1 题" in md
+        assert query_logger.level == logging.CRITICAL
+        assert query_logger.handlers == original_handlers
+    finally:
+        query_logger.setLevel(original_level)
+
+
+async def test_rewrite_fallback_handler_cleanup_on_cancel(offline_eval, monkeypatch):
+    query_logger = logging.getLogger("app.knowledge.query")
+    original_level = query_logger.level
+    original_handlers = query_logger.handlers[:]
+
+    async def understand(query):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(rre, "understand", understand)
+    with pytest.raises(asyncio.CancelledError):
+        await rre.collect([SAMPLE], strategies=(), gen_strategies=(), do_retrieval=False,
+                          do_generation=False, concurrency=1, write_cases=False)
+    assert query_logger.level == original_level
+    assert query_logger.handlers == original_handlers
 
 
 async def test_save_rankings_before_threshold_with_sample_metadata(offline_eval, monkeypatch):

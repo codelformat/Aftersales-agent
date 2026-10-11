@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 import json
@@ -43,6 +44,7 @@ from evals.v2.expectations import check_expectations, render_expectations
 
 logger = logging.getLogger(__name__)
 REPORTS_DIR = SCRIPT_DIR / "reports"
+REWRITE_FALLBACK_LIMIT = 3
 READ_ONLY_TOOLS = ("query_order", "query_product", "query_logistics")
 EVAL_SKIPPED_TOOL = json.dumps(
     {"ok": False, "error": "tool_error", "message": "查询失败"}, ensure_ascii=False
@@ -147,6 +149,7 @@ class Collected:
     results: list
     failures: list[str]
     rankings: dict
+    rewrite_fallbacks: int
 
 
 async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
@@ -154,16 +157,38 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
     semaphore = asyncio.Semaphore(concurrency)
     failures = []
     plans = {}
+    fallback_samples = set()
+    preparing_sample = ContextVar("preparing_sample", default=None)
+
+    class RewriteFallbackHandler(logging.Handler):
+        def emit(self, record):
+            sample_id = preparing_sample.get()
+            if sample_id is not None and record.getMessage() == "Query 改写失败，用原话检索":
+                fallback_samples.add(sample_id)
 
     async def prepare(sample):
         async with semaphore:
+            token = preparing_sample.set(sample.id)
             try:
                 plans[sample.id] = await understand(sample.query)
             except Exception as exc:
                 logger.exception("问题理解失败：%s", sample.id)
                 failures.append(f"{sample.id}/understand：{type(exc).__name__}")
+            finally:
+                preparing_sample.reset(token)
 
-    await asyncio.gather(*(prepare(s) for s in samples))
+    query_logger = logging.getLogger("app.knowledge.query")
+    original_level = query_logger.level
+    handler = RewriteFallbackHandler(level=logging.ERROR)
+    try:
+        if query_logger.getEffectiveLevel() > logging.ERROR:
+            query_logger.setLevel(logging.ERROR)
+        query_logger.addHandler(handler)
+        await asyncio.gather(*(prepare(s) for s in samples))
+    finally:
+        query_logger.removeHandler(handler)
+        query_logger.setLevel(original_level)
+        handler.close()
     scores, post_scores, rows = [], [], []
     rankings = {strategy: {} for strategy in strategies}
 
@@ -221,7 +246,8 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
                 logger.exception("编造个案写入失败")
                 failures.append(f"faith_cases：{type(exc).__name__}")
 
-    return Collected(plans, scores, post_scores, rows, results, failures, rankings)
+    return Collected(plans, scores, post_scores, rows, results, failures, rankings,
+                     len(fallback_samples))
 
 
 async def run_eval(args: argparse.Namespace) -> int:
@@ -288,6 +314,8 @@ async def run_eval(args: argparse.Namespace) -> int:
                             ensure_ascii=False, sort_keys=True)
         title = "# RAG 评估报告（v2 题集）" if v2 else "# RAG 评估报告"
         data = f"评估集题数：{len(all_samples)}；本次题数：{len(samples)}\n\n"
+        if got.rewrite_fallbacks:
+            data += f"Query 改写退回原话：{got.rewrite_fallbacks} 题\n\n"
         if v2:
             data += f"题集文件：rag_eval_v2.jsonl，SHA-256 {sha256_file(V2_SAMPLES_PATH)}\n\n"
         report = f"{title}\n\n运行参数：`{params}`\n\n" + data + report
@@ -298,6 +326,9 @@ async def run_eval(args: argparse.Namespace) -> int:
         prefix = "rag_eval_v2" if v2 else "rag_eval"
         report_path = REPORTS_DIR / f"{prefix}_{datetime.now():%Y%m%d-%H%M%S}.md"
         report_path.write_text(report, encoding="utf-8")
+        if got.rewrite_fallbacks > REWRITE_FALLBACK_LIMIT:
+            print(f"Query 改写退回原话 {got.rewrite_fallbacks} 题，超过上限 {REWRITE_FALLBACK_LIMIT}，结果不可用")
+            return 1
         return 1 if failures else 0
     finally:
         try:
