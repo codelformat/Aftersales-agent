@@ -100,6 +100,7 @@ class GroupCoverage(BaseModel):
 class CoverageVerdict(BaseModel):
     groups: list[GroupCoverage] = Field(description="每条参考事实一项，编号与输入一致")
 
+
 INTENTS = ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊", "其他")
 
 

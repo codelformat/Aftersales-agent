@@ -385,6 +385,7 @@ coverage_judge_prompt = ChatPromptTemplate.from_messages([
     ("human", "问题：{question}\n\n参考事实：\n{references}\n\n答案：\n{answer}"),
 ])
 
+
 INTENT_SYSTEM_PROMPT = """你是售后客服的意图分类器。判断用户这一句话属于下列哪一类。只看这一句，不回答问题。
 
 ## 选项（单选）

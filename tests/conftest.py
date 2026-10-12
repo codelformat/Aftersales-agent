@@ -239,6 +239,9 @@ def _block_llm_runnables(monkeypatch):
     for module in (run_rag_eval, run_faith_judge_eval):
         monkeypatch.setattr(module, "get_faith_judge", _blocked_factory("get_faith_judge"))
 
+    from evals import run_coverage_judge_eval
+    monkeypatch.setattr(run_coverage_judge_eval, "get_coverage_judge", _blocked_factory("get_coverage_judge"))
+
 
 @pytest.fixture(autouse=True)
 def _block_intent_classifier(monkeypatch):

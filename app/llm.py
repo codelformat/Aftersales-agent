@@ -137,6 +137,7 @@ def get_coverage_judge() -> Runnable:
         CoverageVerdict, method="function_calling", include_raw=True
     )
 
+
 @lru_cache
 def get_intent_classifier() -> Runnable:
     # 关闭思考。json_mode 要求 Prompt 写明 JSON 字段。
