@@ -360,3 +360,117 @@ async def test_faith_judge_accuracy_and_any_call_failure(monkeypatch, tmp_path, 
     assert await fje.run_eval() == expected and len(calls) == 10
     assert all(c["evidence"] == "[1] p\n问：q\n答：a" for c in calls)
     assert "忠实度裁判准确率" in capsys.readouterr().out
+
+
+@pytest.fixture
+def offline_hard(monkeypatch, tmp_path):
+    samples = [EvalSample(f"{b[:2]}_{i:02d}", b, "hard", f"{b[:2]}_{i:02d} q", ((ITEM.section_path,),))
+               for b in es.HARD_BUCKET_SIZES for i in range(1, 61)]
+    loaded = []
+
+    async def noop():
+        return None
+
+    async def keys():
+        return {ITEM.section_path: "预览"}
+
+    def load(path=None):
+        loaded.append(path)
+        return samples
+
+    for name in ("ensure_collection", "close_milvus", "close_rerank", "dispose_engine"):
+        monkeypatch.setattr(rre, name, noop)
+    monkeypatch.setattr(rre, "known_source_keys", keys)
+    monkeypatch.setattr(rre, "load_samples", load)
+    monkeypatch.setattr(rre, "REPORTS_DIR", tmp_path)
+    return samples, loaded, tmp_path
+
+
+async def test_hard_set_retrieval_report(offline_hard, monkeypatch):
+    _, loaded, report_dir = offline_hard
+
+    async def understand(query):
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        return Retrieval(PLAN, [ITEM], [])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    args = rre.build_parser().parse_args(["--set", "hard", "--stage", "retrieval", "--bucket", "H1_sibling",
+                                         "--limit", "2"])
+    assert await rre.run_eval(args) == 0
+    assert loaded == [es.HARD_SAMPLES_PATH]
+    md = next(report_dir.glob("*.md")).read_text()
+    assert md.startswith("# RAG 评估报告（困难题集）")
+    assert "| hybrid_rerank | H1_sibling | 1.000 |" in md
+    assert "## 检索：策略 × 难度" not in md and "## 门槛扫描" not in md
+    assert "## 冻结前写定的预期\n\n预期对照需要全部 4 个桶，本次跳过。" in md
+
+
+@pytest.mark.parametrize("options", [["--set", "hard", "--bucket", "A_policy"],
+                                     ["--set", "base", "--bucket", "H1_sibling"]])
+async def test_bucket_must_belong_to_set(offline_eval, options, capsys):
+    _, lifecycle, report_dir = offline_eval
+    assert await rre.run_eval(rre.build_parser().parse_args(options)) == 1
+    assert lifecycle[-3:] == ["milvus", "rerank", "db"]
+    assert not list(report_dir.glob("*.md"))
+    assert "不属于题集" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("gen_repeat", [1, 2])
+async def test_gen_repeat_failure_messages_include_run_only_when_repeated(monkeypatch, gen_repeat):
+    async def understand(query):
+        return PLAN
+
+    async def generate(sample, plan, strategy, **kwargs):
+        if strategy == "dense":
+            raise RuntimeError("生成失败")
+        return rm.GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
+                            True, False, "答", [], None, [], "裁判失败")
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "get_chat_model", object)
+    monkeypatch.setattr(rre, "get_faith_judge", object)
+    monkeypatch.setattr(rre, "generate_one", generate)
+    got = await rre.collect([SAMPLE], strategies=(), gen_strategies=("dense", "bm25"),
+                            do_retrieval=False, do_generation=True, concurrency=1,
+                            write_cases=False, gen_repeat=gen_repeat)
+    assert sorted(got.failures) == sorted(
+        f"{SAMPLE.id}/{strategy}{f'#{run}' if gen_repeat > 1 else ''}：{reason}"
+        for run in range(1, gen_repeat + 1)
+        for strategy, reason in (("dense", "RuntimeError"), ("bm25", "裁判失败"))
+    )
+    assert [r.run for r in got.results] == list(range(1, gen_repeat + 1))
+
+
+async def test_gen_repeat_runs_each_strategy_n_times_and_writes_first_run_only(offline_hard, monkeypatch):
+    _, _, report_dir = offline_hard
+    runs, written = [], []
+    model, judge = object(), object()
+
+    async def understand(query):
+        return PLAN
+
+    async def generate(sample, plan, strategy, **kwargs):
+        runs.append(strategy)
+        return rm.GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
+                            True, False, "答", [], False, ["答"], "缺")
+
+    async def write(results, judge_model):
+        written.extend(results)
+        return len(results)
+
+    from types import SimpleNamespace
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "get_chat_model", lambda: model)
+    monkeypatch.setattr(rre, "get_faith_judge", lambda: judge)
+    monkeypatch.setattr(rre, "get_settings", lambda: SimpleNamespace(chat_model="m1"))
+    monkeypatch.setattr(rre, "generate_one", generate)
+    monkeypatch.setattr(rre, "write_faith_cases", write)
+    args = rre.build_parser().parse_args(["--set", "hard", "--stage", "generation", "--bucket", "H2_colloquial",
+                                         "--limit", "1", "--gen-strategies", "all", "--gen-repeat", "2"])
+    assert await rre.run_eval(args) == 0
+    assert sorted(runs) == sorted(list(rre.STRATEGIES) * 2)
+    assert len(written) == 4 and all(r.run == 1 for r in written)
+    assert "0.000 / 0.000" in next(report_dir.glob("*.md")).read_text()

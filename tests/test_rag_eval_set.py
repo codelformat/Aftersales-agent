@@ -92,3 +92,27 @@ async def test_known_source_keys_reads_only_done_non_mined_rows(db):
     assert await es.known_source_keys() == {
         "商品手册 > X3 Pro": "答" * 60, "常见问答 > 运费 > 如何计算": "答" * 60,
     }
+
+
+def hard(id="H1_01", bucket="H1_sibling", relevant=(("k1",),), difficulty="hard"):
+    return es.EvalSample(id, bucket, difficulty, "q", tuple(tuple(g) for g in relevant))
+
+
+def test_validate_hard_set_rules():
+    assert es.validate([hard()], {"k1"}, full=False, eval_set="hard") == []
+    errors = es.validate([
+        hard("H1_02", "H2_colloquial"),                     # 题号与桶不符
+        hard("H3_01", "H3_buried", relevant=(("k1",), ("k2",))),  # 只能 1 组
+        hard("H4_01", "H4_specific", relevant=(("a", "b", "c", "d"),)),  # 组内最多 3 个键
+        hard("H2_01", "H2_colloquial", difficulty="easy"),  # 难度必须为 hard
+        hard("A01", "A_policy"),                            # 不属于困难题集
+    ], None, full=False, eval_set="hard")
+    joined = "\n".join(errors)
+    for word in ("H1_02", "H3_01", "H4_01", "H2_01", "A01"):
+        assert word in joined
+    full = es.validate([hard()], None, full=True, eval_set="hard")
+    assert any("H2_colloquial" in e and "60" in e for e in full)
+
+
+def test_validate_base_rejects_hard_buckets():
+    assert es.validate([hard()], None, full=False) != []
