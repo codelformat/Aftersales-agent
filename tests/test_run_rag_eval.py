@@ -1,5 +1,6 @@
 import json
 import asyncio
+import logging
 from dataclasses import replace
 from datetime import date
 
@@ -12,8 +13,9 @@ from app.config import RERANK_MIN_SCORE
 from app.db.models import FaithCase
 from app.knowledge.retrieval import EvidenceItem, Retrieval
 from app.prompts import REFUSAL_PREFIX
-from app.schemas import FaithVerdict, QueryPlan, SelfCheck
+from app.schemas import CoverageVerdict, FaithVerdict, GroupCoverage, QueryPlan, SelfCheck
 from app.services import grounding
+from evals import coverage as cv
 from evals import rag_metrics as rm
 from evals import run_rag_eval as rre
 from evals import rag_eval_set as es
@@ -234,7 +236,100 @@ async def test_retrieval_stage_caches_plans_and_uses_ranked_before_threshold(off
     assert "| hybrid_rerank | B_model | 1.000 |" in before
     assert "| hybrid_rerank | B_model | 0.000 |" in after
     assert "评估集题数：300；本次题数：2" in md and "## 生成" not in md
+    assert md.startswith("# RAG 评估报告\n") and report.name.startswith("rag_eval_")
+    assert "eval_set" not in md and "冻结前写定的预期" not in md and "SHA-256" not in md
     assert lifecycle == ["ensure", "milvus", "rerank", "db"]
+
+
+@pytest.mark.parametrize("fallbacks, log_repeats", [(0, 1), (1, 1), (3, 1), (4, 1), (1, 2)])
+async def test_rewrite_fallback_report_and_exit(
+    offline_eval, fake_retrieve, monkeypatch, capsys, fallbacks, log_repeats,
+):
+    _, _, report_dir = offline_eval
+    fallback_queries = {f"B{i:02d} q" for i in range(1, fallbacks + 1)}
+    body = []
+
+    async def understand(query):
+        await asyncio.sleep(0)
+        logging.getLogger("app.knowledge.query").exception("其他改写日志")
+        logging.getLogger("unrelated").exception("Query 改写失败，用原话检索")
+        if query in fallback_queries:
+            for _ in range(log_repeats):
+                logging.getLogger("app.knowledge.query").exception("Query 改写失败，用原话检索")
+        await asyncio.sleep(0)
+        return PLAN
+
+    def render_report(**kwargs):
+        body.append(rm.render_report(**kwargs))
+        return body[-1]
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "render_report", render_report)
+    args = rre.build_parser().parse_args([
+        "--stage", "retrieval", "--bucket", "B_model", "--limit", "4", "--concurrency", "4",
+    ])
+    result = await rre.run_eval(args)
+    md = next(report_dir.glob("*.md")).read_text()
+    params = json.dumps({k: v for k, v in vars(args).items() if k not in ("eval_set", "gen_repeat")},
+                        ensure_ascii=False, sort_keys=True)
+    expected = (f"# RAG 评估报告\n\n运行参数：`{params}`\n\n"
+                "评估集题数：300；本次题数：4\n\n")
+    if fallbacks:
+        expected += f"Query 改写退回原话：{fallbacks} 题\n\n"
+    assert md == expected + body[0]
+    assert result == (1 if fallbacks > 3 else 0)
+    assert len(fake_retrieve) == 4 * len(rre.STRATEGIES)
+    warning = f"Query 改写退回原话 {fallbacks} 题，超过上限 3，结果不可用"
+    assert (warning in capsys.readouterr().out) == (fallbacks > 3)
+
+
+async def test_rewrite_fallback_logger_level_and_handler_restored(
+    offline_eval, monkeypatch,
+):
+    _, _, report_dir = offline_eval
+    query_logger = logging.getLogger("app.knowledge.query")
+    original_level = query_logger.level
+    original_handlers = query_logger.handlers[:]
+
+    async def understand(query):
+        query_logger.exception("其他改写日志")
+        logging.getLogger("unrelated").exception("Query 改写失败，用原话检索")
+        query_logger.exception("Query 改写失败，用原话检索")
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        # prepare 结束后相同日志不应计入改写退回题数。
+        query_logger.exception("Query 改写失败，用原话检索")
+        return Retrieval(PLAN, [ITEM], [ITEM])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    query_logger.setLevel(logging.CRITICAL)
+    try:
+        args = rre.build_parser().parse_args(["--stage", "retrieval", "--limit", "1"])
+        assert await rre.run_eval(args) == 0
+        md = next(report_dir.glob("*.md")).read_text()
+        assert "Query 改写退回原话：1 题" in md
+        assert query_logger.level == logging.CRITICAL
+        assert query_logger.handlers == original_handlers
+    finally:
+        query_logger.setLevel(original_level)
+
+
+async def test_rewrite_fallback_handler_cleanup_on_cancel(offline_eval, monkeypatch):
+    query_logger = logging.getLogger("app.knowledge.query")
+    original_level = query_logger.level
+    original_handlers = query_logger.handlers[:]
+
+    async def understand(query):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(rre, "understand", understand)
+    with pytest.raises(asyncio.CancelledError):
+        await rre.collect([SAMPLE], strategies=(), gen_strategies=(), do_retrieval=False,
+                          do_generation=False, concurrency=1, write_cases=False)
+    assert query_logger.level == original_level
+    assert query_logger.handlers == original_handlers
 
 
 async def test_save_rankings_before_threshold_with_sample_metadata(offline_eval, monkeypatch):
@@ -362,6 +457,255 @@ async def test_faith_judge_accuracy_and_any_call_failure(monkeypatch, tmp_path, 
     assert "忠实度裁判准确率" in capsys.readouterr().out
 
 
+async def test_v2_retrieval_refuses_without_manifest(offline_eval, monkeypatch, tmp_path, capsys):
+    samples, lifecycle, report_dir = offline_eval
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    monkeypatch.setattr(rre, "V2_MANIFEST_PATH", tmp_path / "missing.json")
+    called = []
+    monkeypatch.setattr(rre, "understand", lambda q: called.append(q))
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "retrieval"])
+    assert await rre.run_eval(args) == 1
+    assert "未冻结" in capsys.readouterr().out and not called
+    assert not list(report_dir.glob("*.md"))
+
+
+async def test_v2_check_works_without_manifest(offline_eval, monkeypatch, tmp_path, capsys):
+    samples, _, _ = offline_eval
+    seen = {}
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: seen.setdefault("path", path) and samples)
+    monkeypatch.setattr(rre, "validate", lambda s, k, **kw: seen.setdefault("set", kw.get("eval_set")) and [])
+    monkeypatch.setattr(rre, "V2_MANIFEST_PATH", tmp_path / "missing.json")
+    assert await rre.run_eval(rre.build_parser().parse_args(["--set", "v2", "--check"])) == 0
+    assert seen == {"path": rre.V2_SAMPLES_PATH, "set": "v2"}
+
+
+async def test_v2_report_has_sha_and_expectations(offline_eval, monkeypatch, tmp_path):
+    samples, _, report_dir = offline_eval
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    monkeypatch.setattr(rre, "check_manifest", lambda *a, **k: None)
+    monkeypatch.setattr(rre, "sha256_file", lambda p: "abc123")
+
+    async def understand(query):
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        return Retrieval(PLAN, [ITEM], [])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "retrieval", "--bucket", "B_model",
+                                         "--limit", "1"])
+    assert await rre.run_eval(args) == 0
+    [report] = report_dir.glob("rag_eval_v2_*.md")
+    md = report.read_text()
+    assert md.startswith("# RAG 评估报告（v2 题集）") and "SHA-256 abc123" in md
+    assert "## 冻结前写定的预期" in md
+
+
+async def test_v2_retrieval_refuses_changed_samples(offline_eval, monkeypatch, tmp_path, capsys):
+    samples, _, report_dir = offline_eval
+    path = tmp_path / "v2.jsonl"
+    path.write_text("changed\n", encoding="utf-8")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"samples_sha256": "old"}), encoding="utf-8")
+    monkeypatch.setattr(rre, "V2_SAMPLES_PATH", path)
+    monkeypatch.setattr(rre, "V2_MANIFEST_PATH", manifest)
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    called = []
+    monkeypatch.setattr(rre, "understand", lambda q: called.append(q))
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "retrieval"])
+    assert await rre.run_eval(args) == 1
+    assert "不一致" in capsys.readouterr().out and not called
+    assert not list(report_dir.glob("*.md"))
+
+
+def gen_patches(monkeypatch, *, refused_ids=()):
+    async def understand(query):
+        return PLAN
+
+    async def generate(sample, plan, strategy, **kwargs):
+        refused = sample.id in refused_ids
+        return rm.GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
+                            True, refused, "答", [], None if refused else True, [], "")
+
+    written = []
+
+    async def write(results, judge_model):
+        written.extend(results)
+        return 0
+
+    from types import SimpleNamespace
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "get_chat_model", lambda: object())
+    monkeypatch.setattr(rre, "get_faith_judge", lambda: object())
+    monkeypatch.setattr(rre, "get_settings", lambda: SimpleNamespace(chat_model="m1"))
+    monkeypatch.setattr(rre, "generate_one", generate)
+    monkeypatch.setattr(rre, "write_faith_cases", write)
+    return written
+
+
+def v2_patches(monkeypatch, samples):
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: samples)
+    monkeypatch.setattr(rre, "validate", lambda *a, **k: [])
+    monkeypatch.setattr(rre, "check_manifest", lambda *a, **k: None)
+    monkeypatch.setattr(rre, "sha256_file", lambda p: "abc123")
+
+
+def coverage_judge(monkeypatch, fail_ids=()):
+    calls, loaded = [], []
+
+    async def load(keys):
+        loaded.append(set(keys))
+        return {key: "原文" for key in keys}
+
+    def run(inputs):
+        calls.append(inputs)
+        if any(inputs["question"].startswith(i) for i in fail_ids):
+            raise RuntimeError("x")
+        k = inputs["references"].count("\n\n") + 1
+        return {"parsed": CoverageVerdict(groups=[GroupCoverage(n=n, covered=n == 1, reason="r")
+                                                  for n in range(1, k + 1)])}
+
+    monkeypatch.setattr(rre, "load_reference_texts", load)
+    monkeypatch.setattr(rre, "get_coverage_judge", lambda: RunnableLambda(run))
+    return calls, loaded
+
+
+async def test_v2_generation_does_not_write_faith_cases(offline_eval, monkeypatch):
+    samples, _, _ = offline_eval
+    v2_patches(monkeypatch, samples)
+    written = gen_patches(monkeypatch)
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "generation", "--bucket", "B_model",
+                                         "--limit", "1"])
+    assert await rre.run_eval(args) == 0 and written == []
+
+
+async def test_base_generation_still_writes_faith_cases(offline_eval, monkeypatch):
+    written = gen_patches(monkeypatch)
+    args = rre.build_parser().parse_args(["--stage", "generation", "--bucket", "B_model", "--limit", "1"])
+    assert await rre.run_eval(args) == 0 and len(written) == 1
+
+
+async def test_v2_coverage_report_and_expectations(offline_eval, monkeypatch):
+    samples, _, report_dir = offline_eval
+    v2_patches(monkeypatch, samples)
+    gen_patches(monkeypatch, refused_ids={"E01"})
+    calls, loaded = coverage_judge(monkeypatch)
+    picked = [s for s in samples if s.id in ("B01", "D01", "E01", "E02")]
+    monkeypatch.setattr(rre, "load_samples", lambda path=None: picked)
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "generation", "--coverage"])
+    assert await rre.run_eval(args) == 0
+    # D 不评；E01 拒答不调裁判。
+    assert sorted(c["question"] for c in calls) == ["B01 q", "E02 q"]
+    assert loaded == [{ITEM.section_path, "其他来源"}]
+    md = next(report_dir.glob("rag_eval_v2_*.md")).read_text()
+    assert "## 事实覆盖率" in md and "## 未覆盖个案" in md and "- E01 [hybrid_rerank] 拒答" in md
+    assert "## 冻结前写定的生成预期" in md and "## 冻结前写定的预期\n" not in md
+    assert "| hybrid_rerank | E_multi | 2 | 1 | 0 | 0.250 | 0.000 | 0.500 | 0.000 |" in md
+
+
+async def test_coverage_judge_failure_exits_1(offline_eval, monkeypatch):
+    samples, _, report_dir = offline_eval
+    gen_patches(monkeypatch)
+    coverage_judge(monkeypatch, fail_ids=("B01",))
+    args = rre.build_parser().parse_args(["--stage", "generation", "--bucket", "B_model", "--limit", "1",
+                                         "--coverage"])
+    assert await rre.run_eval(args) == 1
+    md = next(report_dir.glob("rag_eval_*.md")).read_text()
+    assert "B01/hybrid_rerank：覆盖率裁判失败" in md and "## 冻结前写定的生成预期" not in md
+
+
+async def test_coverage_ignored_for_retrieval_stage(offline_eval, monkeypatch):
+    _, _, report_dir = offline_eval
+    calls, loaded = coverage_judge(monkeypatch)
+
+    async def understand(query):
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        return Retrieval(PLAN, [ITEM], [ITEM])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    args = rre.build_parser().parse_args(["--stage", "retrieval", "--bucket", "B_model", "--limit", "1",
+                                         "--coverage"])
+    assert await rre.run_eval(args) == 0 and not calls and not loaded
+    assert "## 事实覆盖率" not in next(report_dir.glob("*.md")).read_text()
+
+
+async def test_params_line_unchanged_without_coverage(offline_eval, monkeypatch):
+    _, _, report_dir = offline_eval
+    gen_patches(monkeypatch)
+    args = rre.build_parser().parse_args(["--stage", "generation", "--bucket", "B_model", "--limit", "1"])
+    assert await rre.run_eval(args) == 0
+    md = next(report_dir.glob("*.md")).read_text()
+    assert '"coverage"' not in md and '"save_generation"' not in md and "## 事实覆盖率" not in md
+    assert md.splitlines()[2] == (
+        '运行参数：`{"bucket": "B_model", "check": false, "concurrency": 8, '
+        '"gen_strategies": "hybrid_rerank", "limit": 1, "list_keys": false, '
+        '"no_write": false, "save_rankings": null, "stage": "generation"}`'
+    )
+
+
+async def test_save_generation_json(offline_eval, monkeypatch, tmp_path):
+    samples, _, _ = offline_eval
+    gen_patches(monkeypatch)
+    coverage_judge(monkeypatch)
+    path = tmp_path / "out" / "gen.json"
+    picked = [s for s in samples if s.id in ("D01", "E01")]
+    monkeypatch.setattr(rre, "load_samples", lambda: picked)
+    monkeypatch.setattr(rre, "validate", lambda s, k, **kw:
+                        es.validate(s, k, full=False, eval_set=kw["eval_set"]))
+    args = rre.build_parser().parse_args(["--stage", "generation", "--coverage", "--no-write",
+                                         "--save-generation", str(path)])
+    assert await rre.run_eval(args) == 0
+    rows = {r["sample_id"]: r for r in json.loads(path.read_text(encoding="utf-8"))["results"]}
+    assert rows["D01"]["coverage"] is None and rows["D01"]["answer"] == "答"
+    assert rows["E01"]["coverage"] == {"keys": [ITEM.section_path, "其他来源"], "covered": [True, False],
+                                       "reasons": ["r", "r"], "error": None}
+
+
+async def test_save_generation_all_preserves_threshold_report(offline_eval, monkeypatch, tmp_path):
+    _, _, report_dir = offline_eval
+    gen_patches(monkeypatch)
+
+    async def retrieve(query, strategy, **kwargs):
+        return Retrieval(PLAN, [ITEM], [ITEM])
+
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    path = tmp_path / "generation.json"
+    args = rre.build_parser().parse_args(["--stage", "all", "--bucket", "B_model", "--limit", "1",
+                                         "--no-write", "--save-generation", str(path)])
+    assert await rre.run_eval(args) == 0
+    md = next(report_dir.glob("*.md")).read_text()
+    assert "## 门槛扫描" in md and "| 0.050 | 1.000 | 0.000 |" in md
+    assert "## 生成" in md and "## 事实覆盖率" not in md
+    rows = json.loads(path.read_text(encoding="utf-8"))["results"]
+    assert len(rows) == 1 and rows[0]["sample_id"] == "B01" and rows[0]["coverage"] is None
+
+
+@pytest.mark.parametrize("bucket, refused_ids, refusal_result", [
+    ("D_unanswerable", (), "不符合 | 数据不足"),
+    ("B_model", ("B01",), "不符合 | 误拒率=1.000"),
+])
+async def test_v2_generation_expectations_without_judgments(
+    offline_eval, monkeypatch, bucket, refused_ids, refusal_result,
+):
+    samples, _, report_dir = offline_eval
+    v2_patches(monkeypatch, samples)
+    gen_patches(monkeypatch, refused_ids=refused_ids)
+    coverage_judge(monkeypatch)
+    args = rre.build_parser().parse_args(["--set", "v2", "--stage", "generation", "--coverage",
+                                         "--bucket", bucket, "--limit", "1"])
+    assert await rre.run_eval(args) == 0
+    md = next(report_dir.glob("*.md")).read_text()
+    assert "| 7 | hybrid_rerank 的 Faithfulness ≥ 0.90 | 不符合 | 数据不足 |" in md
+    assert f"| 9 | 可回答桶误拒率 ≤ 0.10 | {refusal_result} |" in md
+
+
 @pytest.fixture
 def offline_hard(monkeypatch, tmp_path):
     samples = [EvalSample(f"{b[:2]}_{i:02d}", b, "hard", f"{b[:2]}_{i:02d} q", ((ITEM.section_path,),))
@@ -384,6 +728,23 @@ def offline_hard(monkeypatch, tmp_path):
     monkeypatch.setattr(rre, "load_samples", load)
     monkeypatch.setattr(rre, "REPORTS_DIR", tmp_path)
     return samples, loaded, tmp_path
+
+
+@pytest.mark.parametrize("eval_set", ["base", "hard", "v2"])
+async def test_coverage_rejects_repeated_generation(offline_eval, monkeypatch, capsys, eval_set):
+    _, lifecycle, report_dir = offline_eval
+
+    async def unexpected_collection():
+        pytest.fail("不兼容的参数应在访问题集和上游前被拒绝")
+
+    monkeypatch.setattr(rre, "ensure_collection", unexpected_collection)
+    args = rre.build_parser().parse_args([
+        "--set", eval_set, "--coverage", "--gen-repeat", "2",
+    ])
+    assert await rre.run_eval(args) == 1
+    assert "--coverage 只支持 --gen-repeat 1" in capsys.readouterr().out
+    assert lifecycle == ["milvus", "rerank", "db"]
+    assert not list(report_dir.glob("*.md"))
 
 
 async def test_hard_set_retrieval_report(offline_hard, monkeypatch):

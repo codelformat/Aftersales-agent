@@ -11,7 +11,7 @@ export default function WelcomePage() {
       <ul aria-label="Proof points" className={styles.proof}>
         <li><a href={LINKS.actions} target="_blank" rel="noreferrer">{FACTS.backendTests} backend tests in CI</a></li>
         <li><a href="#/theater">{FACTS.scenes} recorded real sessions</a></li>
-        <li><a href={`${LINKS.repo}#measured-not-claimed`} target="_blank" rel="noreferrer">Recall@1 {FACTS.recallAt1} · faithfulness {FACTS.faithfulness}</a></li>
+        <li><a href={`${LINKS.repo}#measured-not-claimed`} target="_blank" rel="noreferrer">Recall@5 {FACTS.recallAt5} · faithfulness {FACTS.faithfulness}</a></li>
       </ul>
       <div className={styles.actions}>
         <a className={styles.primary} href={formatDeepLink({ scene: 'flywheel', seconds: 0, view: 'eng', lang: 'en', autoplay: true })}>Watch the knowledge flywheel (27 s)</a>

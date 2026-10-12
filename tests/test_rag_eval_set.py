@@ -94,6 +94,61 @@ async def test_known_source_keys_reads_only_done_non_mined_rows(db):
     }
 
 
+def v2_full_set():
+    rows = []
+    sizes = es.V2_BUCKET_SIZES
+    for bucket, diffs in es.V2_DIFFICULTY_SIZES.items():
+        n = 0
+        for difficulty, count in zip(("easy", "medium", "hard"), diffs):
+            for _ in range(count):
+                n += 1
+                if bucket == "D_unanswerable":
+                    rel = ()
+                elif bucket == "E_multi":
+                    rel = (("k1",), ("k2",), ("k3",)) if n <= 50 else (("k1",), ("k2",))
+                else:
+                    rel = (("k1",),)
+                rows.append(sample(f"{bucket[0]}{n:03d}", bucket, difficulty, relevant=rel))
+    assert len(rows) == sum(sizes.values()) == 300
+    return rows
+
+
+def test_validate_v2_full_set_ok():
+    assert es.validate(v2_full_set(), {"k1", "k2", "k3"}, eval_set="v2") == []
+
+
+def test_validate_v2_errors():
+    rows = v2_full_set()
+    rows[0] = sample("A01", "A_policy", "medium")                     # 两位题号
+    rows[1] = sample("A002", "A_policy", "medium", relevant=(("k1",), ("k2",)))  # A 桶多组
+    e_index = next(i for i, r in enumerate(rows) if r.id == "E001")
+    rows[e_index] = sample("E001", "E_multi", "easy", relevant=(("k1",), ("k2",), ("k3",), ("k1",)))  # 4 组
+    errors = "\n".join(es.validate(rows, {"k1", "k2", "k3"}, eval_set="v2"))
+    assert "A01" in errors and "A002" in errors and "E001" in errors
+    assert "3 组的题" in errors                                            # 3 组题降到 49 道
+
+
+def test_validate_v2_rejects_unknown_set():
+    with pytest.raises(ValueError, match="题集必须为 base、hard 或 v2"):
+        es.validate([], set(), eval_set="v3")
+
+
+def test_validate_base_unchanged_for_three_digit_ids():
+    # base 规则仍接受 2–3 位题号，计数仍按 BUCKET_SIZES
+    assert es.validate([sample("A001")], {"k1"}, full=False) == []
+
+
+def test_check_manifest(tmp_path):
+    s = tmp_path / "v2.jsonl"
+    s.write_text("x\n", encoding="utf-8")
+    m = tmp_path / "manifest.json"
+    assert "未冻结" in es.check_manifest(s, m)
+    m.write_text(json.dumps({"samples_sha256": es.sha256_file(s)}), encoding="utf-8")
+    assert es.check_manifest(s, m) is None
+    s.write_text("y\n", encoding="utf-8")
+    assert "不一致" in es.check_manifest(s, m)
+
+
 def hard(id="H1_01", bucket="H1_sibling", relevant=(("k1",),), difficulty="hard"):
     return es.EvalSample(id, bucket, difficulty, "q", tuple(tuple(g) for g in relevant))
 

@@ -91,6 +91,16 @@ class FaithVerdict(BaseModel):
     reason: str = Field(description="一句话说明判定依据")
 
 
+class GroupCoverage(BaseModel):
+    n: int = Field(description="参考事实编号，从 1 开始")
+    covered: bool = Field(description="答案是否正确说出这条参考事实中回答问题所需的全部要点")
+    reason: str = Field(description="覆盖时写答案中对应的内容；未覆盖时写缺了什么或错在哪里")
+
+
+class CoverageVerdict(BaseModel):
+    groups: list[GroupCoverage] = Field(description="每条参考事实一项，编号与输入一致")
+
+
 INTENTS = ("物流", "订单", "商品咨询", "退款退货", "售后", "投诉", "闲聊", "其他")
 
 

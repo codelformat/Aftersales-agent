@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch09：可观测性与知识飞轮。Langfuse 记录每轮 trace、节点和 LLM 调用，按意图汇总 token。置信度闸用 `evidence_confidence`。低置信度问题与用户 👎 反馈保存召回快照，经单 worker 标准化、查重进入 `/admin/review-queue`；人工核准后入库并同步向量化。评估流水线写 `eval_runs`，`/admin/eval-runs` 显示趋势。
 - ch10：展示型前端。`web/` 用 React + TypeScript + Vite，提供客服工作台、运营台和回放剧场。工程视角用 `debug=true` 获取 `trace`，显示节点、检索、置信度闸和 LLM 用量。7 个场景使用真实录制和评估快照。live 构建由 FastAPI 服务；replay 构建只读静态文件，用于 Pages。Docker `full` profile 启动完整系统；Playwright 与 3 条 CI workflow 负责验收。replay 首页为英文欢迎页 `#/welcome`（面向招聘方）；剧场深链接支持 `lang=en`、`autoplay=1`；OG 元数据（`web/replayMeta.ts`、`web/public/og.png`）只加在 replay 构建。
 - ch11：困难评估集。`evals/hard_set/` 由代码按知识库结构选目标段落（4 桶各 60 题：同系列型号、零字面重合口语、关键词埋在长句、具体规则优先），DeepSeek 出题，机械过滤，标注三步（全量标注 → 通用段落召回 → 连续两次成对复核）。题集 `evals/rag_eval_hard.jsonl` 在跑检索前冻结（`19e983d`）；`run_rag_eval.py --set hard` 只比较检索，报告末尾自动对照冻结前写定的 6 条预期。
+- ch12：扩充知识库与 v2 评估集。商品手册新增 16 个形近型号（共 40 个），新增《配送与签收政策》《预售与缺货政策》和 12 条 FAQ；`scripts/check_kb_v2.py` 检查新增内容与 spec 附录一致、不改已有行、不出现旧 D 桶的词。v2 题集 `evals/rag_eval_v2.jsonl`（A 40 / B 50 / C 50 / E 100 / D 60）按出题清单 `evals/v2/targets.jsonl` 编写，冻结于 `da67f2b`（`evals/v2/manifest.json`）；`run_rag_eval.py --set v2` 校验 SHA-256 并在报告末尾对照 `evals/v2/expectations.py` 的 6 条预期。新旧知识库上 3 套题集的对比见 `evals/reports/ch12_comparison.md`。v2 题集的生成评估加评事实覆盖率（覆盖率裁判 `get_coverage_judge`、`evals/coverage.py`，`--coverage`），预期 7–9 见同一报告。
 - README：英文 `README.md` + 中文 `README.zh-CN.md`，MIT `LICENSE`。README 中的数字都来自 `evals/reports/` 和实测测试数；数字变化时两份 README 和 `web/src/welcome/facts.ts` 一起改。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
@@ -62,10 +63,17 @@ uv run python scripts/bare_agent.py "订单 1001 到哪了"   # 热身裸 Agent 
 uv run python evals/run_chat_samples.py              # 客服样例，走完整生产链路并写库（真实上游 + MySQL）
 uv run python scripts/synth_hard_set.py              # 合成困难评估集（真实上游 + MySQL；题集已存在时需 --force；--check 只校验冻结文件和 SHA-256）
 uv run python evals/run_rag_eval.py --set hard --stage all --gen-strategies all --gen-repeat 2 --concurrency 3   # 困难题集四策略评估（--gen-repeat 时 Faithfulness 按次平均）
+uv run python evals/run_rag_eval.py --set v2 --stage retrieval --concurrency 3   # v2 题集检索评估（SHA-256 与 manifest 不一致时退出码 1）；--set v2 --check 只校验
+uv run python scripts/check_kb_v2.py                 # ch12 知识库扩充检查（对照 spec 附录与基线提交 cd7a110）
+uv run python evals/v2/make_targets.py --keys <新键清单> --old-keys <旧键清单> --out evals/v2/targets.jsonl   # 固定种子生成出题清单
+uv run python evals/v2/check_d_evidence.py           # 两套题集 D 桶依据：关键词在 knowledge/docs 与 db/seed.sql 中必须 0 命中
+uv run python evals/v2/new_chunk_audit.py --rankings <rankings.json> --old-keys <旧> --new-keys <新>   # 列出新增小节排在标注命中之前的题
 uv run python evals/run_rag_eval.py --check          # 检查 300 题评估集（来源键、题号、桶和难度计数）；--list-keys 列出来源键
 uv run python evals/run_rag_eval.py --stage retrieval # 四策略检索对比 + 门槛扫描（真实上游 + 生产集合）；--stage generation 评 Faithfulness 并写 faith_cases
 uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurrency 3   # 完整报告，写入 evals/reports/（并发高于 4 会触发上游限流）
 uv run python evals/run_faith_judge_eval.py          # 忠实度裁判自检（30 条，准确率 < 90% 退出码 1）
+uv run python evals/run_coverage_judge_eval.py       # 事实覆盖率裁判自检（30 条 78 组，按组准确率 < 90% 或调用失败退出码 1）
+uv run python evals/run_rag_eval.py --set v2 --stage generation --coverage --concurrency 3 --save-generation <json>   # v2 生成评估 + 事实覆盖率（--set v2 不写 faith_cases）
 uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
 uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
 uv run python evals/run_gate_calibration.py           # evidence_confidence 参数校准（300 题，真实检索；--from-cache 可重用缓存）
@@ -176,6 +184,7 @@ scripts/record_scene.py → 真实系统 → web/public/replays；scripts/export
 - **`evidence_confidence` 参数来自校准报告** `evals/reports/gate_calibration_20261009-125757.md`。`GATE_WEIGHTS`、`GATE_EFFECTIVE_N`、`GATE_CONF_THRESHOLD` 放在 `app/config.py`，不得凭经验改值。
 - **飞轮只用一个 worker 串行处理**，避免并发查重新建重复行。失败或进程退出时，`matched_review_id` 留 NULL；用 `scripts/run_flywheel.py` 补跑。
 - **困难评估集冻结后不改题、不删题、不改标注；合成代码不直接或传递导入 `app.knowledge.retrieval`、`milvus`、`rerank`、`embeddings`**（`tests/test_hard_set_pipeline.py` 子进程检查）。标注规则有问题时修规则后整批重跑（`--force`），不手改单题。
+- **v2 评估集冻结后不改题、不删题、不改标注**（`evals/v2/manifest.json` 记录 SHA-256）。Query 改写失败时 `understand()` 退回原话检索；`run_rag_eval.py` 在报告头部写退回题数，超过 3 题退出码 1（DeepSeek 余额耗尽时曾 540 题全部退回）。
 - **`build_kb.py --rebuild` 保留 `flywheel` 和 `mined` 块并重新向量化**。评估检索同时排除两种来源，避免新增答案污染评估基线。
 - **`query_product` 只接受 `^P\d{3,8}$` 商品号**（模型曾把型号当商品号，mock 返回随机品类）。
 - **评估生成段必须做真实的第 1 次调用**，沿用模型给出的 tool_call id（DeepSeek 思考模式下自造 id 返回 400）；评估集 `relevant` 为分组格式，Recall 按组计算。

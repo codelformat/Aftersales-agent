@@ -13,6 +13,7 @@ from app.config import (
     get_settings,
 )
 from app.prompts import (
+    coverage_judge_prompt,
     dedup_judge_prompt,
     expand_prompt,
     extract_prompt,
@@ -27,7 +28,7 @@ from app.prompts import (
     summary_prompt,
 )
 from app.schemas import (
-    AfterSalesRequest, DedupVerdict, FaithVerdict, IntentResult, NormalizedQuestion, QaPairs,
+    AfterSalesRequest, CoverageVerdict, DedupVerdict, FaithVerdict, IntentResult, NormalizedQuestion, QaPairs,
     QueryExpansion, QueryPlan, ResolvedQuery, ReviewDedup, SelfCheck,
 )
 
@@ -126,6 +127,14 @@ def get_faith_judge() -> Runnable:
     model = build_extract_model(get_settings())
     return faith_judge_prompt | model.with_structured_output(
         FaithVerdict, method="function_calling", include_raw=True
+    )
+
+
+@lru_cache
+def get_coverage_judge() -> Runnable:
+    model = build_extract_model(get_settings())
+    return coverage_judge_prompt | model.with_structured_output(
+        CoverageVerdict, method="function_calling", include_raw=True
     )
 
 

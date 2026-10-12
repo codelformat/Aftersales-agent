@@ -1,0 +1,300 @@
+{"id": "A001", "bucket": "A_policy", "difficulty": "hard", "targets": [["退货政策 > 退货条件 > 质量问题退货"]], "distractor": null, "d_class": null}
+{"id": "A002", "bucket": "A_policy", "difficulty": "hard", "targets": [["售后手册 > 换货 > 换货流程"]], "distractor": null, "d_class": null}
+{"id": "A003", "bucket": "A_policy", "difficulty": "hard", "targets": [["售后手册 > 发票 > 发票换开"]], "distractor": null, "d_class": null}
+{"id": "A004", "bucket": "A_policy", "difficulty": "hard", "targets": [["退货政策 > 退款 > 退款方式"]], "distractor": null, "d_class": null}
+{"id": "A005", "bucket": "A_policy", "difficulty": "hard", "targets": [["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": null, "d_class": null}
+{"id": "A006", "bucket": "A_policy", "difficulty": "medium", "targets": [["预售与缺货政策 > 预售 > 预售发货时间"]], "distractor": null, "d_class": null}
+{"id": "A007", "bucket": "A_policy", "difficulty": "hard", "targets": [["售后手册 > 发票 > 开具发票"]], "distractor": null, "d_class": null}
+{"id": "A008", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册 > 维修 > 上门取件"]], "distractor": null, "d_class": null}
+{"id": "A009", "bucket": "A_policy", "difficulty": "medium", "targets": [["退货政策 > 特殊情况 > 部分退款"]], "distractor": null, "d_class": null}
+{"id": "A010", "bucket": "A_policy", "difficulty": "hard", "targets": [["配送与签收政策 > 签收 > 拒收"]], "distractor": null, "d_class": null}
+{"id": "A011", "bucket": "A_policy", "difficulty": "hard", "targets": [["配送与签收政策 > 配送 > 配送方式"]], "distractor": null, "d_class": null}
+{"id": "A012", "bucket": "A_policy", "difficulty": "hard", "targets": [["退货政策"]], "distractor": null, "d_class": null}
+{"id": "A013", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册"]], "distractor": null, "d_class": null}
+{"id": "A014", "bucket": "A_policy", "difficulty": "medium", "targets": [["预售与缺货政策 > 预售 > 定金退还"]], "distractor": null, "d_class": null}
+{"id": "A015", "bucket": "A_policy", "difficulty": "medium", "targets": [["退货政策 > 退款 > 退款时间"]], "distractor": null, "d_class": null}
+{"id": "A016", "bucket": "A_policy", "difficulty": "medium", "targets": [["退货政策 > 特殊情况 > 价格保护"]], "distractor": null, "d_class": null}
+{"id": "A017", "bucket": "A_policy", "difficulty": "hard", "targets": [["退货政策 > 订单取消"]], "distractor": null, "d_class": null}
+{"id": "A018", "bucket": "A_policy", "difficulty": "hard", "targets": [["配送与签收政策 > 配送 > 偏远地区配送"]], "distractor": null, "d_class": null}
+{"id": "A019", "bucket": "A_policy", "difficulty": "medium", "targets": [["配送与签收政策 > 发货 > 修改收货地址"]], "distractor": null, "d_class": null}
+{"id": "A020", "bucket": "A_policy", "difficulty": "medium", "targets": [["配送与签收政策 > 发货 > 延迟发货补偿"]], "distractor": null, "d_class": null}
+{"id": "A021", "bucket": "A_policy", "difficulty": "medium", "targets": [["配送与签收政策"]], "distractor": null, "d_class": null}
+{"id": "A022", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册 > 维修 > 保修期"]], "distractor": null, "d_class": null}
+{"id": "A023", "bucket": "A_policy", "difficulty": "medium", "targets": [["退货政策 > 退货条件 > 七天无理由退货"]], "distractor": null, "d_class": null}
+{"id": "A024", "bucket": "A_policy", "difficulty": "hard", "targets": [["预售与缺货政策 > 缺货 > 缺货通知"]], "distractor": null, "d_class": null}
+{"id": "A025", "bucket": "A_policy", "difficulty": "medium", "targets": [["配送与签收政策 > 签收 > 签收验货"]], "distractor": null, "d_class": null}
+{"id": "A026", "bucket": "A_policy", "difficulty": "hard", "targets": [["退货政策 > 退款 > 部分退款"]], "distractor": null, "d_class": null}
+{"id": "A027", "bucket": "A_policy", "difficulty": "hard", "targets": [["售后手册 > 换货 > 申请换货"]], "distractor": null, "d_class": null}
+{"id": "A028", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册 > 维修 > 申请维修"]], "distractor": null, "d_class": null}
+{"id": "A029", "bucket": "A_policy", "difficulty": "hard", "targets": [["商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]], "distractor": null, "d_class": null}
+{"id": "A030", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册 > 维修 > 维修流程"]], "distractor": null, "d_class": null}
+{"id": "A031", "bucket": "A_policy", "difficulty": "hard", "targets": [["退货政策 > 特殊情况 > 赠品退回"]], "distractor": null, "d_class": null}
+{"id": "A032", "bucket": "A_policy", "difficulty": "hard", "targets": [["售后手册 > 投诉 > 投诉处理时限"]], "distractor": null, "d_class": null}
+{"id": "A033", "bucket": "A_policy", "difficulty": "hard", "targets": [["配送与签收政策 > 签收 > 快递柜与代签"]], "distractor": null, "d_class": null}
+{"id": "A034", "bucket": "A_policy", "difficulty": "hard", "targets": [["商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"]], "distractor": null, "d_class": null}
+{"id": "A035", "bucket": "A_policy", "difficulty": "hard", "targets": [["配送与签收政策 > 签收 > 显示签收但未收到"]], "distractor": null, "d_class": null}
+{"id": "A036", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册 > 维修 > 维修时间"]], "distractor": null, "d_class": null}
+{"id": "A037", "bucket": "A_policy", "difficulty": "medium", "targets": [["配送与签收政策 > 发货 > 发货时效"]], "distractor": null, "d_class": null}
+{"id": "A038", "bucket": "A_policy", "difficulty": "medium", "targets": [["售后手册 > 投诉 > 怎么投诉"]], "distractor": null, "d_class": null}
+{"id": "A039", "bucket": "A_policy", "difficulty": "medium", "targets": [["预售与缺货政策"]], "distractor": null, "d_class": null}
+{"id": "A040", "bucket": "A_policy", "difficulty": "medium", "targets": [["商品FAQ > 配送与签收 > 下单后多久能发货啊？"]], "distractor": null, "d_class": null}
+{"id": "B001", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X3 续航"]], "distractor": "X5 Pro", "d_class": null}
+{"id": "B002", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X3 Pro 保修"]], "distractor": "X5 Pro", "d_class": null}
+{"id": "B003", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 蓝牙耳机 > X5 续航"]], "distractor": "X5 Pro", "d_class": null}
+{"id": "B004", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 蓝牙耳机 > X3 Lite 退换规则"]], "distractor": "X3", "d_class": null}
+{"id": "B005", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X5 Pro 参数"]], "distractor": "X3 Lite", "d_class": null}
+{"id": "B006", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 羊毛衫 > W1 参数"]], "distractor": "W2 Plus", "d_class": null}
+{"id": "B007", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 羊毛衫 > W1 Plus 常见故障"]], "distractor": "W1 Pro", "d_class": null}
+{"id": "B008", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 羊毛衫 > W2 常见故障"]], "distractor": "W1 Pro", "d_class": null}
+{"id": "B009", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 羊毛衫 > W1 Pro 常见故障"]], "distractor": "W2", "d_class": null}
+{"id": "B010", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 羊毛衫 > W2 Plus 常见故障"]], "distractor": "W1", "d_class": null}
+{"id": "B011", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S10 退换规则"]], "distractor": "S10 Pro", "d_class": null}
+{"id": "B012", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 扫地机器人 > S10 Max 保修"]], "distractor": "S20 Max", "d_class": null}
+{"id": "B013", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 扫地机器人 > S20 退换规则"]], "distractor": "S10 Pro", "d_class": null}
+{"id": "B014", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 扫地机器人 > S10 Pro 退换规则"]], "distractor": "S20 Max", "d_class": null}
+{"id": "B015", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S20 Max 保修"]], "distractor": "S10", "d_class": null}
+{"id": "B016", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T3 常见故障"]], "distractor": "T5 Pro", "d_class": null}
+{"id": "B017", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T3 Pro 退换规则"]], "distractor": "T5 Pro", "d_class": null}
+{"id": "B018", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T5 常见故障"]], "distractor": "T3 Lite", "d_class": null}
+{"id": "B019", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T3 Lite 参数"]], "distractor": "T5", "d_class": null}
+{"id": "B020", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T5 Pro 常见故障"]], "distractor": "T3", "d_class": null}
+{"id": "B021", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 台灯 > L1 常见故障"]], "distractor": "L2 Pro", "d_class": null}
+{"id": "B022", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L1 Pro 保修"]], "distractor": "L1 Plus", "d_class": null}
+{"id": "B023", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 台灯 > L2 材质"]], "distractor": "L2 Pro", "d_class": null}
+{"id": "B024", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L1 Plus 保修"]], "distractor": "L2", "d_class": null}
+{"id": "B025", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 台灯 > L2 Pro 保修"]], "distractor": "L1", "d_class": null}
+{"id": "B026", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C5 常见故障"]], "distractor": "C8 Plus", "d_class": null}
+{"id": "B027", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C5 Plus 退换规则"]], "distractor": "C8 Plus", "d_class": null}
+{"id": "B028", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 保温杯 > C8 常见故障"]], "distractor": "C5 Pro", "d_class": null}
+{"id": "B029", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 保温杯 > C5 Pro 退换规则"]], "distractor": "C8", "d_class": null}
+{"id": "B030", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C8 Plus 常见故障"]], "distractor": "C5 Pro", "d_class": null}
+{"id": "B031", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 运动鞋 > R1 常见故障"]], "distractor": "R2 Pro", "d_class": null}
+{"id": "B032", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R1 Pro 常见故障"]], "distractor": "R2 Pro", "d_class": null}
+{"id": "B033", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R2 保修"]], "distractor": "R1 Plus", "d_class": null}
+{"id": "B034", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 运动鞋 > R1 Plus 参数"]], "distractor": "R2 Pro", "d_class": null}
+{"id": "B035", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R2 Pro 材质"]], "distractor": "R1 Plus", "d_class": null}
+{"id": "B036", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 手机壳 > K1 参数"]], "distractor": "K1 Plus", "d_class": null}
+{"id": "B037", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K1 Pro 常见故障"]], "distractor": "K2 Pro", "d_class": null}
+{"id": "B038", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 手机壳 > K2 常见故障"]], "distractor": "K2 Pro", "d_class": null}
+{"id": "B039", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K1 Plus 材质"]], "distractor": "K1 Pro", "d_class": null}
+{"id": "B040", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 手机壳 > K2 Pro 常见故障"]], "distractor": "K1", "d_class": null}
+{"id": "B041", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C5 Pro 常见故障"]], "distractor": "C5 Plus", "d_class": null}
+{"id": "B042", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 手机壳 > K1 Plus 参数"]], "distractor": "K2", "d_class": null}
+{"id": "B043", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T5 Pro 续航"]], "distractor": "T5", "d_class": null}
+{"id": "B044", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T5 Pro 退换规则"]], "distractor": "T3", "d_class": null}
+{"id": "B045", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 蓝牙耳机 > X5 Pro 保修"]], "distractor": "X3 Lite", "d_class": null}
+{"id": "B046", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 羊毛衫 > W2 Plus 退换规则"]], "distractor": "W1 Pro", "d_class": null}
+{"id": "B047", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T5 Pro 参数"]], "distractor": "T3 Pro", "d_class": null}
+{"id": "B048", "bucket": "B_model", "difficulty": "easy", "targets": [["商品手册 > 蓝牙耳机 > X3 Lite 退换规则"]], "distractor": "X5", "d_class": null}
+{"id": "B049", "bucket": "B_model", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T5 Pro 退换规则"]], "distractor": "T3 Lite", "d_class": null}
+{"id": "B050", "bucket": "B_model", "difficulty": "hard", "targets": [["商品手册 > 运动鞋 > R1 Plus 材质"]], "distractor": "R2 Pro", "d_class": null}
+{"id": "C001", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 蓝牙耳机 > X3 Lite 能降噪吗？"]], "distractor": null, "d_class": null}
+{"id": "C002", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品FAQ > 蓝牙耳机 > X5 Pro 开降噪能撑多久？"]], "distractor": null, "d_class": null}
+{"id": "C003", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品FAQ > 扫地机器人 > 扫地机老是找不到充电座咋办？"]], "distractor": null, "d_class": null}
+{"id": "C004", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品FAQ > 电动牙刷 > T3 Lite 和 T3 的刷头能混用吗？"]], "distractor": null, "d_class": null}
+{"id": "C005", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 台灯 > L2 Pro 插充电宝为啥不够亮？"]], "distractor": null, "d_class": null}
+{"id": "C006", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 保温杯 > C5 Pro 比 C5 保温好多少？"]], "distractor": null, "d_class": null}
+{"id": "C007", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 手机壳 > K2 Pro 的支架能撑多大角度？"]], "distractor": null, "d_class": null}
+{"id": "C008", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 配送与签收 > 下单后多久能发货啊？"]], "distractor": null, "d_class": null}
+{"id": "C009", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 配送与签收 > 快递放快递柜了，退货期限从哪天算？"]], "distractor": null, "d_class": null}
+{"id": "C010", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 配送与签收 > 超过两天还没发货有补偿吗？"]], "distractor": null, "d_class": null}
+{"id": "C011", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"]], "distractor": null, "d_class": null}
+{"id": "C012", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]], "distractor": null, "d_class": null}
+{"id": "C013", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["售后手册"]], "distractor": null, "d_class": null}
+{"id": "C014", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S10 Pro 参数"]], "distractor": null, "d_class": null}
+{"id": "C015", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["退货政策 > 退货条件 > 不支持退货的情形"]], "distractor": null, "d_class": null}
+{"id": "C016", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品手册 > 运动鞋 > R1 Plus 材质"]], "distractor": null, "d_class": null}
+{"id": "C017", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 羊毛衫 > W1 Pro 退换规则"]], "distractor": null, "d_class": null}
+{"id": "C018", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S10 Max 保修"]], "distractor": null, "d_class": null}
+{"id": "C019", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["售后手册 > 维修 > 上门取件"]], "distractor": null, "d_class": null}
+{"id": "C020", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L2 Pro 退换规则"]], "distractor": null, "d_class": null}
+{"id": "C021", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["常见问答 > 支付 > 订单可以取消吗？"]], "distractor": null, "d_class": null}
+{"id": "C022", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L1 参数"]], "distractor": null, "d_class": null}
+{"id": "C023", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 手机壳 > K1 Pro 保修"]], "distractor": null, "d_class": null}
+{"id": "C024", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R1 Pro 常见故障"]], "distractor": null, "d_class": null}
+{"id": "C025", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L1 Plus 参数"]], "distractor": null, "d_class": null}
+{"id": "C026", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L2 保修"]], "distractor": null, "d_class": null}
+{"id": "C027", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K1 Pro 参数"]], "distractor": null, "d_class": null}
+{"id": "C028", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K2 Pro 参数"]], "distractor": null, "d_class": null}
+{"id": "C029", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品FAQ > 运动鞋 > 运动鞋尺码怎么选？"]], "distractor": null, "d_class": null}
+{"id": "C030", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C5 Pro 容量"]], "distractor": null, "d_class": null}
+{"id": "C031", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T3 Pro 参数"]], "distractor": null, "d_class": null}
+{"id": "C032", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 电动牙刷 > 电动牙刷充一次电能用多久？"]], "distractor": null, "d_class": null}
+{"id": "C033", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["配送与签收政策"]], "distractor": null, "d_class": null}
+{"id": "C034", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K1 Plus 材质"]], "distractor": null, "d_class": null}
+{"id": "C035", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品FAQ > 电动牙刷 > 电动牙刷可以带上飞机吗？"]], "distractor": null, "d_class": null}
+{"id": "C036", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 羊毛衫 > W1 Pro 常见故障"]], "distractor": null, "d_class": null}
+{"id": "C037", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品手册 > 保温杯 > C5 参数"]], "distractor": null, "d_class": null}
+{"id": "C038", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["预售与缺货政策 > 预售 > 定金与尾款"]], "distractor": null, "d_class": null}
+{"id": "C039", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品手册 > 扫地机器人 > S10 Max 常见故障"]], "distractor": null, "d_class": null}
+{"id": "C040", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["退货政策 > 特殊情况 > 部分退款"]], "distractor": null, "d_class": null}
+{"id": "C041", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 保温杯 > 保温杯能装热茶吗？"]], "distractor": null, "d_class": null}
+{"id": "C042", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T3 Lite 续航"]], "distractor": null, "d_class": null}
+{"id": "C043", "bucket": "C_colloquial", "difficulty": "easy", "targets": [["商品手册 > 手机壳 > K2 Pro 保修"]], "distractor": null, "d_class": null}
+{"id": "C044", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["退货政策 > 特殊情况 > 套装退货"]], "distractor": null, "d_class": null}
+{"id": "C045", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品FAQ > 扫地机器人 > 扫地机器人需要多久清理一次尘盒？"]], "distractor": null, "d_class": null}
+{"id": "C046", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["常见问答 > 售后维修 > 维修需要多长时间？"]], "distractor": null, "d_class": null}
+{"id": "C047", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C5 Pro 退换规则"]], "distractor": null, "d_class": null}
+{"id": "C048", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X3 Pro 退换规则"]], "distractor": null, "d_class": null}
+{"id": "C049", "bucket": "C_colloquial", "difficulty": "medium", "targets": [["商品手册 > 扫地机器人 > S10 Pro 常见故障"]], "distractor": null, "d_class": null}
+{"id": "C050", "bucket": "C_colloquial", "difficulty": "hard", "targets": [["售后手册 > 维修 > 保修期"]], "distractor": null, "d_class": null}
+{"id": "D001", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D002", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D003", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D004", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D005", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D006", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D007", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D008", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D009", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D010", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D011", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D012", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D013", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D014", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D015", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 1}
+{"id": "D016", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D017", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D018", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D019", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D020", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D021", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D022", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D023", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D024", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D025", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D026", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D027", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D028", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D029", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D030", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 2}
+{"id": "D031", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D032", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D033", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D034", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D035", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D036", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D037", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D038", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D039", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D040", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D041", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D042", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D043", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D044", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D045", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 3}
+{"id": "D046", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D047", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D048", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D049", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D050", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D051", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D052", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D053", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D054", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D055", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D056", "bucket": "D_unanswerable", "difficulty": "easy", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D057", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D058", "bucket": "D_unanswerable", "difficulty": "medium", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D059", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 4}
+{"id": "D060", "bucket": "D_unanswerable", "difficulty": "hard", "targets": [], "distractor": null, "d_class": 4}
+{"id": "E001", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 运动鞋 > R1 保修"], ["商品手册 > 运动鞋 > R2 保修"], ["商品手册 > 运动鞋 > R2 Pro 保修"]], "distractor": "R1 Plus", "d_class": null}
+{"id": "E002", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X3 常见故障"], ["商品手册 > 蓝牙耳机 > X3 Lite 常见故障"], ["商品手册 > 蓝牙耳机 > X5 Pro 常见故障"]], "distractor": "X3 Pro", "d_class": null}
+{"id": "E003", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K2 参数"], ["商品手册 > 手机壳 > K1 Plus 参数"], ["商品手册 > 手机壳 > K2 Pro 参数"]], "distractor": "K1 Pro", "d_class": null}
+{"id": "E004", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 羊毛衫 > W1 材质"], ["商品手册 > 羊毛衫 > W1 Pro 材质"], ["商品手册 > 羊毛衫 > W2 Plus 材质"]], "distractor": "W2", "d_class": null}
+{"id": "E005", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X3 保修"], ["商品手册 > 蓝牙耳机 > X5 保修"], ["商品手册 > 蓝牙耳机 > X5 Pro 保修"]], "distractor": "X3 Pro", "d_class": null}
+{"id": "E006", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K1 Pro 常见故障"], ["商品手册 > 手机壳 > K2 常见故障"], ["商品手册 > 手机壳 > K2 Pro 常见故障"]], "distractor": "K1", "d_class": null}
+{"id": "E007", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T3 Pro 保修"], ["商品手册 > 电动牙刷 > T5 保修"], ["商品手册 > 电动牙刷 > T3 Lite 保修"]], "distractor": "T3", "d_class": null}
+{"id": "E008", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 蓝牙耳机 > X3 续航"], ["商品手册 > 蓝牙耳机 > X3 Pro 续航"], ["商品手册 > 蓝牙耳机 > X3 Lite 续航"]], "distractor": "X5", "d_class": null}
+{"id": "E009", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 蓝牙耳机 > X3 Pro 保修"], ["商品手册 > 蓝牙耳机 > X3 Lite 保修"], ["商品手册 > 蓝牙耳机 > X5 Pro 保修"]], "distractor": "X3", "d_class": null}
+{"id": "E010", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 台灯 > L1 常见故障"], ["商品手册 > 台灯 > L1 Plus 常见故障"], ["商品手册 > 台灯 > L2 Pro 常见故障"]], "distractor": "L2", "d_class": null}
+{"id": "E011", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 羊毛衫 > W1 退换规则"], ["商品手册 > 羊毛衫 > W1 Plus 退换规则"], ["商品手册 > 羊毛衫 > W1 Pro 退换规则"]], "distractor": "W2 Plus", "d_class": null}
+{"id": "E012", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T3 Pro 常见故障"], ["商品手册 > 电动牙刷 > T5 常见故障"], ["商品手册 > 电动牙刷 > T5 Pro 常见故障"]], "distractor": "T3 Lite", "d_class": null}
+{"id": "E013", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R1 Pro 常见故障"], ["商品手册 > 运动鞋 > R1 Plus 常见故障"], ["商品手册 > 运动鞋 > R2 Pro 常见故障"]], "distractor": "R2", "d_class": null}
+{"id": "E014", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R2 材质"], ["商品手册 > 运动鞋 > R1 Plus 材质"], ["商品手册 > 运动鞋 > R2 Pro 材质"]], "distractor": "R1 Pro", "d_class": null}
+{"id": "E015", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 台灯 > L1 常见故障"], ["商品手册 > 台灯 > L2 常见故障"], ["商品手册 > 台灯 > L2 Pro 常见故障"]], "distractor": "L1 Pro", "d_class": null}
+{"id": "E016", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 保温杯 > C5 常见故障"], ["商品手册 > 保温杯 > C5 Plus 常见故障"], ["商品手册 > 保温杯 > C5 Pro 常见故障"]], "distractor": "C8 Plus", "d_class": null}
+{"id": "E017", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 手机壳 > K1 Pro 参数"], ["商品手册 > 手机壳 > K2 参数"], ["商品手册 > 手机壳 > K2 Pro 参数"]], "distractor": "K1 Plus", "d_class": null}
+{"id": "E018", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品手册 > 扫地机器人 > S20 退换规则"], ["商品手册 > 扫地机器人 > S10 Pro 退换规则"], ["商品手册 > 扫地机器人 > S20 Max 退换规则"]], "distractor": "S10 Max", "d_class": null}
+{"id": "E019", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 运动鞋 > R1 Pro 常见故障"], ["商品手册 > 运动鞋 > R2 常见故障"], ["商品手册 > 运动鞋 > R1 Plus 常见故障"]], "distractor": "R1", "d_class": null}
+{"id": "E020", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品手册 > 扫地机器人 > S10 退换规则"], ["商品手册 > 扫地机器人 > S10 Pro 退换规则"], ["商品手册 > 扫地机器人 > S20 Max 退换规则"]], "distractor": "S20", "d_class": null}
+{"id": "E021", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 保温杯 > C5 常见故障"], ["商品手册 > 保温杯 > C5 Plus 常见故障"], ["商品手册 > 保温杯 > C5 Pro 常见故障"]], "distractor": "C8 Plus", "d_class": null}
+{"id": "E022", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S10 参数"], ["商品手册 > 扫地机器人 > S10 Pro 参数"], ["商品手册 > 扫地机器人 > S20 Max 参数"]], "distractor": "S20", "d_class": null}
+{"id": "E023", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T3 Pro 保修"], ["商品手册 > 电动牙刷 > T3 Lite 保修"], ["商品手册 > 电动牙刷 > T5 Pro 保修"]], "distractor": "T5", "d_class": null}
+{"id": "E024", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品手册 > 蓝牙耳机 > X3 参数"], ["商品手册 > 蓝牙耳机 > X5 参数"], ["商品手册 > 蓝牙耳机 > X3 Lite 参数"]], "distractor": "X3 Pro", "d_class": null}
+{"id": "E025", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T3 续航"], ["商品手册 > 电动牙刷 > T3 Pro 续航"], ["商品手册 > 电动牙刷 > T5 Pro 续航"]], "distractor": "T5", "d_class": null}
+{"id": "E026", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R1 Pro 参数"], ["退货政策 > 退款 > 退款方式"], ["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": "R1 Plus", "d_class": null}
+{"id": "E027", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 电动牙刷 > T3 Lite 续航"], ["退货政策 > 订单取消"], ["售后手册 > 投诉 > 投诉处理时限"]], "distractor": "T5", "d_class": null}
+{"id": "E028", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品手册 > 电动牙刷 > T3 Lite 参数"], ["退货政策 > 特殊情况 > 赠品退回"], ["配送与签收政策 > 签收 > 快递柜与代签"]], "distractor": "T5", "d_class": null}
+{"id": "E029", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S10 Pro 保修"], ["配送与签收政策 > 签收 > 拒收"], ["售后手册 > 发票 > 发票换开"]], "distractor": "S20", "d_class": null}
+{"id": "E030", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L2 Pro 参数"], ["退货政策 > 退货条件 > 七天无理由退货"], ["预售与缺货政策 > 缺货 > 等待补货"]], "distractor": "L2", "d_class": null}
+{"id": "E031", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X5 保修"], ["预售与缺货政策 > 预售 > 定金退还"], ["配送与签收政策 > 发货 > 延迟发货补偿"]], "distractor": "X5 Pro", "d_class": null}
+{"id": "E032", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品手册 > 蓝牙耳机 > X3 参数"], ["配送与签收政策 > 签收 > 显示签收但未收到"], ["预售与缺货政策 > 缺货 > 缺货补偿"]], "distractor": "X3 Lite", "d_class": null}
+{"id": "E033", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 运动鞋 > R1 Plus 材质"], ["配送与签收政策 > 发货 > 延迟发货补偿"], ["预售与缺货政策"]], "distractor": "R1 Pro", "d_class": null}
+{"id": "E034", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K1 Plus 参数"], ["售后手册 > 发票 > 发票类型"], ["配送与签收政策 > 签收 > 签收验货"]], "distractor": "K2", "d_class": null}
+{"id": "E035", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 保温杯 > C5 Plus 容量"], ["售后手册 > 维修 > 申请维修"], ["预售与缺货政策 > 缺货 > 缺货补偿"]], "distractor": "C5 Pro", "d_class": null}
+{"id": "E036", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 台灯 > L1 Plus 退换规则"], ["配送与签收政策 > 发货 > 发货时效"], ["退货政策 > 订单取消"]], "distractor": "L1 Pro", "d_class": null}
+{"id": "E037", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 羊毛衫 > W1 Plus 参数"], ["售后手册 > 发票 > 发票换开"], ["配送与签收政策"]], "distractor": "W1 Pro", "d_class": null}
+{"id": "E038", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品手册 > 台灯 > L1 保修"], ["配送与签收政策 > 配送 > 偏远地区配送"], ["预售与缺货政策 > 预售 > 定金退还"]], "distractor": "L2 Pro", "d_class": null}
+{"id": "E039", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 蓝牙耳机 > X3 Lite 续航"], ["预售与缺货政策 > 预售 > 定金与尾款"], ["配送与签收政策 > 签收 > 快递柜与代签"]], "distractor": "X3", "d_class": null}
+{"id": "E040", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 蓝牙耳机 > X3 Lite 常见故障"], ["配送与签收政策 > 配送 > 配送方式"], ["退货政策 > 特殊情况 > 套装退货"]], "distractor": "X5", "d_class": null}
+{"id": "E041", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 台灯 > L1 Pro 常见故障"], ["预售与缺货政策 > 缺货 > 等待补货"], ["售后手册"]], "distractor": "L1 Plus", "d_class": null}
+{"id": "E042", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R1 退换规则"], ["预售与缺货政策 > 缺货 > 缺货补偿"], ["配送与签收政策 > 发货 > 发货时效"]], "distractor": "R2 Pro", "d_class": null}
+{"id": "E043", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 扫地机器人 > S10 保修"], ["预售与缺货政策 > 缺货 > 缺货补偿"], ["售后手册 > 换货 > 申请换货"]], "distractor": "S20 Max", "d_class": null}
+{"id": "E044", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 保温杯 > C8 Plus 参数"], ["售后手册 > 投诉 > 怎么投诉"], ["预售与缺货政策 > 预售 > 定金与尾款"]], "distractor": "C8", "d_class": null}
+{"id": "E045", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 运动鞋 > R2 Pro 保修"], ["退货政策 > 退货条件 > 质量问题退货"], ["预售与缺货政策 > 预售 > 预售发货时间"]], "distractor": "R2", "d_class": null}
+{"id": "E046", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S20 Max 参数"], ["退货政策"], ["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": "S10 Max", "d_class": null}
+{"id": "E047", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 手机壳 > K2 参数"], ["预售与缺货政策 > 预售 > 定金退还"], ["退货政策 > 订单取消"]], "distractor": "K1 Plus", "d_class": null}
+{"id": "E048", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 扫地机器人 > S10 参数"], ["预售与缺货政策 > 缺货 > 缺货补偿"], ["配送与签收政策 > 签收 > 签收验货"]], "distractor": "S10 Pro", "d_class": null}
+{"id": "E049", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 羊毛衫 > W2 Plus 常见故障"], ["退货政策 > 退款 > 部分退款"], ["售后手册 > 维修 > 维修流程"]], "distractor": "W1", "d_class": null}
+{"id": "E050", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 扫地机器人 > S10 Max 退换规则"], ["退货政策 > 特殊情况 > 赠品退回"], ["售后手册 > 投诉 > 投诉处理时限"]], "distractor": "S10 Pro", "d_class": null}
+{"id": "E051", "bucket": "E_multi", "difficulty": "easy", "targets": [["售后手册 > 维修 > 维修时间"], ["商品FAQ > 保温杯 > 保温杯能装热茶吗？"]], "distractor": null, "d_class": null}
+{"id": "E052", "bucket": "E_multi", "difficulty": "hard", "targets": [["常见问答 > 发票 > 怎么开发票？"], ["配送与签收政策 > 发货 > 修改收货地址"]], "distractor": null, "d_class": null}
+{"id": "E053", "bucket": "E_multi", "difficulty": "hard", "targets": [["配送与签收政策 > 发货 > 发货时效"], ["商品FAQ > 扫地机器人 > 扫地机器人需要多久清理一次尘盒？"]], "distractor": null, "d_class": null}
+{"id": "E054", "bucket": "E_multi", "difficulty": "hard", "targets": [["预售与缺货政策 > 预售 > 定金与尾款"], ["退货政策 > 品类退换货规则"]], "distractor": null, "d_class": null}
+{"id": "E055", "bucket": "E_multi", "difficulty": "easy", "targets": [["配送与签收政策 > 发货 > 修改收货地址"], ["预售与缺货政策 > 预售 > 定金退还"]], "distractor": null, "d_class": null}
+{"id": "E056", "bucket": "E_multi", "difficulty": "hard", "targets": [["配送与签收政策 > 配送 > 配送方式"], ["商品FAQ > 台灯 > 台灯可以用充电宝供电吗？"]], "distractor": null, "d_class": null}
+{"id": "E057", "bucket": "E_multi", "difficulty": "easy", "targets": [["预售与缺货政策 > 缺货 > 等待补货"], ["商品FAQ > 配送与签收 > 下单后多久能发货啊？"]], "distractor": null, "d_class": null}
+{"id": "E058", "bucket": "E_multi", "difficulty": "medium", "targets": [["常见问答 > 退换货 > 怎么申请换货？"], ["商品手册 > 保温杯 > C5 Plus 保修"]], "distractor": null, "d_class": null}
+{"id": "E059", "bucket": "E_multi", "difficulty": "medium", "targets": [["常见问答 > 退换货 > 退款多久到账？"], ["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": null, "d_class": null}
+{"id": "E060", "bucket": "E_multi", "difficulty": "medium", "targets": [["退货政策 > 退款 > 部分退款"], ["配送与签收政策 > 签收 > 签收验货"]], "distractor": null, "d_class": null}
+{"id": "E061", "bucket": "E_multi", "difficulty": "hard", "targets": [["配送与签收政策 > 发货 > 发货时效"], ["预售与缺货政策"]], "distractor": null, "d_class": null}
+{"id": "E062", "bucket": "E_multi", "difficulty": "medium", "targets": [["预售与缺货政策 > 缺货 > 等待补货"], ["退货政策 > 特殊情况 > 赠品退回"]], "distractor": null, "d_class": null}
+{"id": "E063", "bucket": "E_multi", "difficulty": "easy", "targets": [["商品FAQ > 扫地机器人 > 扫地机器人连不上 Wi-Fi 怎么办？"], ["商品手册 > 手机壳 > K1 参数"]], "distractor": null, "d_class": null}
+{"id": "E064", "bucket": "E_multi", "difficulty": "hard", "targets": [["售后手册 > 换货 > 申请换货"], ["商品手册 > 保温杯 > C5 保修"]], "distractor": null, "d_class": null}
+{"id": "E065", "bucket": "E_multi", "difficulty": "medium", "targets": [["售后手册 > 发票 > 发票换开"], ["配送与签收政策 > 配送 > 配送方式"]], "distractor": null, "d_class": null}
+{"id": "E066", "bucket": "E_multi", "difficulty": "easy", "targets": [["常见问答 > 发票 > 怎么开发票？"], ["预售与缺货政策 > 缺货 > 缺货补偿"]], "distractor": null, "d_class": null}
+{"id": "E067", "bucket": "E_multi", "difficulty": "hard", "targets": [["售后手册 > 发票 > 发票类型"], ["退货政策 > 退款 > 退款时间"]], "distractor": null, "d_class": null}
+{"id": "E068", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 扫地机器人 > S10 退换规则"], ["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": null, "d_class": null}
+{"id": "E069", "bucket": "E_multi", "difficulty": "medium", "targets": [["退货政策 > 特殊情况 > 赠品退回"], ["预售与缺货政策 > 预售 > 定金退还"]], "distractor": null, "d_class": null}
+{"id": "E070", "bucket": "E_multi", "difficulty": "hard", "targets": [["配送与签收政策"], ["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": null, "d_class": null}
+{"id": "E071", "bucket": "E_multi", "difficulty": "easy", "targets": [["常见问答 > 支付 > 支持哪些支付方式？"], ["配送与签收政策 > 配送 > 偏远地区配送"]], "distractor": null, "d_class": null}
+{"id": "E072", "bucket": "E_multi", "difficulty": "medium", "targets": [["配送与签收政策 > 配送 > 配送方式"], ["商品手册 > 保温杯 > C5 容量"]], "distractor": null, "d_class": null}
+{"id": "E073", "bucket": "E_multi", "difficulty": "medium", "targets": [["预售与缺货政策 > 预售 > 定金与尾款"], ["商品FAQ > 运动鞋 > 运动鞋尺码怎么选？"]], "distractor": null, "d_class": null}
+{"id": "E074", "bucket": "E_multi", "difficulty": "easy", "targets": [["常见问答 > 支付 > 订单可以取消吗？"], ["售后手册 > 维修 > 保修期"]], "distractor": null, "d_class": null}
+{"id": "E075", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 电动牙刷 > T5 常见故障"], ["预售与缺货政策 > 缺货 > 等待补货"]], "distractor": null, "d_class": null}
+{"id": "E076", "bucket": "E_multi", "difficulty": "hard", "targets": [["退货政策"], ["商品手册 > 运动鞋 > R2 Pro 常见故障"]], "distractor": null, "d_class": null}
+{"id": "E077", "bucket": "E_multi", "difficulty": "easy", "targets": [["常见问答 > 发票 > 怎么开发票？"], ["商品FAQ > 蓝牙耳机 > X3 Lite 能降噪吗？"]], "distractor": null, "d_class": null}
+{"id": "E078", "bucket": "E_multi", "difficulty": "hard", "targets": [["退货政策 > 特殊情况 > 价格保护"], ["预售与缺货政策 > 缺货 > 缺货补偿"]], "distractor": null, "d_class": null}
+{"id": "E079", "bucket": "E_multi", "difficulty": "easy", "targets": [["退货政策 > 退货条件 > 不支持退货的情形"], ["预售与缺货政策 > 预售 > 预售商品退货"]], "distractor": null, "d_class": null}
+{"id": "E080", "bucket": "E_multi", "difficulty": "easy", "targets": [["退货政策 > 退货条件 > 不支持退货的情形"], ["预售与缺货政策 > 缺货 > 等待补货"]], "distractor": null, "d_class": null}
+{"id": "E081", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品手册 > 台灯 > L2 退换规则"], ["退货政策 > 订单取消"]], "distractor": null, "d_class": null}
+{"id": "E082", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品FAQ > 羊毛衫 > 羊毛衫尺码偏大还是偏小？"], ["预售与缺货政策 > 缺货 > 等待补货"]], "distractor": null, "d_class": null}
+{"id": "E083", "bucket": "E_multi", "difficulty": "hard", "targets": [["配送与签收政策 > 发货 > 发货时效"], ["商品FAQ > 预售与缺货 > 付完钱又说没货了怎么办？"]], "distractor": null, "d_class": null}
+{"id": "E084", "bucket": "E_multi", "difficulty": "hard", "targets": [["常见问答 > 发票 > 怎么开发票？"], ["商品FAQ > 配送与签收 > 下单后多久能发货啊？"]], "distractor": null, "d_class": null}
+{"id": "E085", "bucket": "E_multi", "difficulty": "hard", "targets": [["预售与缺货政策 > 预售 > 定金与尾款"], ["常见问答 > 售后维修 > 维修需要多长时间？"]], "distractor": null, "d_class": null}
+{"id": "E086", "bucket": "E_multi", "difficulty": "medium", "targets": [["常见问答 > 支付 > 支持哪些支付方式？"], ["退货政策 > 退货条件 > 不支持退货的情形"]], "distractor": null, "d_class": null}
+{"id": "E087", "bucket": "E_multi", "difficulty": "medium", "targets": [["常见问答 > 支付 > 订单可以取消吗？"], ["配送与签收政策 > 配送 > 配送方式"]], "distractor": null, "d_class": null}
+{"id": "E088", "bucket": "E_multi", "difficulty": "hard", "targets": [["售后手册 > 投诉 > 投诉处理时限"], ["商品FAQ > 蓝牙耳机 > 耳机怎么连手机？"]], "distractor": null, "d_class": null}
+{"id": "E089", "bucket": "E_multi", "difficulty": "medium", "targets": [["配送与签收政策 > 发货 > 修改收货地址"], ["售后手册 > 发票 > 发票换开"]], "distractor": null, "d_class": null}
+{"id": "E090", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品FAQ > 扫地机器人 > 扫地机老是找不到充电座咋办？"], ["售后手册 > 维修 > 维修时间"]], "distractor": null, "d_class": null}
+{"id": "E091", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品FAQ > 预售与缺货 > 预售交的定金还能退吗？"], ["预售与缺货政策 > 预售 > 定金退还"]], "distractor": null, "d_class": null}
+{"id": "E092", "bucket": "E_multi", "difficulty": "medium", "targets": [["商品FAQ > 电动牙刷 > 电动牙刷可以带上飞机吗？"], ["退货政策 > 退款 > 退款时间"]], "distractor": null, "d_class": null}
+{"id": "E093", "bucket": "E_multi", "difficulty": "hard", "targets": [["退货政策 > 退货条件 > 不支持退货的情形"], ["预售与缺货政策 > 缺货 > 等待补货"]], "distractor": null, "d_class": null}
+{"id": "E094", "bucket": "E_multi", "difficulty": "hard", "targets": [["商品手册 > 运动鞋 > R2 材质"], ["商品FAQ > 保温杯 > 保温杯能放进洗碗机吗？"]], "distractor": null, "d_class": null}
+{"id": "E095", "bucket": "E_multi", "difficulty": "hard", "targets": [["预售与缺货政策 > 预售 > 定金与尾款"], ["配送与签收政策 > 发货 > 修改收货地址"]], "distractor": null, "d_class": null}
+{"id": "E096", "bucket": "E_multi", "difficulty": "easy", "targets": [["预售与缺货政策 > 缺货 > 缺货补偿"], ["售后手册"]], "distractor": null, "d_class": null}
+{"id": "E097", "bucket": "E_multi", "difficulty": "easy", "targets": [["配送与签收政策 > 签收 > 快递柜与代签"], ["商品手册 > 羊毛衫 > W1 Plus 参数"]], "distractor": null, "d_class": null}
+{"id": "E098", "bucket": "E_multi", "difficulty": "hard", "targets": [["预售与缺货政策 > 缺货 > 缺货通知"], ["商品FAQ > 扫地机器人 > 扫地机器人需要多久清理一次尘盒？"]], "distractor": null, "d_class": null}
+{"id": "E099", "bucket": "E_multi", "difficulty": "easy", "targets": [["预售与缺货政策"], ["配送与签收政策 > 配送 > 配送方式"]], "distractor": null, "d_class": null}
+{"id": "E100", "bucket": "E_multi", "difficulty": "easy", "targets": [["常见问答 > 支付 > 支持哪些支付方式？"], ["商品FAQ > 羊毛衫 > 羊毛衫尺码偏大还是偏小？"]], "distractor": null, "d_class": null}

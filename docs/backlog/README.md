@@ -21,3 +21,4 @@
 | [2026-10-08-duplicate-human-actions.md](2026-10-08-duplicate-human-actions.md) | 同一步两次调用 offer_human_options 时按钮重复 | ch06 | 搁置 |
 | [2026-10-08-ticket-during-pending-picker.md](2026-10-08-ticket-during-pending-picker.md) | 订单选择器待处理时点工单或退款按钮会清掉待选状态 | ch06 | 搁置 |
 | [2026-10-09-non-numeric-citation-marker.md](2026-10-09-non-numeric-citation-marker.md) | 回复中偶发非数字方括号标记（如"[工具数据]"） | ch07 | 搁置 |
+| [2026-10-11-lexicon-alias-side-effects.md](2026-10-11-lexicon-alias-side-effects.md) | ch12 新同义词改写了无关的生产查询 | ch12 | 搁置（等用户决定） |

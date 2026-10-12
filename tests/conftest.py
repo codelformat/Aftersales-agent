@@ -236,8 +236,12 @@ def _block_llm_runnables(monkeypatch):
 
     from evals import run_faith_judge_eval, run_rag_eval
     monkeypatch.setattr(run_rag_eval, "get_chat_model", _blocked_factory("get_chat_model"))
+    monkeypatch.setattr(run_rag_eval, "get_coverage_judge", _blocked_factory("get_coverage_judge"))
     for module in (run_rag_eval, run_faith_judge_eval):
         monkeypatch.setattr(module, "get_faith_judge", _blocked_factory("get_faith_judge"))
+
+    from evals import run_coverage_judge_eval
+    monkeypatch.setattr(run_coverage_judge_eval, "get_coverage_judge", _blocked_factory("get_coverage_judge"))
 
 
 @pytest.fixture(autouse=True)

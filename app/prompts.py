@@ -366,6 +366,26 @@ faith_judge_prompt = ChatPromptTemplate.from_messages([
 ])
 
 
+COVERAGE_JUDGE_SYSTEM_PROMPT = """你是客服回答的事实覆盖裁判。判断答案是否正确说出了每条参考事实中回答问题所需的内容。
+
+## 判定规则
+1. 逐条检查参考事实 [n]。先找出参考原文中回答这道题所需的部分。参考原文中与题目无关的内容，不要求出现在答案中。
+2. 答案说出了这部分的全部要点，并且数字、条件、型号、结论与参考原文一致，covered 为 true。
+3. 换一种说法可以，例如"两周"与"14 天"。
+4. 下列情况 covered 为 false：没有提到；只说了一部分要点；数字或条件与参考原文不一致；把另一个型号的参数说成本型号的参数；只建议联系客服或说无法确认。
+5. 答案中参考事实之外的内容不影响判定。是否编造由另一个裁判检查。
+6. 答案中的引用编号只是标注，不影响判定。
+7. 每条参考事实输出一项，n 与输入编号一致。
+
+## reason
+covered 为 true 时，写答案中对应的内容；为 false 时，写缺了什么或错在哪里。"""
+
+coverage_judge_prompt = ChatPromptTemplate.from_messages([
+    ("system", COVERAGE_JUDGE_SYSTEM_PROMPT),
+    ("human", "问题：{question}\n\n参考事实：\n{references}\n\n答案：\n{answer}"),
+])
+
+
 INTENT_SYSTEM_PROMPT = """你是售后客服的意图分类器。判断用户这一句话属于下列哪一类。只看这一句，不回答问题。
 
 ## 选项（单选）
