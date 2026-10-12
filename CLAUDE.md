@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ch08：即插即用的工具系统。内置工具放 `app/tools/builtin/`，启动时扫描登记；MCP 工具每轮从 `config/tools.json` 列出的 Server 动态发现（`MultiServerMCPClient`，Streamable HTTP），与内置工具合成一份本轮工具集。所有调用只走执行引擎 `execute_tool_calls`：查找 → JSON Schema 校验 → 写工具确认 → 超时/重试（只读工具、暂时性故障）→ 分诊（参数不合法、查询落空、真故障）→ 格式化 → 审计（`tool_audit_logs`）。自建两个 MCP Server：物流 8101（`query_logistics`，内置版下线）、售后 8102（`query_warranty`、`query_return_progress`）。用户明确要求建工单时，解析器设 `ticket_request`，Agent 补齐信息后发起 `create_ticket`，`confirm_write` 用 interrupt 推预览卡片，`/chat/resume`（`ticket_confirm`）确认或取消。
 - ch09：可观测性与知识飞轮。Langfuse 记录每轮 trace、节点和 LLM 调用，按意图汇总 token。置信度闸用 `evidence_confidence`。低置信度问题与用户 👎 反馈保存召回快照，经单 worker 标准化、查重进入 `/admin/review-queue`；人工核准后入库并同步向量化。评估流水线写 `eval_runs`，`/admin/eval-runs` 显示趋势。
 - ch10：展示型前端。`web/` 用 React + TypeScript + Vite，提供客服工作台、运营台和回放剧场。工程视角用 `debug=true` 获取 `trace`，显示节点、检索、置信度闸和 LLM 用量。7 个场景使用真实录制和评估快照。live 构建由 FastAPI 服务；replay 构建只读静态文件，用于 Pages。Docker `full` profile 启动完整系统；Playwright 与 3 条 CI workflow 负责验收。replay 首页为英文欢迎页 `#/welcome`（面向招聘方）；剧场深链接支持 `lang=en`、`autoplay=1`；OG 元数据（`web/replayMeta.ts`、`web/public/og.png`）只加在 replay 构建。
-- ch12：扩充知识库与 v2 评估集（不含 ch11）。商品手册新增 16 个形近型号（共 40 个），新增《配送与签收政策》《预售与缺货政策》和 12 条 FAQ；`scripts/check_kb_v2.py` 检查新增内容与 spec 附录一致、不改已有行、不出现旧 D 桶的词。v2 题集 `evals/rag_eval_v2.jsonl`（A 40 / B 50 / C 50 / E 100 / D 60）按出题清单 `evals/v2/targets.jsonl` 编写，冻结于 `da67f2b`（`evals/v2/manifest.json`）；`run_rag_eval.py --set v2` 校验 SHA-256 并在报告末尾对照 `evals/v2/expectations.py` 的 6 条预期。新旧知识库上 3 套题集的对比见 `evals/reports/ch12_comparison.md`。
+- ch12：扩充知识库与 v2 评估集（不含 ch11）。商品手册新增 16 个形近型号（共 40 个），新增《配送与签收政策》《预售与缺货政策》和 12 条 FAQ；`scripts/check_kb_v2.py` 检查新增内容与 spec 附录一致、不改已有行、不出现旧 D 桶的词。v2 题集 `evals/rag_eval_v2.jsonl`（A 40 / B 50 / C 50 / E 100 / D 60）按出题清单 `evals/v2/targets.jsonl` 编写，冻结于 `da67f2b`（`evals/v2/manifest.json`）；`run_rag_eval.py --set v2` 校验 SHA-256 并在报告末尾对照 `evals/v2/expectations.py` 的 6 条预期。新旧知识库上 3 套题集的对比见 `evals/reports/ch12_comparison.md`。v2 题集的生成评估加评事实覆盖率（覆盖率裁判 `get_coverage_judge`、`evals/coverage.py`，`--coverage`），预期 7–9 见同一报告。
 - README：英文 `README.md` + 中文 `README.zh-CN.md`，MIT `LICENSE`。README 中的数字都来自 `evals/reports/` 和实测测试数；数字变化时两份 README 和 `web/src/welcome/facts.ts` 一起改。
 - 开发中搁置的问题记录在 `docs/backlog/`。
 
@@ -69,6 +69,8 @@ uv run python evals/run_rag_eval.py --check          # 检查 300 题评估集�
 uv run python evals/run_rag_eval.py --stage retrieval # 四策略检索对比 + 门槛扫描（真实上游 + 生产集合）；--stage generation 评 Faithfulness 并写 faith_cases
 uv run python evals/run_rag_eval.py --stage all --gen-strategies all --concurrency 3   # 完整报告，写入 evals/reports/（并发高于 4 会触发上游限流）
 uv run python evals/run_faith_judge_eval.py          # 忠实度裁判自检（30 条，准确率 < 90% 退出码 1）
+uv run python evals/run_coverage_judge_eval.py       # 事实覆盖率裁判自检（30 条 78 组，按组准确率 < 90% 或调用失败退出码 1）
+uv run python evals/run_rag_eval.py --set v2 --stage generation --coverage --concurrency 3 --save-generation <json>   # v2 生成评估 + 事实覆盖率（--set v2 不写 faith_cases）
 uv run python evals/run_mine_extract_eval.py         # 问答抽取 Prompt 评估（真实上游）
 uv run python evals/run_dedup_eval.py                # 去重裁定 Prompt 评估（真实上游）
 uv run python evals/run_gate_calibration.py           # evidence_confidence 参数校准（300 题，真实检索；--from-cache 可重用缓存）
