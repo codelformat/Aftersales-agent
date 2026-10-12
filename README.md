@@ -95,6 +95,17 @@ All numbers come from the report files in [`evals/reports/`](evals/reports/). Th
 
 Source: [`rag_eval_20261009-193611.md`](evals/reports/rag_eval_20261009-193611.md). An LLM judge scores faithfulness. Two runs of the same code differed by about 4 points, so treat differences under that as noise.
 
+**Hard set (240 questions, retrieval only).** A second set targets the weak spot of each single retriever: sibling models with near-identical sections (`X3` vs `X3 Pro`), colloquial questions that share no words with the answer, one key term buried in a long message, and model-specific rules that a general policy seems to cover. Code picks the target sections from the knowledge-base structure. An LLM writes the questions and labels every section that fully answers them. No step looks at retrieval results. The set was frozen ([`19e983d`](https://github.com/codelformat/Aftersales-agent/commit/19e983d)) before any retrieval ran, and six expected outcomes were written down first.
+
+| Retrieval strategy (240 hard) | Recall@1 | Recall@5 | MRR | Misses at rank 1 |
+|---|---:|---:|---:|---:|
+| Dense (bge-m3) | 0.975 | 1.000 | 0.987 | 6 |
+| BM25 | 0.904 | 0.988 | 0.940 | 23 |
+| Hybrid (RRF) | 0.975 | 0.996 | 0.983 | 6 |
+| **Hybrid + rerank (production)** | **0.992** | **1.000** | **0.996** | **2** |
+
+Source: [`rag_eval_20261011-022905.md`](evals/reports/rag_eval_20261011-022905.md). Four of the six expectations held: the reranker leads overall, and BM25 is lowest on colloquial questions (Recall@1 0.800). Two did not: on buried-term questions dense did not fall below BM25, and on model-specific rules RRF tied the reranker. Dense is already strong on this corpus, so the gap to it stays small (1.7 points of Recall@1). Faithfulness is missing because the upstream account ran out of balance during generation. Claude, not a person, did the 20-question spot-check: 19 clean, 1 over-labeled (H1_35). See the [manifest](evals/rag_eval_hard.manifest.json) and [spot-check](evals/rag_eval_hard.spotcheck.md).
+
 **Confidence gate calibration** ([`gate_calibration_20261009-125757.md`](evals/reports/gate_calibration_20261009-125757.md)): a grid search with 5-fold cross-validation chose weights (0.2, 0.3, 0.5) for Top-1 score, share of useful evidence, and the gap between the top two scores. Against the old rule (Top-1 ≥ 0.20), the refusal rate on unanswerable questions rose from 0.450 to 0.583, while 95.4% of answerable questions still pass.
 
 ## Decision records
@@ -116,7 +127,7 @@ Each record states the problem, the options, the choice, and the evidence.
 - **Problem:** Customers write colloquial Chinese and model names in many forms (`x3pro`, `X3 Pro`).
 - **Options:** dense only; BM25 only; hybrid with RRF; hybrid with a reranker.
 - **Choice:** hybrid + reranker, with a lexicon that normalizes model names before search.
-- **Evidence:** RRF alone did not beat dense (Recall@1 0.834 vs 0.844). The reranker reached 0.861 and the best faithfulness (0.964).
+- **Evidence:** RRF alone did not beat dense (Recall@1 0.834 vs 0.844). The reranker reached 0.861 and the best faithfulness (0.964). On the hard set, the reranker misses 2 of 240 questions at rank 1; dense and RRF miss 6 each, BM25 misses 23.
 </details>
 
 <details open>

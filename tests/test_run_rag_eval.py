@@ -270,7 +270,7 @@ async def test_rewrite_fallback_report_and_exit(
     ])
     result = await rre.run_eval(args)
     md = next(report_dir.glob("*.md")).read_text()
-    params = json.dumps({k: v for k, v in vars(args).items() if k != "eval_set"},
+    params = json.dumps({k: v for k, v in vars(args).items() if k not in ("eval_set", "gen_repeat")},
                         ensure_ascii=False, sort_keys=True)
     expected = (f"# RAG 评估报告\n\n运行参数：`{params}`\n\n"
                 "评估集题数：300；本次题数：4\n\n")
@@ -643,6 +643,11 @@ async def test_params_line_unchanged_without_coverage(offline_eval, monkeypatch)
     assert await rre.run_eval(args) == 0
     md = next(report_dir.glob("*.md")).read_text()
     assert '"coverage"' not in md and '"save_generation"' not in md and "## 事实覆盖率" not in md
+    assert md.splitlines()[2] == (
+        '运行参数：`{"bucket": "B_model", "check": false, "concurrency": 8, '
+        '"gen_strategies": "hybrid_rerank", "limit": 1, "list_keys": false, '
+        '"no_write": false, "save_rankings": null, "stage": "generation"}`'
+    )
 
 
 async def test_save_generation_json(offline_eval, monkeypatch, tmp_path):
@@ -699,3 +704,134 @@ async def test_v2_generation_expectations_without_judgments(
     md = next(report_dir.glob("*.md")).read_text()
     assert "| 7 | hybrid_rerank 的 Faithfulness ≥ 0.90 | 不符合 | 数据不足 |" in md
     assert f"| 9 | 可回答桶误拒率 ≤ 0.10 | {refusal_result} |" in md
+
+
+@pytest.fixture
+def offline_hard(monkeypatch, tmp_path):
+    samples = [EvalSample(f"{b[:2]}_{i:02d}", b, "hard", f"{b[:2]}_{i:02d} q", ((ITEM.section_path,),))
+               for b in es.HARD_BUCKET_SIZES for i in range(1, 61)]
+    loaded = []
+
+    async def noop():
+        return None
+
+    async def keys():
+        return {ITEM.section_path: "预览"}
+
+    def load(path=None):
+        loaded.append(path)
+        return samples
+
+    for name in ("ensure_collection", "close_milvus", "close_rerank", "dispose_engine"):
+        monkeypatch.setattr(rre, name, noop)
+    monkeypatch.setattr(rre, "known_source_keys", keys)
+    monkeypatch.setattr(rre, "load_samples", load)
+    monkeypatch.setattr(rre, "REPORTS_DIR", tmp_path)
+    return samples, loaded, tmp_path
+
+
+@pytest.mark.parametrize("eval_set", ["base", "hard", "v2"])
+async def test_coverage_rejects_repeated_generation(offline_eval, monkeypatch, capsys, eval_set):
+    _, lifecycle, report_dir = offline_eval
+
+    async def unexpected_collection():
+        pytest.fail("不兼容的参数应在访问题集和上游前被拒绝")
+
+    monkeypatch.setattr(rre, "ensure_collection", unexpected_collection)
+    args = rre.build_parser().parse_args([
+        "--set", eval_set, "--coverage", "--gen-repeat", "2",
+    ])
+    assert await rre.run_eval(args) == 1
+    assert "--coverage 只支持 --gen-repeat 1" in capsys.readouterr().out
+    assert lifecycle == ["milvus", "rerank", "db"]
+    assert not list(report_dir.glob("*.md"))
+
+
+async def test_hard_set_retrieval_report(offline_hard, monkeypatch):
+    _, loaded, report_dir = offline_hard
+
+    async def understand(query):
+        return PLAN
+
+    async def retrieve(query, strategy, **kwargs):
+        return Retrieval(PLAN, [ITEM], [])
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "retrieve", retrieve)
+    args = rre.build_parser().parse_args(["--set", "hard", "--stage", "retrieval", "--bucket", "H1_sibling",
+                                         "--limit", "2"])
+    assert await rre.run_eval(args) == 0
+    assert loaded == [es.HARD_SAMPLES_PATH]
+    md = next(report_dir.glob("*.md")).read_text()
+    assert md.startswith("# RAG 评估报告（困难题集）")
+    assert "| hybrid_rerank | H1_sibling | 1.000 |" in md
+    assert "## 检索：策略 × 难度" not in md and "## 门槛扫描" not in md
+    assert "## 冻结前写定的预期\n\n预期对照需要全部 4 个桶，本次跳过。" in md
+
+
+@pytest.mark.parametrize("options", [["--set", "hard", "--bucket", "A_policy"],
+                                     ["--set", "base", "--bucket", "H1_sibling"]])
+async def test_bucket_must_belong_to_set(offline_eval, options, capsys):
+    _, lifecycle, report_dir = offline_eval
+    assert await rre.run_eval(rre.build_parser().parse_args(options)) == 1
+    assert lifecycle[-3:] == ["milvus", "rerank", "db"]
+    assert not list(report_dir.glob("*.md"))
+    assert "不属于题集" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("gen_repeat", [1, 2])
+async def test_gen_repeat_failure_messages_include_run_only_when_repeated(monkeypatch, gen_repeat):
+    async def understand(query):
+        return PLAN
+
+    async def generate(sample, plan, strategy, **kwargs):
+        if strategy == "dense":
+            raise RuntimeError("生成失败")
+        return rm.GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
+                            True, False, "答", [], None, [], "裁判失败")
+
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "get_chat_model", object)
+    monkeypatch.setattr(rre, "get_faith_judge", object)
+    monkeypatch.setattr(rre, "generate_one", generate)
+    got = await rre.collect([SAMPLE], strategies=(), gen_strategies=("dense", "bm25"),
+                            do_retrieval=False, do_generation=True, concurrency=1,
+                            write_cases=False, gen_repeat=gen_repeat)
+    assert sorted(got.failures) == sorted(
+        f"{SAMPLE.id}/{strategy}{f'#{run}' if gen_repeat > 1 else ''}：{reason}"
+        for run in range(1, gen_repeat + 1)
+        for strategy, reason in (("dense", "RuntimeError"), ("bm25", "裁判失败"))
+    )
+    assert [r.run for r in got.results] == list(range(1, gen_repeat + 1))
+
+
+async def test_gen_repeat_runs_each_strategy_n_times_and_writes_first_run_only(offline_hard, monkeypatch):
+    _, _, report_dir = offline_hard
+    runs, written = [], []
+    model, judge = object(), object()
+
+    async def understand(query):
+        return PLAN
+
+    async def generate(sample, plan, strategy, **kwargs):
+        runs.append(strategy)
+        return rm.GenResult(sample.id, sample.bucket, sample.difficulty, strategy, sample.query,
+                            True, False, "答", [], False, ["答"], "缺")
+
+    async def write(results, judge_model):
+        written.extend(results)
+        return len(results)
+
+    from types import SimpleNamespace
+    monkeypatch.setattr(rre, "understand", understand)
+    monkeypatch.setattr(rre, "get_chat_model", lambda: model)
+    monkeypatch.setattr(rre, "get_faith_judge", lambda: judge)
+    monkeypatch.setattr(rre, "get_settings", lambda: SimpleNamespace(chat_model="m1"))
+    monkeypatch.setattr(rre, "generate_one", generate)
+    monkeypatch.setattr(rre, "write_faith_cases", write)
+    args = rre.build_parser().parse_args(["--set", "hard", "--stage", "generation", "--bucket", "H2_colloquial",
+                                         "--limit", "1", "--gen-strategies", "all", "--gen-repeat", "2"])
+    assert await rre.run_eval(args) == 0
+    assert sorted(runs) == sorted(list(rre.STRATEGIES) * 2)
+    assert len(written) == 4 and all(r.run == 1 for r in written)
+    assert "0.000 / 0.000" in next(report_dir.glob("*.md")).read_text()

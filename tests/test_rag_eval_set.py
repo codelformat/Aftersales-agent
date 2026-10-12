@@ -129,7 +129,7 @@ def test_validate_v2_errors():
 
 
 def test_validate_v2_rejects_unknown_set():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="题集必须为 base、hard 或 v2"):
         es.validate([], set(), eval_set="v3")
 
 
@@ -147,3 +147,27 @@ def test_check_manifest(tmp_path):
     assert es.check_manifest(s, m) is None
     s.write_text("y\n", encoding="utf-8")
     assert "不一致" in es.check_manifest(s, m)
+
+
+def hard(id="H1_01", bucket="H1_sibling", relevant=(("k1",),), difficulty="hard"):
+    return es.EvalSample(id, bucket, difficulty, "q", tuple(tuple(g) for g in relevant))
+
+
+def test_validate_hard_set_rules():
+    assert es.validate([hard()], {"k1"}, full=False, eval_set="hard") == []
+    errors = es.validate([
+        hard("H1_02", "H2_colloquial"),                     # 题号与桶不符
+        hard("H3_01", "H3_buried", relevant=(("k1",), ("k2",))),  # 只能 1 组
+        hard("H4_01", "H4_specific", relevant=(("a", "b", "c", "d"),)),  # 组内最多 3 个键
+        hard("H2_01", "H2_colloquial", difficulty="easy"),  # 难度必须为 hard
+        hard("A01", "A_policy"),                            # 不属于困难题集
+    ], None, full=False, eval_set="hard")
+    joined = "\n".join(errors)
+    for word in ("H1_02", "H3_01", "H4_01", "H2_01", "A01"):
+        assert word in joined
+    full = es.validate([hard()], None, full=True, eval_set="hard")
+    assert any("H2_colloquial" in e and "60" in e for e in full)
+
+
+def test_validate_base_rejects_hard_buckets():
+    assert es.validate([hard()], None, full=False) != []
