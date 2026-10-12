@@ -70,3 +70,51 @@ def test_missing_metric_only_affects_dependent_expectations():
     rows = ex.check_expectations(t)
     assert rows[2][2:] == (False, "数据不足")
     assert all(row[2] for row in rows if row[0] != 3)
+
+
+def gen(faith=0.95, refusal=0.05):
+    return {"hybrid_rerank": {"faithfulness": faith, "false_refusal": refusal}}
+
+
+def cov(e=0.60, others=(0.90, 0.85, 0.80)):
+    buckets = ("A_policy", "B_model", "C_colloquial")
+    out = {("hybrid_rerank", b): {"group_all": v} for b, v in zip(buckets, others)}
+    out[("hybrid_rerank", "E_multi")] = {"group_all": e}
+    return out
+
+
+def test_generation_expectations_met():
+    rows = ex.check_generation_expectations(gen(), cov())
+    assert [(n, met) for n, _, met, _ in rows] == [(7, True), (8, True), (9, True)]
+
+
+def test_generation_expectations_boundaries():
+    rows = ex.check_generation_expectations(gen(faith=0.90, refusal=0.10), cov(e=0.80))
+    assert [met for _, _, met, _ in rows] == [True, False, True]
+    rows = ex.check_generation_expectations(gen(faith=0.899, refusal=0.101), cov())
+    assert [met for _, _, met, _ in rows] == [False, True, False]
+
+
+def test_generation_expectations_missing_data():
+    rows = ex.check_generation_expectations({}, {})
+    assert [(n, met, actual) for n, _, met, actual in rows] == [
+        (7, False, "数据不足"), (8, False, "数据不足"), (9, False, "数据不足")]
+    partial = cov()
+    partial[("hybrid_rerank", "B_model")]["group_all"] = None
+    assert ex.check_generation_expectations(gen(), partial)[1][3] == "数据不足"
+
+
+def test_render_expectations_title():
+    assert ex.render_expectations([], title="冻结前写定的生成预期").startswith("## 冻结前写定的生成预期")
+    assert ex.render_expectations([]).startswith("## 冻结前写定的预期")
+
+
+@pytest.mark.parametrize("metrics, expected", [
+    ({"faithfulness": 0.95}, [(7, True), (9, False)]),
+    ({"false_refusal": 0.05}, [(7, False), (9, True)]),
+    ({}, [(7, False), (9, False)]),
+])
+def test_generation_expectations_missing_metrics(metrics, expected):
+    rows = ex.check_generation_expectations({"hybrid_rerank": metrics}, cov())
+    assert [(n, met) for n, _, met, _ in rows if n in (7, 9)] == expected
+    assert all(actual == "数据不足" for n, _, met, actual in rows if n in (7, 9) and not met)

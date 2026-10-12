@@ -1,4 +1,4 @@
-"""对照冻结前写定的六条检索预期。"""
+"""对照冻结前写定的检索和生成预期。"""
 
 from decimal import Decimal
 
@@ -40,8 +40,31 @@ def check_expectations(t: dict[tuple[str, str], dict[str, float]]) -> list[tuple
     return rows
 
 
-def render_expectations(rows: list[tuple[int, str, bool, str]]) -> str:
-    lines = ["## 冻结前写定的预期", "", "| 编号 | 预期 | 结果 | 实际值 |",
+def check_generation_expectations(
+    gen: dict[str, dict[str, float]], cov: dict[tuple[str, str], dict],
+) -> list[tuple[int, str, bool, str]]:
+    """预期 7–9，只看 hybrid_rerank。"""
+    rows = []
+    g = gen.get("hybrid_rerank", {})
+    faith, refusal = g.get("faithfulness"), g.get("false_refusal")
+    desc7 = "hybrid_rerank 的 Faithfulness ≥ 0.90"
+    desc8 = "E_multi 的组覆盖率（全部）是 4 个可回答桶中最低的"
+    desc9 = "可回答桶误拒率 ≤ 0.10"
+    rows.append((7, desc7, False, "数据不足") if faith is None else
+                (7, desc7, faith >= 0.90, f"Faithfulness={faith:.3f}"))
+    values = [cov.get(("hybrid_rerank", b), {}).get("group_all") for b in ANSWERABLE_V2]
+    if any(v is None for v in values):
+        rows.append((8, desc8, False, "数据不足"))
+    else:
+        rows.append((8, desc8, all(values[-1] < v for v in values[:-1]),
+                     "；".join(f"{b}={v:.3f}" for b, v in zip(ANSWERABLE_V2, values))))
+    rows.append((9, desc9, False, "数据不足") if refusal is None else
+                (9, desc9, refusal <= 0.10, f"误拒率={refusal:.3f}"))
+    return rows
+
+
+def render_expectations(rows: list[tuple[int, str, bool, str]], title: str = "冻结前写定的预期") -> str:
+    lines = [f"## {title}", "", "| 编号 | 预期 | 结果 | 实际值 |",
              "|---|---|---|---|"]
     lines.extend(f"| {number} | {description} | {'符合' if met else '不符合'} | {actual} |"
                  for number, description, met, actual in rows)

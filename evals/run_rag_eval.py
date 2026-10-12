@@ -23,7 +23,7 @@ from app.knowledge.milvus import close_milvus, ensure_collection
 from app.knowledge.query import understand
 from app.knowledge.rerank import close_rerank
 from app.knowledge.retrieval import STRATEGIES, retrieve, source_key
-from app.llm import get_chat_model, get_faith_judge
+from app.llm import get_chat_model, get_coverage_judge, get_faith_judge
 from app.prompts import TOOL_ROUND_CLOSING, chat_prompt, chat_prompt_vars
 from app.repositories import faith_cases
 from app.schemas import FaithVerdict, QueryPlan, SelfCheck
@@ -32,15 +32,20 @@ from app.services.grounding import (
 )
 from app.tools.executor import execute_tool_calls
 from app.tools.registry import ch04_tools, ch04_toolset
+from evals.coverage import (
+    CoverageResult, coverage_summary, judge_coverage, load_reference_texts, render_coverage,
+)
 from evals.rag_eval_set import (
     BUCKET_SIZES, V2_MANIFEST_PATH, V2_SAMPLES_PATH, EvalSample, check_manifest,
     known_source_keys, load_samples, sha256_file, validate,
 )
 from evals.rag_metrics import (
-    ANSWERABLE, GenResult, ThresholdRow, is_refusal, render_report, score_retrieval,
-    summarize, threshold_sweep,
+    ANSWERABLE, GenResult, ThresholdRow, generation_summary, is_refusal, render_report,
+    score_retrieval, summarize, threshold_sweep,
 )
-from evals.v2.expectations import check_expectations, render_expectations
+from evals.v2.expectations import (
+    check_expectations, check_generation_expectations, render_expectations,
+)
 
 logger = logging.getLogger(__name__)
 REPORTS_DIR = SCRIPT_DIR / "reports"
@@ -150,10 +155,12 @@ class Collected:
     failures: list[str]
     rankings: dict
     rewrite_fallbacks: int
+    coverage: list[CoverageResult]
 
 
 async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
-                  do_generation: bool, concurrency: int, write_cases: bool) -> Collected:
+                  do_generation: bool, concurrency: int, write_cases: bool,
+                  coverage: bool = False) -> Collected:
     semaphore = asyncio.Semaphore(concurrency)
     failures = []
     plans = {}
@@ -217,9 +224,14 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
         await asyncio.gather(*(retrieve_one(s, strategy) for s in samples if s.id in plans
                                for strategy in strategies))
 
-    results = []
+    results, coverage_results = [], []
     if do_generation:
         model, judge = get_chat_model(), get_faith_judge()
+        texts, coverage_judge = {}, None
+        if coverage:
+            texts = await load_reference_texts({group[0] for s in samples if s.bucket in ANSWERABLE
+                                                for group in s.relevant})
+            coverage_judge = get_coverage_judge()
         today = date.today()
 
         async def generate(sample, strategy):
@@ -227,13 +239,19 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
                 try:
                     result = await generate_one(sample, plans[sample.id], strategy,
                                                 model=model, judge=judge, today=today)
-                    if result.retrieved and not result.refused and result.faithful is None:
-                        failures.append(f"{sample.id}/{strategy}：裁判失败")
-                    return result
                 except Exception as exc:
                     logger.exception("生成评估失败：%s/%s", sample.id, strategy)
                     failures.append(f"{sample.id}/{strategy}：{type(exc).__name__}")
                     return None
+                if result.retrieved and not result.refused and result.faithful is None:
+                    failures.append(f"{sample.id}/{strategy}：裁判失败")
+                if coverage_judge is not None and sample.bucket in ANSWERABLE:
+                    judged = await judge_coverage(sample, strategy, result.answer, result.refused,
+                                                  texts, coverage_judge)
+                    if judged.error:
+                        failures.append(f"{sample.id}/{strategy}：{judged.error}")
+                    coverage_results.append(judged)
+                return result
 
         generated = await asyncio.gather(*(generate(s, strategy) for s in samples if s.id in plans
                                           for strategy in gen_strategies))
@@ -247,7 +265,7 @@ async def collect(samples, *, strategies, gen_strategies, do_retrieval: bool,
                 failures.append(f"faith_cases：{type(exc).__name__}")
 
     return Collected(plans, scores, post_scores, rows, results, failures, rankings,
-                     len(fallback_samples))
+                     len(fallback_samples), coverage_results)
 
 
 async def run_eval(args: argparse.Namespace) -> int:
@@ -282,7 +300,8 @@ async def run_eval(args: argparse.Namespace) -> int:
             samples, strategies=STRATEGIES,
             gen_strategies=STRATEGIES if args.gen_strategies == "all" else ("hybrid_rerank",),
             do_retrieval=do_retrieval, do_generation=do_generation,
-            concurrency=args.concurrency, write_cases=not args.no_write,
+            concurrency=args.concurrency, write_cases=not args.no_write and not v2,
+            coverage=getattr(args, "coverage", False),
         )
         scores, post_scores, rows = got.scores, got.post_scores, got.rows
         results, failures = got.results, got.failures
@@ -299,6 +318,19 @@ async def run_eval(args: argparse.Namespace) -> int:
             }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(f"排序结果保存：{path}")
 
+        if getattr(args, "save_generation", None) and do_generation:
+            by_key = {(c.sample_id, c.strategy): c for c in got.coverage}
+            generation_rows = []
+            for r in sorted(results, key=lambda r: (r.strategy, r.sample_id)):
+                c = by_key.get((r.sample_id, r.strategy))
+                generation_rows.append({**asdict(r), "coverage": None if c is None else {
+                    "keys": c.keys, "covered": c.covered, "reasons": c.reasons, "error": c.error}})
+            path = Path(args.save_generation)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"results": generation_rows}, ensure_ascii=False, indent=2) + "\n",
+                            encoding="utf-8")
+            print(f"生成结果保存：{path}")
+
         # 并发完成顺序不影响报告中组名的顺序。
         scores.sort(key=lambda s: (STRATEGIES.index(s.strategy), s.sample_id))
         post_scores.sort(key=lambda s: s.sample_id)
@@ -310,7 +342,9 @@ async def run_eval(args: argparse.Namespace) -> int:
             sweep=threshold_sweep(rows) if do_retrieval else None, current_threshold=RERANK_MIN_SCORE,
             generation=results if do_generation else None, failures=failures,
         )
-        params = json.dumps({k: v for k, v in vars(args).items() if v2 or k != "eval_set"},
+        hidden = {"coverage", "save_generation"}
+        params = json.dumps({k: v for k, v in vars(args).items()
+                             if (v2 or k != "eval_set") and not (k in hidden and not v)},
                             ensure_ascii=False, sort_keys=True)
         title = "# RAG 评估报告（v2 题集）" if v2 else "# RAG 评估报告"
         data = f"评估集题数：{len(all_samples)}；本次题数：{len(samples)}\n\n"
@@ -321,6 +355,20 @@ async def run_eval(args: argparse.Namespace) -> int:
         report = f"{title}\n\n运行参数：`{params}`\n\n" + data + report
         if v2 and do_retrieval:
             report += "\n\n" + render_expectations(check_expectations(summarize(scores, "bucket")))
+        if do_generation and getattr(args, "coverage", False):
+            report += "\n\n" + render_coverage(got.coverage)
+            if v2:
+                gen = generation_summary(results)
+                # 分母为空时，预期表记数据不足。
+                for strategy, metrics in gen.items():
+                    answerable = [r for r in results if r.strategy == strategy and r.bucket in ANSWERABLE]
+                    if not any(r.retrieved and not r.refused and r.faithful is not None for r in answerable):
+                        metrics.pop("faithfulness")
+                    if not answerable:
+                        metrics.pop("false_refusal")
+                report += "\n\n" + render_expectations(
+                    check_generation_expectations(gen, coverage_summary(got.coverage)),
+                    title="冻结前写定的生成预期")
         print(report)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         prefix = "rag_eval_v2" if v2 else "rag_eval"
@@ -359,6 +407,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bucket", choices=tuple(BUCKET_SIZES))
     parser.add_argument("--no-write", action="store_true")
     parser.add_argument("--save-rankings", help="保存门槛前 Top-5 来源键和逐题标注")
+    # 未启用的新参数不改变旧报告。
+    parser.add_argument("--coverage", action="store_true", default=argparse.SUPPRESS,
+                        help="生成段加评事实覆盖率")
+    parser.add_argument("--save-generation", default=argparse.SUPPRESS,
+                        help="保存每题生成结果和覆盖判定（JSON）")
     return parser
 
 
