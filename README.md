@@ -13,7 +13,7 @@ A LangGraph customer-service agent that cites its sources, refuses when the evid
 
 **English** · [简体中文](README.zh-CN.md)
 
-| [▶ Watch the live replay](https://codelformat.github.io/Aftersales-agent/) | [✅ 1,115 backend tests on real MySQL + Milvus in CI](https://github.com/codelformat/Aftersales-agent/actions) | [🧭 Read the decision records](#decision-records) |
+| [▶ Watch the live replay](https://codelformat.github.io/Aftersales-agent/) | [✅ 1,478 backend tests on real MySQL + Milvus in CI](https://github.com/codelformat/Aftersales-agent/actions) | [🧭 Read the decision records](#decision-records) |
 |:---:|:---:|:---:|
 
 <img src="docs/media/hero.gif" width="100%" alt="Recorded session in the replay theater. A customer asks about X3 Pro battery life. The engineering view shows the graph nodes, the confidence gate passing with score 0.503 against threshold 0.39, and a reply that cites evidence [1]. Later turns resolve 'it' to the X3 Pro, route a return question, and recall the conversation.">
@@ -22,7 +22,7 @@ A LangGraph customer-service agent that cites its sources, refuses when the evid
 
 </div>
 
-**At a glance:** 10 chapters · 5 days (6–10 Oct 2026) · 240+ commits · ~23.5k lines of Python · ~6.2k lines of TypeScript · 3 green CI workflows · 7 recorded scenes on GitHub Pages.
+**At a glance:** 12 chapters · 6 days (6–11 Oct 2026) · 290+ commits · ~28k lines of Python · ~6.2k lines of TypeScript · 3 green CI workflows · 7 recorded scenes on GitHub Pages.
 
 ## Contents
 
@@ -84,29 +84,51 @@ flowchart LR
 
 ## Measured, not claimed
 
-All numbers come from the report files in [`evals/reports/`](evals/reports/). The evaluation set has 300 questions: 240 answerable (policies, model-specific, colloquial, multi-part) and 60 unanswerable.
+All numbers come from the report files in [`evals/reports/`](evals/reports/). They were measured on the current knowledge base: 302 chunks covering 40 product models (16 of them near-identical siblings such as `X5` and `X5 Pro`), the return, warranty, shipping and pre-order policies, and the FAQ. Both question sets below were frozen before any run, and the expected outcomes were written down first. Full analysis: [`ch12_comparison.md`](evals/reports/ch12_comparison.md) (in Chinese).
 
-| Retrieval strategy (240 answerable) | Recall@1 | Recall@5 | MRR | Faithfulness |
+**Main set (300 questions).** 240 answerable questions in 4 buckets (policies 40, model-specific 50, colloquial 50, multi-part 100) and 60 unanswerable ones. A multi-part question needs 2 or 3 sections. The set was frozen at [`da67f2b`](https://github.com/codelformat/Aftersales-agent/commit/da67f2b).
+
+| Retrieval strategy (240 answerable) | Recall@1 | Recall@5 | MRR | Recall@5, multi-part |
 |---|---:|---:|---:|---:|
-| Dense (bge-m3) | 0.844 | 0.985 | 0.969 | 0.933 |
-| BM25 | 0.747 | 0.962 | 0.909 | 0.930 |
-| Hybrid (RRF) | 0.834 | 0.988 | 0.967 | 0.926 |
-| **Hybrid + rerank (production)** | **0.861** | **0.992** | **0.987** | **0.964** |
+| Dense (bge-m3) | 0.654 | 0.882 | 0.894 | 0.717 |
+| BM25 | 0.656 | 0.917 | 0.915 | 0.802 |
+| Hybrid (RRF) | 0.688 | 0.915 | 0.937 | 0.797 |
+| **Hybrid + rerank (production)** | **0.711** | **0.933** | **0.962** | **0.840** |
 
-Source: [`rag_eval_20261009-193611.md`](evals/reports/rag_eval_20261009-193611.md). An LLM judge scores faithfulness. Two runs of the same code differed by about 4 points, so treat differences under that as noise.
+Source: [`v2_newkb.md`](evals/reports/ch12/v2_newkb.md). Recall counts each required section separately. Only one section can be at rank 1, so Recall@1 is low on multi-part questions by design. On the other three buckets, every strategy reaches Recall@5 1.000; multi-part questions are the weak spot. The reranker leads on all three metrics, but by little: Recall@5 +0.016 over BM25. Three of the six expectations held.
 
-**Hard set (240 questions, retrieval only).** A second set targets the weak spot of each single retriever: sibling models with near-identical sections (`X3` vs `X3 Pro`), colloquial questions that share no words with the answer, one key term buried in a long message, and model-specific rules that a general policy seems to cover. Code picks the target sections from the knowledge-base structure. An LLM writes the questions and labels every section that fully answers them. No step looks at retrieval results. The set was frozen ([`19e983d`](https://github.com/codelformat/Aftersales-agent/commit/19e983d)) before any retrieval ran, and six expected outcomes were written down first.
+| Answer quality (production retrieval) | Result |
+|---|---:|
+| Faithfulness (206 answered questions) | 0.893 |
+| False refusals on answerable questions | 0.134 (32 / 238) |
+| Wrong answers on unanswerable questions | 0 / 60 |
+| Fact coverage, all answerable questions | 0.773 |
+| Fact coverage, multi-part questions | 0.664 |
+| Fact coverage, answered questions only | 0.967 |
+
+Source: [`v2_newkb_generation.md`](evals/reports/ch12/v2_newkb_generation.md). An LLM judge scores faithfulness. A second judge measures fact coverage: for each required section, does the answer state its facts correctly? A refusal covers nothing. Before the full run, the coverage judge matched all 78 labelled groups in 30 test cases. Those cases did not include answers that cite more evidence than the reference facts; 145 of the 206 real answers do.
+
+What the numbers show:
+
+- **Answers that are given are almost complete** (0.967). The loss comes from refusals.
+- **The self-check is all-or-nothing.** On multi-part questions, 82 required sections were not covered. For 59 of them (72%), the evidence was in the top 5, but the self-check refused the whole question because another part was missing. 22 were retrieval misses, 1 was left out of the answer, and none was stated wrongly.
+- **The same rule gives 0 wrong answers on the 60 unanswerable questions** (95% upper bound about 0.05). A fix for partial answers must recheck this number. It is the first open item in [`docs/backlog/`](docs/backlog/2026-10-07-self-check-partial-answer.md).
+- **Faithfulness is close to noise.** A first run was voided (4 query-rewrite fallbacks, above the limit of 3); it gave 0.888. Earlier runs of the same code differed by about 4 points. Of the 22 answers judged unfaithful, Claude found 4 that contradict the evidence, 15 that add inferences, and 3 judge errors.
+
+Expectations for this run: faithfulness ≥ 0.90 (not met, 0.893); multi-part questions have the lowest coverage (met); false refusals ≤ 0.10 (not met, 0.134).
+
+**Hard set (240 questions, retrieval only).** This set targets the weak spot of each single retriever: sibling models with near-identical sections (`X3` vs `X3 Pro`), colloquial questions that share no words with the answer, one key term buried in a long message, and model-specific rules that a general policy seems to cover. Code picks the target sections from the knowledge-base structure. An LLM writes the questions and labels every section that fully answers them. No step looks at retrieval results. The set was frozen at [`19e983d`](https://github.com/codelformat/Aftersales-agent/commit/19e983d).
 
 | Retrieval strategy (240 hard) | Recall@1 | Recall@5 | MRR | Misses at rank 1 |
 |---|---:|---:|---:|---:|
-| Dense (bge-m3) | 0.975 | 1.000 | 0.987 | 6 |
-| BM25 | 0.904 | 0.988 | 0.940 | 23 |
-| Hybrid (RRF) | 0.975 | 0.996 | 0.983 | 6 |
-| **Hybrid + rerank (production)** | **0.992** | **1.000** | **0.996** | **2** |
+| Dense (bge-m3) | 0.954 | 1.000 | 0.975 | 11 |
+| BM25 | 0.892 | 0.975 | 0.929 | 26 |
+| Hybrid (RRF) | 0.958 | 1.000 | 0.976 | 10 |
+| **Hybrid + rerank (production)** | **0.979** | **1.000** | **0.989** | **5** |
 
-Source: [`rag_eval_20261011-022905.md`](evals/reports/rag_eval_20261011-022905.md). Four of the six expectations held: the reranker leads overall, and BM25 is lowest on colloquial questions (Recall@1 0.800). Two did not: on buried-term questions dense did not fall below BM25, and on model-specific rules RRF tied the reranker. Dense is already strong on this corpus, so the gap to it stays small (1.7 points of Recall@1). Faithfulness is missing because the upstream account ran out of balance during generation. Claude, not a person, did the 20-question spot-check: 19 clean, 1 over-labeled (H1_35). See the [manifest](evals/rag_eval_hard.manifest.json) and [spot-check](evals/rag_eval_hard.spotcheck.md).
+Source: [`hard_newkb.md`](evals/reports/ch12/hard_newkb.md). Five of the six expectations held: the reranker leads overall, and BM25 is lowest on colloquial questions (Recall@1 0.817). One did not: on buried-term questions, dense did not fall below BM25 (both 0.950). Claude, not a person, did the 20-question spot-check: 19 clean, 1 over-labeled (H1_35). See the [manifest](evals/rag_eval_hard.manifest.json) and [spot-check](evals/rag_eval_hard.spotcheck.md).
 
-**Confidence gate calibration** ([`gate_calibration_20261009-125757.md`](evals/reports/gate_calibration_20261009-125757.md)): a grid search with 5-fold cross-validation chose weights (0.2, 0.3, 0.5) for Top-1 score, share of useful evidence, and the gap between the top two scores. Against the old rule (Top-1 ≥ 0.20), the refusal rate on unanswerable questions rose from 0.450 to 0.583, while 95.4% of answerable questions still pass.
+**Confidence gate.** A grid search with 5-fold cross-validation chose the weights (0.2, 0.3, 0.5) for Top-1 score, share of useful evidence, and the gap between the top two scores ([`gate_calibration_20261009-125757.md`](evals/reports/gate_calibration_20261009-125757.md)). The calibration has not been rerun on the current knowledge base; this is an open item.
 
 ## Decision records
 
@@ -127,7 +149,7 @@ Each record states the problem, the options, the choice, and the evidence.
 - **Problem:** Customers write colloquial Chinese and model names in many forms (`x3pro`, `X3 Pro`).
 - **Options:** dense only; BM25 only; hybrid with RRF; hybrid with a reranker.
 - **Choice:** hybrid + reranker, with a lexicon that normalizes model names before search.
-- **Evidence:** RRF alone did not beat dense (Recall@1 0.834 vs 0.844). The reranker reached 0.861 and the best faithfulness (0.964). On the hard set, the reranker misses 2 of 240 questions at rank 1; dense and RRF miss 6 each, BM25 misses 23.
+- **Evidence:** on the main set, RRF alone did not beat BM25 on Recall@5 (0.915 vs 0.917). The reranker has the best Recall@1 (0.711), Recall@5 (0.933) and MRR (0.962), with a lead of 0.016–0.025 over the runner-up. On the hard set, the reranker misses 5 of 240 questions at rank 1; RRF misses 10, dense 11, BM25 26.
 </details>
 
 <details open>
@@ -136,7 +158,7 @@ Each record states the problem, the options, the choice, and the evidence.
 - **Problem:** A wrong answer costs more than a polite "I am not sure" in after-sales.
 - **Options:** let the agent decide; fixed Top-1 threshold; combined score fitted on data.
 - **Choice:** a three-signal score with weights from a grid search, checked with 5-fold cross-validation and an overfitting test.
-- **Evidence:** refusal on unanswerable questions 0.450 → 0.583 with ≥ 95% retention. The constants live in `app/config.py` and may change only with a new calibration report.
+- **Evidence:** the weights come from a calibration report, not from a guess. The constants live in `app/config.py` and may change only with a new calibration report. The report predates the current knowledge base, so a rerun is an open item.
 </details>
 
 <details>
@@ -184,18 +206,20 @@ Real incidents from the development notes (in Chinese, under [`dev-notes/`](dev-
 
 ## Engineering practices
 
-- **Real dependencies in CI.** GitHub Actions starts MySQL and Milvus and runs 1,115 backend tests. The web workflow runs 317 unit tests and 13 Playwright tests on the replay build.
+- **Real dependencies in CI.** GitHub Actions starts MySQL and Milvus and runs 1,478 backend tests. The web workflow runs 317 unit tests and 13 Playwright tests on the replay build.
 - **One event contract across languages.** A JSON Schema describes every SSE event. pytest checks the backend against it; Vitest checks the frontend.
 - **Retries with exponential backoff only**, through one shared helper. Write tools are never retried.
-- **Prompts have their own evaluation sets**: intent (60), multi-turn reference resolution (24 turns), query expansion (15), ticket drafting (12), summaries (10), and judge self-check (30).
+- **Prompts have their own evaluation sets**: intent (60), multi-turn reference resolution (24 turns), query expansion (15), ticket drafting (12), summaries (10), faithfulness judge (30), and fact-coverage judge (30 cases, 78 groups).
 - **Debug data is opt-in.** With `debug=false`, the event stream is identical to the version before the debug channel existed; tests enforce this.
-- **Known limitations are written down**: 8 open items with cause, decision and proposed fix in [`docs/backlog/`](docs/backlog/README.md).
+- **Known limitations are written down**: 9 open items with cause, decision and proposed fix in [`docs/backlog/`](docs/backlog/README.md).
 
 ## How it was built
 
-I built this project in 10 chapters over 5 days. My role was product owner, architect and reviewer. I set the goals, made the product and technology decisions, and approved or corrected every design. AI coding agents did the typing: **Claude Code** turned my decisions into specs and plans and reviewed every diff, and **Codex** wrote the code.
+I built this project in 12 chapters over 6 days. My role was product owner, architect and reviewer. I set the goals, made the product and technology decisions, and approved or corrected every design. AI coding agents did the typing: **Claude Code** turned my decisions into specs and plans and reviewed every diff, and **Codex** wrote the code.
 
 <img src="docs/media/timeline.svg" width="100%" alt="Timeline: chapters 1 to 3 on 6 October (streaming chat, function calling, knowledge base); 4 and 5 on 7 October (hybrid RAG and evaluation, LangGraph agent); 6 and 7 on 8 October (router and interrupts, context layers); 8 to 10 on 9 October (tools and MCP, tracing and flywheel, showcase and CI); README and portfolio on 10 October.">
+
+Chapters 11 and 12 (10–11 October) are not in the timeline image. They added the hard question set, the expanded knowledge base, the frozen 300-question set and the fact-coverage judge.
 
 Each chapter followed the same path: brainstorm → written spec → plan → plan review → test-first implementation → code review → pull request. The full trail is in the repository:
 
